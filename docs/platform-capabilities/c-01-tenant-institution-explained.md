@@ -26,7 +26,7 @@ It is the **root capability** of the platform. Every single piece of data — ev
 | **Client** | The organization that signs the contract and pays the bills |
 | **ClientLifecycle** | Where the client is in their journey: Prospect → Active → Suspended → Archived |
 | **Institution** | An actual school, college, or university that teachers and students use daily |
-| **InstitutionType** | The classification: School, College, University, Coaching Institute |
+| **InstitutionType** | Determines the default OrgUnit structure template applied when an institution is created. The client may modify this structure after setup to suit their needs. |
 | **InstitutionLifecycle** | Where the institution is: Onboarding → Active → Inactive → Archived |
 | **OrgUnit** | A structural unit within an institution: Department, Faculty, Grade, etc. |
 | **OrgUnitHierarchy** | How OrgUnits relate to each other (parent-child) |
@@ -269,12 +269,44 @@ C-01 owns only the **Client, Institution, and their organizational hierarchy**. 
 
 ---
 
-## 9. Key Takeaways
+## 9. What Does InstitutionType Actually Do?
+
+InstitutionType has **one purpose**: it determines the **default OrgUnit structure template** applied when an institution is created.
+
+| InstitutionType | Default OrgUnit Template | Example |
+|---|---|---| |
+| School | Grades → Classes → Sections | Grade 1 → Class 1A, 1B |
+| College | Programs → Batches | B.Sc. CS → Batch 2024 |
+| University | Faculties → Departments → Programs → Batches | Science → CS → B.Sc. → Batch 2024 |
+| Coaching Institute | Courses → Batches | JEE Prep → Batch A |
+
+### After Creation, the Client Owns the Structure
+
+Once the institution is created with its template, the client can:
+- **Add** new OrgUnits (e.g., a school adding a "Pre-Primary" section)
+- **Remove** OrgUnits that don't apply (e.g., removing "Hostel" if not applicable)
+- **Restructure** the hierarchy (e.g., renaming "Section" to "Division")
+- **Ignore** the template entirely and build from scratch
+
+### What InstitutionType Does NOT Do
+
+| It does NOT... | Why not... |
+|---|---|
+| Decide attendance mode (daily vs. subject-wise) | Attendance mode is a **module-level configuration** per institution or class |
+| Control fee rules | Fee structures are defined independently by each institution |
+| Affect authorization | Roles and permissions are not tied to institution type |
+| Drive any runtime module behavior | All modules operate identically regardless of institution type |
+
+**In short:** InstitutionType is a **setup-time convenience** — a starting template. It is not a runtime behavior driver.
+
+---
+
+## 10. Key Takeaways
 
 | # | Principle | Why It Matters |
 |---|---|---|
 | 1 | **One Client, Many Institutions** | A school chain signs ONE contract. Adding schools does not require a new account. |
-| 2 | **InstitutionType is Configurable** | Schools, Colleges, and Universities can coexist under the same client without code changes. |
+| 2 | **InstitutionType Drives OrgUnit Templates** | Each type provides a default OrgUnit structure (e.g., School → Grade/Class/Section, College → Program/Batch). Clients can modify this after creation. |
 | 3 | **Lifecycle Management** | Institutions move through Onboarding → Active → Archived. Never deleted. Audit integrity preserved. |
 | 4 | **Data Isolation is Automatic** | Institution A's data is invisible to Institution B — even within the same client — unless explicitly shared. |
 | 5 | **No Duplicate Ownership** | No module defines its own "school" or "client" entity. C-01 is the single source of truth. |

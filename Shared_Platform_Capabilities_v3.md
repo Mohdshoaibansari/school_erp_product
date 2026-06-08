@@ -100,7 +100,7 @@ Multi-tenant foundation. Every entity in the system belongs to a tenant context.
 | **Client** | A customer organization (school, trust, chain, group) |
 | **ClientLifecycle** | Prospective → Active → Suspended → Archived → Terminated |
 | **Institution** | An operational unit (school, college, university, institute) |
-| **InstitutionType** | Configurable classification (School, College, University, CoachingInstitute, etc.) |
+| **InstitutionType** | Determines the default OrgUnit structure template applied when an institution is created. Clients may modify the structure after creation. |
 | **InstitutionLifecycle** | Onboarding → Active → Inactive → Archived |
 | **OrgUnit** | Hierarchy node (Faculty, Department, Division, etc.) |
 | **OrgUnitHierarchy** | Parent-child relationships between OrgUnits |
@@ -120,8 +120,9 @@ Platform Owner
 1. Every Institution belongs to exactly one Client. No orphans.
 2. Clients may own 1..N Institutions. Multi-institution clients do not require tenant restructuring.
 3. InstitutionTypes are **configurable**, not hardcoded. New types may be added without code changes.
-4. OrgUnits are **configurable** per InstitutionType. School OrgUnits differ from University OrgUnits.
-5. Institutions cannot be deleted — only lifecycle-managed (Active → Archived). This preserves audit trail integrity.
+4. InstitutionType determines the **default OrgUnit structure template** applied at institution creation. The client may modify this structure to suit their needs after setup.
+5. InstitutionType does **not** drive runtime module behavior (e.g., attendance mode, fee rules). All modules operate identically regardless of institution type.
+6. Institutions cannot be deleted — only lifecycle-managed (Active → Archived). This preserves audit trail integrity.
 
 ### Startup Scope
 

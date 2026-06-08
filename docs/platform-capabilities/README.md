@@ -11,6 +11,7 @@
 |---|---|---|---|
 | `platform-capabilities-v3.md` | 3.0 | ✅ Current | Definitive reference — 25 capabilities, gap analysis, dependency map |
 | `c-01-tenant-institution-explained.md` | 1.0 | ✅ Current | Practical explanation of C-01 with real-world examples |
+| `c-08-configuration-framework-explained.md` | 1.0 | ✅ Current | Practical explanation of C-08 with real-world examples |
 | `README.md` | 1.0 | ✅ Current | This index |
 
 ---

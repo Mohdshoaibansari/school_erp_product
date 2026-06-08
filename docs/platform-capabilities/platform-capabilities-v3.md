@@ -196,7 +196,7 @@ This capability exclusively owns the following entities. No other module may dup
 | **Client** | A customer organization (school, trust, chain, group) | This capability |
 | **ClientLifecycle** | Prospective → Active → Suspended → Archived → Terminated | This capability |
 | **Institution** | An operational unit (school, college, university, institute) | This capability |
-| **InstitutionType** | Configurable classification (School, College, University, CoachingInstitute) | This capability |
+| **InstitutionType** | Determines the default OrgUnit structure template applied at institution creation. Clients may modify the structure after setup. | This capability |
 | **InstitutionLifecycle** | Onboarding → Active → Inactive → Archived | This capability |
 | **OrgUnit** | Hierarchy node (Faculty, Department, Division) | This capability |
 | **OrgUnitHierarchy** | Parent-child relationships between OrgUnits | This capability |
@@ -219,9 +219,10 @@ Platform Owner
 1. **Every Institution belongs to exactly one Client.** No orphan institutions.
 2. **Clients may own 1..N Institutions.** Multi-institution clients do not require tenant restructuring.
 3. **InstitutionTypes are configurable**, not hardcoded. New types may be added without code changes.
-4. **OrgUnits are configurable per InstitutionType.** School OrgUnits differ from University OrgUnits.
-5. **Institutions are lifecycle-managed** (Active → Archived), never deleted. This preserves audit trail integrity.
-6. **Institution ownership may only change** through an approved migration process.
+4. **InstitutionType determines the default OrgUnit structure template** applied when an institution is created. The client may modify this structure after setup to suit their needs.
+5. **InstitutionType does not drive runtime module behavior.** All modules (Attendance, Fees, Homework, etc.) operate identically regardless of institution type.
+6. **Institutions are lifecycle-managed** (Active → Archived), never deleted. This preserves audit trail integrity.
+7. **Institution ownership may only change** through an approved migration process.
 
 ### 5. Dependencies
 

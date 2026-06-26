@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String            @id @default(uuid())
+  name      String
+  slug      String            @unique
+  status    TenantStatus      @default(ACTIVE)
+  tierId    String?
+  tier      SubscriptionTier? @relation(fields: [tierId], references: [id])
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  deletedAt DateTime?
+
+  institutions Institution[]
+  users        User[]
+  Role         Role[]
+}
+
+model SubscriptionTier {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  studentCap  Int?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenants Tenant[]
+  modules ModuleEntitlement[]
+}
+
+model ModuleEntitlement {
+  id         String           @id @default(uuid())
+  tierId     String
+  tier       SubscriptionTier @relation(fields: [tierId], references: [id])
+  moduleCode String
+  enabled    Boolean          @default(true)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([tierId, moduleCode])
+  @@index([tierId])
+}
+
+model Institution {
+  id        String            @id @default(uuid())
+  tenantId  String
+  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+  name      String
+  type      InstitutionType   @default(SCHOOL)
+  status    InstitutionStatus @default(ONBOARDING)
+  address   String?
+  phone     String?
+  email     String?
+  website   String?
+  logo      String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  deletedAt DateTime?
+
+  users           UserInstitution[]
+  orgUnits        OrgUnit[]
+  roleAssignments RoleAssignment[]
+
+  @@index([tenantId])
+}
+
+model User {
+  id           String     @id @default(uuid())
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  email        String
+  passwordHash String?
+  status       UserStatus @default(INVITED)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+
+  institutions    UserInstitution[]
+  profile         UserProfile?
+  identifiers     UserIdentifier[]
+  roleAssignments RoleAssignment[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model UserInstitution {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  roleId        String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([userId, institutionId])
+  @@index([userId])
+  @@index([institutionId])
+}
+
+model OrgUnit {
+  id            String        @id @default(uuid())
+  institutionId String
+  institution   Institution   @relation(fields: [institutionId], references: [id])
+  parentId      String?
+  parent        OrgUnit?      @relation("OrgUnitHierarchy", fields: [parentId], references: [id])
+  children      OrgUnit[]     @relation("OrgUnitHierarchy")
+  name          String
+  type          OrgUnitType
+  status        OrgUnitStatus @default(ACTIVE)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+
+  @@index([institutionId])
+  @@index([parentId])
+}
+
+enum OrgUnitType {
+  DIVISION
+  DEPARTMENT
+  GRADE
+  CLASS
+  SECTION
+}
+
+enum OrgUnitStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+model UserProfile {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id])
+  firstName   String
+  lastName    String
+  phone       String?
+  avatar      String?
+  dateOfBirth DateTime?
+  gender      Gender?
+  address     String?
+  city        String?
+  state       String?
+  postalCode  String?
+  country     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+}
+
+model UserIdentifier {
+  id        String         @id @default(uuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id])
+  type      IdentifierType
+  value     String
+  isPrimary Boolean        @default(false)
+  verified  Boolean        @default(false)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([userId, type, value])
+  @@index([userId])
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum IdentifierType {
+  EMAIL
+  PHONE
+  STUDENT_ID
+  EMPLOYEE_ID
+  NATIONAL_ID
+  PASSPORT
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  name        String
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions RolePermission[]
+  assignments RoleAssignment[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  createdAt    DateTime   @default(now())
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model RoleAssignment {
+  id            String       @id @default(uuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id])
+  roleId        String
+  role          Role         @relation(fields: [roleId], references: [id])
+  institutionId String?
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+  scopeType     String?
+  scopeId       String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([userId, roleId, institutionId, scopeType, scopeId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([institutionId])
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum InstitutionStatus {
+  ONBOARDING
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum InstitutionType {
+  SCHOOL
+  COLLEGE
+  UNIVERSITY
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}

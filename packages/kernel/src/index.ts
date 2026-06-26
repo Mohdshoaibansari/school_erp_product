@@ -7,3 +7,6 @@ export * from './identity';
 export * from './auth';
 export * from './authorization';
 export * from './subscription';
+export * from './academic';
+export * from './config';
+export * from './calendar';

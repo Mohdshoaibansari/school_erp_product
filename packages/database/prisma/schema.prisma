@@ -68,6 +68,9 @@ model Institution {
   users           UserInstitution[]
   orgUnits        OrgUnit[]
   roleAssignments RoleAssignment[]
+  academicYears   AcademicYear[]
+  calendarEvents  CalendarEvent[]
+  Subject         Subject[]
 
   @@index([tenantId])
 }
@@ -245,6 +248,126 @@ model RoleAssignment {
   @@index([userId])
   @@index([roleId])
   @@index([institutionId])
+}
+
+model AcademicYear {
+  id            String             @id @default(uuid())
+  institutionId String
+  institution   Institution        @relation(fields: [institutionId], references: [id])
+  name          String
+  startDate     DateTime
+  endDate       DateTime
+  isCurrent     Boolean            @default(false)
+  status        AcademicYearStatus @default(UPCOMING)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  deletedAt     DateTime?
+
+  terms Term[]
+
+  @@index([institutionId])
+  @@index([institutionId, isCurrent])
+}
+
+enum AcademicYearStatus {
+  UPCOMING
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+model Term {
+  id             String       @id @default(uuid())
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+  name           String
+  startDate      DateTime
+  endDate        DateTime
+  isCurrent      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([academicYearId])
+  @@index([academicYearId, isCurrent])
+}
+
+model Subject {
+  id            String        @id @default(uuid())
+  institutionId String
+  institution   Institution   @relation(fields: [institutionId], references: [id])
+  name          String
+  code          String?
+  description   String?
+  status        SubjectStatus @default(ACTIVE)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+
+  @@unique([institutionId, code])
+  @@index([institutionId])
+}
+
+enum SubjectStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+model ConfigKey {
+  id          String          @id @default(uuid())
+  code        String          @unique
+  name        String
+  description String?
+  valueType   ConfigValueType
+  createdAt   DateTime        @default(now())
+
+  values ConfigValue[]
+}
+
+enum ConfigValueType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+}
+
+model ConfigValue {
+  id            String    @id @default(uuid())
+  configKeyId   String
+  configKey     ConfigKey @relation(fields: [configKeyId], references: [id])
+  tenantId      String?
+  institutionId String?
+  value         String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([configKeyId, tenantId, institutionId])
+  @@index([configKeyId])
+  @@index([tenantId])
+  @@index([institutionId])
+}
+
+model CalendarEvent {
+  id            String            @id @default(uuid())
+  institutionId String
+  institution   Institution       @relation(fields: [institutionId], references: [id])
+  date          DateTime
+  type          CalendarEventType
+  label         String?
+  description   String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@unique([institutionId, date, type])
+  @@index([institutionId])
+  @@index([institutionId, date])
+}
+
+enum CalendarEventType {
+  SCHOOL_DAY
+  HOLIDAY
+  EXAM_DAY
+  EVENT
 }
 
 enum TenantStatus {

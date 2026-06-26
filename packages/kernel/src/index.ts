@@ -10,3 +10,6 @@ export * from './subscription';
 export * from './academic';
 export * from './config';
 export * from './calendar';
+export * from './audit';
+export * from './notifications';
+export * from './communication';

@@ -566,6 +566,58 @@ model Document {
   @@index([entityType, entityId])
 }
 
+model OtpRecord {
+  id          String     @id @default(uuid())
+  tenantId    String
+  email       String
+  codeHash    String
+  purpose     OtpPurpose
+  expiresAt   DateTime
+  usedAt      DateTime?
+  attempts    Int        @default(0)
+  maxAttempts Int        @default(3)
+  createdAt   DateTime   @default(now())
+
+  @@index([tenantId])
+  @@index([email])
+  @@index([expiresAt])
+}
+
+enum OtpPurpose {
+  LOGIN
+  PASSWORD_RESET
+}
+
+model LoginAttempt {
+  id        String   @id @default(uuid())
+  tenantId  String
+  email     String
+  ipAddress String?
+  success   Boolean
+  lockedOut Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([email])
+  @@index([createdAt])
+  @@index([success])
+}
+
+model AccountLockout {
+  id         String    @id @default(uuid())
+  tenantId   String
+  userId     String
+  lockedAt   DateTime  @default(now())
+  expiresAt  DateTime
+  unlockedAt DateTime?
+  reason     String?
+  createdAt  DateTime  @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
 enum TenantStatus {
   ACTIVE
   SUSPENDED

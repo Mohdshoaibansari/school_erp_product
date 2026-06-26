@@ -21,4 +21,4 @@
 - [x] 3.1 Update login flow to check account lockout before authentication
 - [x] 3.2 Update login flow to record all attempts (success and failure)
 - [x] 3.3 Add rate limiting middleware for auth endpoints
-- [ ] 3.4 Write unit tests for OTP and rate limiting
+- [ ] 3.4 Write unit tests for OTP and rate limiting (deferred - will create separate spec)

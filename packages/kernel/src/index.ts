@@ -13,3 +13,4 @@ export * from './calendar';
 export * from './audit';
 export * from './notifications';
 export * from './communication';
+export * from './identifier';

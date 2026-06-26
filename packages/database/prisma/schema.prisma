@@ -469,6 +469,103 @@ model Message {
   @@index([createdAt])
 }
 
+model StudentGuardian {
+  id               String           @id @default(uuid())
+  tenantId         String
+  studentId        String
+  guardianId       String
+  relationshipType RelationshipType
+  contactRole      ContactRole      @default(EMERGENCY_CONTACT)
+  isPrimary        Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([studentId, guardianId])
+  @@index([tenantId])
+  @@index([studentId])
+  @@index([guardianId])
+}
+
+enum RelationshipType {
+  MOTHER
+  FATHER
+  GUARDIAN
+  GRANDMOTHER
+  GRANDFATHER
+  AUNT
+  UNCLE
+  SIBLING
+  OTHER
+}
+
+enum ContactRole {
+  PRIMARY_GUARDIAN
+  EMERGENCY_CONTACT
+  PICKUP_AUTHORIZED
+  FINANCIAL_RESPONSIBLE
+  OTHER
+}
+
+model IdentifierSequence {
+  id              String   @id @default(uuid())
+  tenantId        String
+  institutionId   String
+  pattern         String
+  year            Int
+  currentSequence Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([institutionId, pattern, year])
+  @@index([tenantId])
+  @@index([institutionId])
+}
+
+model Address {
+  id         String      @id @default(uuid())
+  tenantId   String
+  entityType String
+  entityId   String
+  type       AddressType @default(HOME)
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  postalCode String
+  country    String      @default("IN")
+  isPrimary  Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([tenantId])
+  @@index([entityType, entityId])
+}
+
+enum AddressType {
+  HOME
+  WORK
+  BILLING
+  SHIPPING
+  OTHER
+}
+
+model Document {
+  id         String   @id @default(uuid())
+  tenantId   String
+  entityType String
+  entityId   String
+  name       String
+  type       String?
+  mimeType   String?
+  size       Int
+  path       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([entityType, entityId])
+}
+
 enum TenantStatus {
   ACTIVE
   SUSPENDED

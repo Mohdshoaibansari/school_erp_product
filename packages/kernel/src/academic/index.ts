@@ -1,1 +1,0 @@
-export * from './academic.service';

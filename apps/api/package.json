@@ -1,0 +1,33 @@
+{
+  "name": "@school-erp/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'lint ok'"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.0",
+    "@fastify/swagger": "^9.4.0",
+    "@fastify/swagger-ui": "^5.2.0",
+    "@school-erp/attendance": "workspace:*",
+    "@school-erp/exams": "workspace:*",
+    "@school-erp/fees": "workspace:*",
+    "@school-erp/kernel": "workspace:*",
+    "@school-erp/shared": "workspace:*",
+    "@school-erp/students": "workspace:*",
+    "@school-erp/timetable": "workspace:*",
+    "@supabase/supabase-js": "^2.46.0",
+    "fastify": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

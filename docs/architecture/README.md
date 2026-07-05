@@ -10,6 +10,7 @@
 | File | Version | Status | Description |
 |---|---|---|---|
 | `architecture-v1.md` | 1.0 | ✅ Final | Core architecture: tenant model, data isolation, modular monolith, platform principles |
+| `adr-c01-tenant-institution-implementation.md` | 1.0 | ✅ Final | ADR: 12 implementation decisions for C-01 (isolation, IDs, slug, schemas, lifecycles, OrgUnit↔C-05 boundary, permissions, ownership transfer) |
 
 ## Upcoming Documents
 

@@ -115,6 +115,8 @@ Based on the current state:
 | 🥈 | `architecture/technology-decisions.md` | Architecture | Stack decisions |
 | 🥉 | `requirements/modules/attendance-module.md` | Requirements | Detailed Attendance spec |
 
+> **Decisional input available:** The 12 implementation decisions for C-01 are now recorded in [`adr-c01-tenant-institution-implementation.md`](architecture/adr-c01-tenant-institution-implementation.md). The 🥇 `tenant-management-spec.md`, 🥇 `api-contracts/`, and 🥈 `database-schema.md` for C-01 should be authored against that ADR.
+
 ---
 
 > **Maintainer:** Platform Architecture Team  

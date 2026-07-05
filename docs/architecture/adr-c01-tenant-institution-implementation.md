@@ -528,7 +528,27 @@ Under what conditions would this ADR be revisited?
 - **D6 (hierarchy):** If school structures grow deep or subtree queries become hot, revisit adjacency-list vs closure-table (the repository contract makes this an implementation swap).
 - **D8 (Client lifecycle):** If a regulatory requirement forces "terminated client's historical data must remain queryable under the original client," revisit D12's watermark alternative for the terminated case.
 - **D12 (ownership transfer):** If a client legally demands historical operational data stay with the seller on transfer, revisit the watermark alternative (currently rejected).
+- **Temporal/client_id history (Q10):** Do NOT pre-build row-history tracking (temporal tables / per-row client_id history) now. The full-transfer model (D12) + immutable C-11 audit log already cover provenance. Revisit only if a concrete near-term requirement for per-row ownership history emerges — that would be a D12 redesign, not a toggle. No temporal/history tables are built in Phase 1.
 - **General:** Each decision is independently reversible without rewriting the others — the decision set is cohesive but not tightly coupled.
+
+---
+
+## 8. Spec-Resolution Decisions (Q1–Q10)
+
+The following 10 implementation questions were surfaced during spec-impact analysis and resolved to fully unblock the C-01 technical spec, API contracts, and database schema. They are decisional input to those artifacts, recorded here so the ADR is the single complete input fed to sdd-stack.
+
+| # | Question | Resolution |
+|---|---|---|
+| Q1 | RLS on the `client` table itself (it defines the tenant — no `client_id` column) | **Self-visible.** A Client Director can read their own client row. RLS policy: `id = current_client_id`. |
+| Q2 | Storage of "configurable" enums (`legal_entity_type`, OrgUnit `type`, InstitutionType name) | **Lookup tables** (id + name, FK-referenced). Adding a new type = a data insert, no code/deploy. Honors D7's "configurable, not hardcoded" rule. |
+| Q3 | Approval record storage for lifecycle transitions | **Separate `Approval` table** — one row per approval: `requested_by`, `approved_by`, `status`, `timestamps`. Supports pending-approval state and the request→approve flow in D8/D9. |
+| Q4 | Async events on lifecycle changes / ownership transfer | **C-11 audit only** (synchronous, internal). No message broker for C-01. Consumers wire in directly or poll. Async events deferred until a cross-capability event bus requirement materializes. |
+| Q5 | API base URL shape — subdomain-resolved vs client-in-path | **Subdomain-resolved.** `POST /api/v1/institutions` with client implicit from subdomain (per D3). Supersedes the c-01-explained illustrative example (`POST /api/clients/{slug}/institutions`). The explainer doc must get a "superseded" note pointing to the API contracts doc. Platform-Owner-only endpoints live under a platform-scoped base. |
+| Q6 | OrgUnit cycle-prevention enforcement location | **App-side** (the repository checks before update). DB schema must NOT add a duplicating trigger. Matches the repository-first principle (D1). |
+| Q7 | OrgUnit move audit storage | **C-11 only** — generic audit event `action="org_unit_moved"`, `payload={from_parent, to_parent, moved_by, ...}`. No dedicated `org_unit_move_event` table. |
+| Q8 | Lifecycle-event history table partitioning in Phase 1 | **Defer.** Phase 1 = no partitioning. Revisit when volume matters (monthly partitioning on `entered_at` is the candidate). |
+| Q9 | Slug-collision "suggestions" behavior | **Return "taken" with no suggestions.** No auto-suffix, no near-match algorithm. Caller must propose a new slug. |
+| Q10 | Pre-build temporal/client_id row-history tracking | **Do not pre-build.** Revisit-only (see §7 above). Full-transfer (D12) + immutable C-11 audit covers provenance. |
 
 ---
 

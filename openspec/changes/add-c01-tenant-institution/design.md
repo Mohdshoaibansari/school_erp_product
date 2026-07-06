@@ -4,6 +4,8 @@ C-01 (Tenant & Institution Management) is the zero-dependency root capability of
 
 The decisional source of truth for this design is `docs/architecture/adr-c01-tenant-institution-implementation.md` (ADR, Final v1.0), which records 12 locked implementation decisions (D1–D12) with rationale and alternatives-rejected tables, plus 10 spec-resolution decisions (Q1–Q10), §5 constraints, and §7 future-evolution. This design transcribes and structures those decisions (citing decision IDs); it does **not** re-derive them — the ADR *is* the tradeoff analysis.
 
+Two additional platform ADRs were locked after the C-01 ADR and are decisional input to this design's architectural frame (the §"Platform Architecture & Module Integration" section): `docs/architecture/adr-platform-software-architecture.md` (decisions A1–A11 — modular monolith, tier law, module manifest, hybrid service access, monorepo layout, single Alembic env, frontend direction) and `docs/architecture/adr-platform-tech-stack.md` (the locked stack: Postgres+Supabase, Python+FastAPI, SQLAlchemy 2.0+Alembic, Supabase Auth JWT, Casbin RBAC+ABAC, pytest). Where this design previously flagged the stack as "TBD," the tech-stack ADR has now resolved it — those items are updated accordingly.
+
 A working proof-of-concept (Supabase AuthN + Casbin AuthZ + Postgres RLS, multi-tenant, with attendance/grades modules and 12/12 Playwright isolation tests) de-risks the hardest integration wiring (ADR §1). Migration-readiness is a hard constraint (architecture-v1 §12, §19 rule 6): the platform must later be able to move from shared-tables → separate-schema → separate-database without rewriting business logic.
 
 Stakeholders: Platform Owner (SaaS provider), Client Director (client's top admin), Institution Admin / Principal, and cross-institution oversight roles (Regional Manager, Group Academic Head, Finance Controller) — see the D11 permission matrix.
@@ -12,6 +14,8 @@ Stakeholders: Platform Owner (SaaS provider), Client Director (client's top admi
 - Proposal: `openspec/changes/add-c01-tenant-institution/proposal.md`
 - Spec: `openspec/changes/add-c01-tenant-institution/specs/tenant-institution/spec.md`
 - ADR: `docs/architecture/adr-c01-tenant-institution-implementation.md`
+- Platform software-architecture ADR: `docs/architecture/adr-platform-software-architecture.md`
+- Platform tech-stack ADR: `docs/architecture/adr-platform-tech-stack.md`
 - PRD: `docs/prd/c-01-tenant-institution.md`
 - Impact classification: `docs/prd/c-01-impact-classification.md`
 - Architecture: `docs/architecture/architecture-v1.md` §3/§5.3/§12/§19
@@ -28,10 +32,101 @@ Stakeholders: Platform Owner (SaaS provider), Client Director (client's top admi
 
 **Non-Goals:**
 - Re-deriving the tradeoff analysis (the ADR owns that; this design cites it).
-- Pinning a tech stack — none is chosen yet (no package.json, no code exists). Stack-dependent details are flagged "stack TBD — confirm before implementation" and surfaced in `tasks.md`.
+- Re-deriving the platform architecture or tech stack. The platform software-architecture (A1–A11) and tech-stack ADRs are the decisional source for the architectural frame; this design cites them — it does not re-derive them.
 - Modifying any other capability's spec. Cross-capability items are boundary declarations only.
 - Designing C-02/C-03/C-04/C-05/C-07/C-08/C-11/C-12/C-13/C-23 internals. Each owns its own schema/behavior in a future change.
 - Phase-1-deferred items: temporal/per-row `client_id` history (Q10, ADR §7); lifecycle-event table partitioning (Q8); async event bus (Q4); UUID v7 (D2 revisit); watermark ownership transfer (D12 alternative).
+
+## Platform Architecture & Module Integration
+
+This section records the platform-level architectural frame that C-01's apply phase must build within. It is decisional input from two platform ADRs locked after the C-01 ADR: `docs/architecture/adr-platform-software-architecture.md` (decisions A1–A11) and `docs/architecture/adr-platform-tech-stack.md` (the locked stack). The C-01 ADR's decisions (D1–D12, Q1–Q10) remain authoritative for C-01's behavior; this section wraps them in the platform structure — it does not override them.
+
+### C-01 is a kernel-tier module (A2)
+
+Per A2, C-01 (Tenant & Institution Management) is a **kernel-tier** module — a foundational capability everything transitively depends on, alongside C-02 (users), C-03 (auth), C-04 (authz), C-08 (config), and C-11 (audit). Its code lives under `/backend/kernel/` as an in-process Python package (A1 — modular monolith, one deployable FastAPI app, one Postgres; not a separate service). The concrete package name chosen for this design is `kernel/tenant_institution/` (flagged as a naming choice in the open questions — `kernel/c01_tenant_institution/` is a viable alternative if a capability-prefixed convention is preferred).
+
+C-01 is **the first kernel module** and its apply phase bootstraps the entire project structure: the monorepo layout (A10), the FastAPI app factory + module manifest skeleton (A5), the single Alembic environment (A7), and the pytest + Supabase-CLI test harness. Later kernel/shared/business modules plug into the structure C-01 establishes.
+
+### Module manifest + app factory (A5)
+
+Per A5, module composition is via a **manifest + app factory** — not auto-discovery. Each module is a Python package exposing a manifest object with hooks. C-01's manifest exposes:
+
+- `register_routes(app)` — mounts C-01's FastAPI routers: the subdomain-resolved client-portal router (Institution/OrgUnit endpoints, Q5, AC-12) and the platform-scoped router (Client lifecycle, InstitutionType management, ownership-transfer approval — Platform-Owner-only per D11).
+- `register_casbin_policies(enforcer)` — registers the D11 permission-matrix policies (Casbin encoding is C-04's framework, but C-01 supplies the matrix content and registers its own policies).
+- `on_startup()` / `on_shutdown()` — lifecycle hooks (e.g., seeding InstitutionType lookup data if configured).
+- `register_cli(cli)` — C-01 CLI commands (e.g., seed, tenant provisioning helpers).
+
+The kernel app factory (`/backend/kernel/app_factory.py`) reads a configured module list (explicit Python list, NOT entry-point auto-discovery) and invokes the hooks in **dependency order**: kernel tier first, then shared, then business (A2/A3). C-01, as the zero-dependency root, is composition-order position 0.
+
+### Hybrid service access (A6)
+
+Per A6, kernel-service consumption is **hybrid** — request-scoped values via FastAPI `Depends` sourcing a contextvar, and module-scoped singletons via constructor injection wired by the manifest.
+
+**Request-scoped (TenantContext, current user, per-request AuditEmitter):** subdomain + JWT middleware (the subdomain→Client resolver per D3/Q5, the Supabase JWT validator per the tech-stack ADR) parses the request and populates a contextvar as the single source of truth. Endpoints read `TenantContext` via `Depends(get_tenant_context)`, which reads the contextvar. The dependency is explicit in the handler signature (testable, visible, overrideable in tests) and cannot leak across requests.
+
+**Invariant: endpoints access `TenantContext` ONLY via `Depends(get_tenant_context)`, NEVER by reading the contextvar directly.** This is the multi-tenant safety invariant (A6 §5 constraint 5; the mechanism behind D1's repository contract — the repository obtains `client_id` from the TenantContext surfaced by the dependency).
+
+**Module-scoped singletons (repos, Casbin enforcer, configured clients):** constructor injection, wired by the manifest at startup. C-01's tenant-aware repositories (D1) are constructed with their dependencies (session factory, Casbin enforcer) and registered as singletons; endpoints receive them via `Depends`.
+
+### Monorepo layout (A10)
+
+Per A10, the repository is a monorepo:
+
+```
+/                  repo root
+  /backend         Python (uv) — FastAPI app + kernel/shared/business modules + Alembic
+  /frontend        Vite + React SPA (pnpm) — deferred (C-01 is API-first)
+  /packages        shared TypeScript (generated API types; future RN-sharing seam)
+```
+
+C-01's apply produces the `/backend` scaffolding (`kernel/`, `app_factory.py`, `migrations/`, `pyproject.toml`, `alembic.ini`). `/frontend` is established as a placeholder directory (the monorepo root structure is set now even though C-01 ships no UI — A8/A9 are web-first but C-01's scope is API-first). `/packages` is a placeholder for future shared TypeScript (the OpenAPI→TypeScript types seam per A11).
+
+### Single Alembic environment, module-prefixed migration files (A7)
+
+Per A7, there is **one Alembic environment** at `/backend/` with a single linear migration history. C-01's migration files are prefixed `NNN_c01_*` (e.g., `001_c01_create_clients.py`, `002_c01_institutions.py`, `003_c01_institution_types.py`, …). One `alembic upgrade head` brings the whole database current across all modules; cross-module foreign keys (e.g., a future C-05→C-01 OrgUnit FK) are handled by migration ordering within the single history. Modules do NOT run their own migration environments.
+
+Per the tech-stack ADR, **RLS policies are written as raw SQL inside the same Alembic migrations** — `CREATE POLICY` statements are emitted in the migration files alongside the `CREATE TABLE` statements, keeping schema + RLS versioned together. C-01's RLS policies (D1 client_id enforcement, Q1 self-visible Client) live in `001_c01_*` (or a dedicated `NNN_c01_rls_policies.py`). Alembic owns all schema migrations; the Supabase CLI migration system is NOT used for schema (tech-stack ADR §3).
+
+### import-linter enforcement of the dependency law (A3/A4)
+
+Per A3, the dependency law is: `kernel → ∅` (kernel depends on nothing in-app); `shared → kernel` (acyclic); `business → kernel + shared + other business` (acyclic, public interfaces only). Never: kernel→shared, kernel→business, shared→business. Per A4, cross-module calls go to a module's **published service interface** only (never internal repo/model imports), synchronously, acyclic, enforced by **`import-linter`**. No event bus for synchronous needs (consistent with Q4).
+
+C-01's apply adds the `.importlinter` configuration enforcing A3/A4 and the kernel-tier contract: C-01 (kernel) imports nothing from shared or business; C-01 exposes a `services/` package (published interfaces) while its `repos/`, `models/`, and internal helpers are not importable across modules. The config is added from day one — without enforcement, the dependency law is aspirational (platform software-architecture ADR §3).
+
+### Request flow (platform-level view)
+
+This request-flow sketch (adapted from the platform software-architecture ADR §4 Model) sits *above* the D1 three-layer defense-in-depth flow recorded later in this design — the two are complementary (platform composition feeds into the C-01-specific isolation layers).
+
+```
+HTTPS  Host: <client-slug>.app.example.com
+   │
+   ▼
+FastAPI app (kernel app factory composed all module manifests, hook order kernel→shared→business)
+   │
+  1. Subdomain+JWT middleware  resolve Client (D3/Q5) → validate Supabase JWT → set contextvar
+   2. Endpoint handler
+        def handler(tenant: TenantContext = Depends(get_tenant_context),
+                    audit: AuditEmitter = Depends(get_audit),
+                    repo: TenantInstitutionRepo = Depends(get_tenant_institution_repo)): ...
+           │
+           ├─ Depends reads contextvar (explicit, testable, no leak; A6)
+           ├─ Casbin enforcer check (role, action, resource, tenant)  [D11, registered via manifest hook]
+           └─ repo (singleton, manifest-wired) → tenant-aware query → DTO (not ORM object)
+   3. SQL w/ SET LOCAL client_id GUC → Postgres RLS backstop (D1)
+```
+
+### Cross-references
+
+- C-01 ADR decisions D1–D12, Q1–Q10: the behavioral/contractual source of truth (unchanged).
+- Platform software-architecture ADR decisions A1–A11: the structural frame (this section).
+- Platform tech-stack ADR: the locked stack (Postgres+Supabase, Python+FastAPI, SQLAlchemy 2.0+Alembic, Supabase Auth JWT, Casbin, pytest).
+- A1 (modular monolith) ⟶ D1 (shared-schema + RLS) — the one-Postgres model.
+- A2 (kernel tier) ⟶ C-01's zero-dependency property (ADR §1) — C-01 is the root kernel module.
+- A3/A4 (dependency law + published interfaces) ⟶ D10 (no FK from C-01 to C-05) — the dependency law enforces what D10 models behaviorally.
+- A5 (manifest) ⟶ D11 (permission matrix registered via `register_casbin_policies`) + Q5 (routes registered via `register_routes`).
+- A6 (hybrid Depends + contextvar) ⟶ D1 (repo obtains client_id from TenantContext via `Depends(get_tenant_context)`).
+- A7 (single Alembic env, module-prefixed) ⟶ D1/D6 (RLS + recursive CTE in Alembic migrations) + tech-stack ADR (RLS as raw SQL).
+- A10/A8/A9 (monorepo + web-first) ⟶ C-01 is API-first; frontend deferred.
 
 ## Decisions
 
@@ -312,7 +407,8 @@ Stakeholders: Platform Owner (SaaS provider), Client Director (client's top admi
 - **[R4b] Explainer doc drift** — `c-01-tenant-institution-explained.md` shows an illustrative `POST /api/clients/{slug}/institutions` API example superseded by Q5's subdomain-resolved form. Readers following the explainer will be misled. → Mitigation: flag in Open Questions (OQ-4); the parent should schedule a small follow-up doc update adding a "Superseded by" note. This change does not edit the explainer. (PRD R4b)
 - **[R5] Two isolation layers to build and maintain from day one** (repositories + RLS) — more upfront setup than app-level-only. → Mitigation: accepted in ADR §3; the layered model preserves §12 migration-readiness and is the foundation for future separate-schema/DB moves. (PRD R5)
 - **[R6] JSONB template validation has no DB-level enforcement** (D7) — invalid/acyclic violations of `default_org_unit_template` are app-side only. → Mitigation: application-side validation + test coverage of template materialization (D7). (PRD R6)
-- **[Trade-off] Stack not yet chosen** — no package.json, no code exists; the layered model (repo + RLS + Casbin) presumes a Postgres-backed deployment. If a non-Postgres backend is later chosen, RLS (D1) and recursive CTE (D6) must be reconsidered. Flagged in `tasks.md` as a stack-dependent open question.
+- **[R7] Module-boundary discipline must be enforced from day one** (A3/A4) — `import-linter` must be configured or the kernel→∅ / no-shared→business / no-internal-cross-module dependency law is aspirational. C-01 is the first kernel module and establishes the contract; later kernel modules (C-02, C-03, C-04, C-08, C-11) and shared/business modules build on it. If the contract is not enforced from the first commit, early violations calcify. → Mitigation: C-01's apply adds the `.importlinter` config + a sample contract test (A3, A4). (platform software-architecture ADR §3)
+- **[Trade-off — RESOLVED] Stack now locked.** The platform tech-stack ADR locks Postgres+Supabase, Python+FastAPI, SQLAlchemy 2.0+Alembic, Supabase Auth JWT, Casbin, pytest. The layered model (repo + RLS + Casbin) is no longer presumptive — it is the locked stack. The platform software-architecture ADR (A1–A11) locks the modular-monolith + module-manifest + monorepo structure. The pre-existing "stack TBD" flags (OQ-1, the Non-Goal "Pinning a tech stack", and the tasks.md stack-confirmation gate) are superseded — see the architectural-frame section and the updated scaffold tasks.
 
 ## Migration Plan
 
@@ -324,7 +420,7 @@ This is a greenfield capability (no baseline spec to migrate from), so there is 
 
 ## Open Questions
 
-- **OQ-1 — Tech stack choice.** No package.json, no code exists. The design presumes a Postgres-backed deployment (RLS, recursive CTE per D6) and the Supabase/Casbin stack validated in the POC. The parent must confirm the stack before apply. `tasks.md` flags stack-dependent steps as "stack TBD — confirm before implementation." (PRD §7; surfaced as a C-01 task open question.)
+- **OQ-1 — Tech stack choice (RESOLVED).** The platform tech-stack ADR locks Postgres+Supabase, Python+FastAPI, SQLAlchemy 2.0+Alembic, Supabase Auth JWT, Casbin, pytest; the platform software-architecture ADR locks the modular-monolith + module-manifest + monorepo structure (A1–A11). The pre-existing "stack TBD" flags in `tasks.md` (task 1.1/1.2) are superseded by concrete scaffold tasks (see the updated task 1). No longer an open question.
 - **OQ-2 — `c-01-explained` supersede note.** Per PRD OQ-4 and Q5, the explainer's `POST /api/clients/{slug}/institutions` example is superseded by the subdomain-resolved `POST /api/v1/institutions` form. The parent should schedule a small follow-up docs/ edit adding a "Superseded by API contracts doc" note to `docs/platform-capabilities/c-01-tenant-institution-explained.md`. This change does not edit `docs/` (per AGENTS.md).
 - **OQ-3 — OpenSpec-git-discipline skill.** The local `openspec-git-discipline` skill enforces proposal-commit-before-apply and merge-before-archive discipline. Per task constraints, the worker does not run git commits; the parent handles the proposal commit before the apply phase. Confirm the parent will run `openspec-git-discipline` (or commit the planning artifacts) before `/opsx-apply`.
 - **OQ-4 — Deferred ADR items (no action now).** Q4 (async event bus), Q8 (lifecycle-event partitioning), Q10 (temporal/`client_id` row-history), D2 UUID v7 revisit, D12 watermark alternative. All deferred per ADR §7; revisited only if a concrete requirement emerges.

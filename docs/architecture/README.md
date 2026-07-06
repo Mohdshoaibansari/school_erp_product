@@ -11,6 +11,7 @@
 |---|---|---|---|
 | `architecture-v1.md` | 1.0 | ✅ Final | Core architecture: tenant model, data isolation, modular monolith, platform principles |
 | `adr-platform-tech-stack.md` | 1.0 | ✅ Final | ADR: platform-wide tech stack (Postgres/Supabase, Python/FastAPI, SQLAlchemy 2.0 + Alembic, Supabase Auth, Casbin, pytest). Unblocks C-01 apply. |
+| `adr-platform-software-architecture.md` | 1.0 | ✅ Final | ADR: modular monolith (kernel/shared/business tiers, dependency law, module-manifest composition, hybrid Depends+contextvar integration, single Alembic env) + frontend direction (Vite+React SPA web-first, native-later, monorepo, TanStack Query+Zustand). |
 | `adr-c01-tenant-institution-implementation.md` | 1.0 | ✅ Final | ADR: 12 implementation decisions for C-01 (isolation, IDs, slug, schemas, lifecycles, OrgUnit↔C-05 boundary, permissions, ownership transfer) |
 
 ## Upcoming Documents

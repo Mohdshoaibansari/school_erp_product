@@ -1,0 +1,47 @@
+[project]
+name = "school-erp-backend"
+version = "0.1.0"
+description = "School ERP platform backend — modular monolith (FastAPI + SQLAlchemy + Alembic + Supabase)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "alembic>=1.18.5",
+    "asyncpg>=0.31.0",
+    "casbin>=1.43.0",
+    "fastapi>=0.139.0",
+    "httpx>=0.28.1",
+    "psycopg2-binary>=2.9.12",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.2",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "python-jose>=3.5.0",
+    "sqlalchemy>=2.0",
+    "uvicorn[standard]>=0.50.0",
+]
+
+[dependency-groups]
+dev = [
+    "import-linter>=2.13",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.importlinter]
+include_external_packages = true
+root_packages = [
+    "kernel",
+]
+
+[[tool.importlinter.contracts]]
+name = "Kernel has no in-app dependencies (A3)"
+type = "forbidden"
+source_modules = ["kernel"]
+forbidden_modules = ["shared", "modules"]
+
+[[tool.importlinter.contracts]]
+name = "Dependency graph is acyclic (A4)"
+type = "layers"
+layers = ["kernel"]

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from kernel.tenant_context import TenantContext
 from kernel.tenant_institution.models import Institution, InstitutionType, OrgUnit, OrgUnitType
 from kernel.tenant_institution.repos.base import TenantAwareRepositoryBase
+from kernel.tenant_institution.services.audit import AuditEmitter, DefaultAuditEmitter
 from kernel.tenant_institution.services.dtos import (
     InstitutionCreateDTO,
     InstitutionDTO,
@@ -25,8 +26,9 @@ class InstitutionRepository(TenantAwareRepositoryBase[Institution]):
     cross-institution roles (D11 — 6.2).
     """
 
-    def __init__(self) -> None:
+    def __init__(self, audit_emitter: AuditEmitter | None = None) -> None:
         super().__init__(Institution)
+        self._audit = audit_emitter or DefaultAuditEmitter()
 
     def _to_dto(self, obj: Institution) -> InstitutionDTO:
         return InstitutionDTO.model_validate(obj)
@@ -241,5 +243,22 @@ class InstitutionRepository(TenantAwareRepositoryBase[Institution]):
         )
         session.add(event)
         session.flush()
+
+        # 13.2: synchronous C-11 audit emission for Institution lifecycle
+        # transitions (ClientId + InstitutionId tagged, AC-6).
+        self._audit.emit(
+            action="institution_lifecycle_transition",
+            client_id=obj.client_id,
+            institution_id=obj.id,
+            actor=actor,
+            payload={
+                "client_id": str(obj.client_id),
+                "institution_id": str(obj.id),
+                "from_state": old_state,
+                "to_state": new_state,
+                "reason": reason,
+                "actor": actor,
+            },
+        )
 
         return self._to_dto(obj)

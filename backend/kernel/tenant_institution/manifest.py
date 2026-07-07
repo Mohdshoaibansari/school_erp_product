@@ -34,8 +34,11 @@ class TenantInstitutionManifest(ManifestBase):
         app.include_router(client_portal_router)
 
     def register_casbin_policies(self, enforcer) -> None:
-        # Sub-phase D (section 12): D11 tiered-delegation matrix as Casbin policies.
-        pass
+        # 12.1 (section 12): register the D11 tiered-delegation matrix as Casbin
+        # RBAC+ABAC policies on the given enforcer (A5; C-04 owns the framework,
+        # C-01 supplies the matrix content + registers its own policies).
+        from kernel.tenant_institution.policies import register_policies
+        register_policies(enforcer)
 
     def on_startup(self) -> None:
         # Future: seed InstitutionType lookup data if configured.

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from kernel.tenant_context import TenantContext
 from kernel.tenant_institution.models import Client
 from kernel.tenant_institution.repos.base import TenantAwareRepositoryBase
+from kernel.tenant_institution.services.audit import AuditEmitter, DefaultAuditEmitter
 from kernel.tenant_institution.services.dtos import (
     ClientCreateDTO,
     ClientDTO,
@@ -50,8 +51,9 @@ class ClientRepository(TenantAwareRepositoryBase[Client]):
     RLS is self-visible: ``id = current_client_id`` (Q1). Platform Owners see all.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, audit_emitter: AuditEmitter | None = None) -> None:
         super().__init__(Client)
+        self._audit = audit_emitter or DefaultAuditEmitter()
 
     def _to_dto(self, obj: Client) -> ClientDTO:
         return ClientDTO.model_validate(obj)
@@ -168,5 +170,21 @@ class ClientRepository(TenantAwareRepositoryBase[Client]):
         )
         session.add(event)
         session.flush()
+
+        # 13.1: synchronous C-11 audit emission for Client lifecycle transitions
+        # (ClientId tagged, AC-5).
+        self._audit.emit(
+            action="client_lifecycle_transition",
+            client_id=obj.id,
+            institution_id=None,
+            actor=actor,
+            payload={
+                "client_id": str(obj.id),
+                "from_state": old_state,
+                "to_state": new_state,
+                "reason": reason,
+                "actor": actor,
+            },
+        )
 
         return self._to_dto(obj)

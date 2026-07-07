@@ -87,8 +87,7 @@ def _resolve_client_from_subdomain(subdomain: str) -> uuid.UUID | None:
     This is a lightweight DB lookup — in production, a cache layer would
     sit in front. For tests, this uses a direct SQLAlchemy session.
     """
-    from sqlalchemy import create_engine, select, text
-    from kernel.tenant_institution.models import Client
+    from sqlalchemy import create_engine, text
     import os
 
     db_url = os.environ.get(

@@ -49,6 +49,10 @@ from kernel.tenant_institution.services.transfer import (
     TransferCoordinator,
     DefaultTransferCoordinator,
 )
+from kernel.tenant_institution.services.audit import (
+    AuditEmitter,
+    DefaultAuditEmitter,
+)
 
 __all__ = [
     "TenantInstitutionService",
@@ -92,4 +96,7 @@ __all__ = [
     # Transfer coordinator (11.2, 11.5, 11.6, 11.7)
     "TransferCoordinator",
     "DefaultTransferCoordinator",
+    # Audit emitter (13.x — C-11 boundary)
+    "AuditEmitter",
+    "DefaultAuditEmitter",
 ]

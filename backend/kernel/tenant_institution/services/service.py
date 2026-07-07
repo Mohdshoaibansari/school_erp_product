@@ -20,6 +20,7 @@ from kernel.tenant_institution.repos import (
     OrgUnitRepository,
     OwnershipTransferRepository,
 )
+from kernel.tenant_institution.services.audit import AuditEmitter, DefaultAuditEmitter
 from kernel.tenant_institution.services.dtos import (
     ApprovalDTO,
     ClientCreateDTO,
@@ -46,6 +47,7 @@ class TenantInstitutionService:
     def __init__(
         self,
         session_factory: sessionmaker[Session],
+        audit_emitter: AuditEmitter | None = None,
         client_repo: ClientRepository | None = None,
         institution_repo: InstitutionRepository | None = None,
         institution_type_repo: InstitutionTypeRepository | None = None,
@@ -54,12 +56,21 @@ class TenantInstitutionService:
         transfer_repo: OwnershipTransferRepository | None = None,
     ) -> None:
         self._session_factory = session_factory
-        self._client_repo = client_repo or ClientRepository()
-        self._institution_repo = institution_repo or InstitutionRepository()
+        # 13.x: shared synchronous C-11 audit emitter (boundary hook). Tests
+        # inject a capture emitter; production uses the default capture stub
+        # until C-11 plugs in real persistence.
+        self._audit = audit_emitter or DefaultAuditEmitter()
+        self._client_repo = client_repo or ClientRepository(audit_emitter=self._audit)
+        self._institution_repo = institution_repo or InstitutionRepository(audit_emitter=self._audit)
         self._institution_type_repo = institution_type_repo or InstitutionTypeRepository()
-        self._org_unit_repo = org_unit_repo or OrgUnitRepository()
+        self._org_unit_repo = org_unit_repo or OrgUnitRepository(audit_emitter=self._audit)
         self._approval_repo = approval_repo or ApprovalRepository()
-        self._transfer_repo = transfer_repo or OwnershipTransferRepository()
+        self._transfer_repo = transfer_repo or OwnershipTransferRepository(audit_emitter=self._audit)
+
+    @property
+    def audit_emitter(self) -> AuditEmitter:
+        """Expose the shared audit emitter for tests (13.x)."""
+        return self._audit
 
     # ---- Client ----
 

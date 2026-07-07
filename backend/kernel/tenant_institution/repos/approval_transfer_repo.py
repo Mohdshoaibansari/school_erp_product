@@ -28,6 +28,7 @@ from kernel.tenant_institution.models import (
     OwnershipTransferEvent,
 )
 from kernel.tenant_institution.repos.base import TenantAwareRepositoryBase
+from kernel.tenant_institution.services.audit import AuditEmitter, DefaultAuditEmitter
 from kernel.tenant_institution.services.dtos import (
     ApprovalDTO,
     OwnershipTransferEventDTO,
@@ -113,8 +114,9 @@ class OwnershipTransferRepository:
       are deferred to Apply-C/D.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, audit_emitter: AuditEmitter | None = None) -> None:
         self._approval_repo = ApprovalRepository()
+        self._audit = audit_emitter or DefaultAuditEmitter()
 
     def request_transfer(
         self, session: Session, ctx: TenantContext,
@@ -258,6 +260,31 @@ class OwnershipTransferRepository:
         )
         session.add(event)
         session.flush()
+
+        # 13.4: synchronous C-11 audit emission for ownership transfer (AC-11).
+        # The audit event is tagged with the NEW owning ClientId (to_client_id)
+        # to record that the transfer occurred under Client B's stewardship.
+        # The immutability invariant (D12, ADR §5 constraint 14) is preserved:
+        # audit events emitted BEFORE this transfer keep their original ClientId
+        # — the emitter only APPENDS new events; it never rewrites past
+        # events, and the transfer transaction does not touch audit-event rows
+        # (preserve_audit_client_ids hook is a no-op expressing this invariant).
+        self._audit.emit(
+            action="ownership_transferred",
+            client_id=to_client_id,
+            institution_id=institution_id,
+            actor=ctx.user_id or "platform_owner",
+            payload={
+                "from_client_id": str(from_client_id),
+                "to_client_id": str(to_client_id),
+                "institution_id": str(institution_id),
+                "approved_by": ctx.user_id or "platform_owner",
+                "consent_source": consent_source,
+                "consent_dest": consent_dest,
+                "reason": reason,
+                "approval_id": str(approval_id),
+            },
+        )
 
         # Task 11.7: C-07/C-23 boundary hook — billing handoff (next cycle).
         # Called AFTER the transfer transaction is committed by the service

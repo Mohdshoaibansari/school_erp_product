@@ -275,14 +275,14 @@ class TestOrgUnitMove:
                 "Q7 requires NO dedicated table (generic C-11 audit event only)"
             )
 
-    def test_move_emits_placeholder_audit_event(self, db_session: Session, caplog):
-        """AC-10: move emits a structured 'org_unit_moved' log event (placeholder for C-11).
+    def test_move_emits_audit_event_via_emitter(self, db_session: Session):
+        """AC-10, 13.3: move emits a C-11 audit event via the AuditEmitter.
 
-        Full C-11 audit emission is deferred to Apply-D (task 13.3).
-        The move currently emits a structured log event that the C-11 emitter
-        will hook into.
+        Apply-C emitted a placeholder structured log; Apply-D (task 13.3)
+        replaces it with the real synchronous C-11 emitter call. The emitter
+        is called with ``action="org_unit_moved"`` and a payload carrying
+        ``{from_parent, to_parent, moved_by, ...}`` (Q7).
         """
-        import logging
         ctx, client, inst, node_a, node_b, node_c = _setup_tree(db_session, slug="audit-move")
 
         # Create a new root
@@ -294,14 +294,22 @@ class TestOrgUnitMove:
         db_session.flush()
         db_session.commit()
 
-        repo = OrgUnitRepository()
-        with caplog.at_level(logging.INFO, logger="kernel.tenant_institution.repos.org_unit_repo"):
-            repo.move(db_session, ctx, node_a.id, new_root.id)
-            db_session.commit()
+        # Inject a capture emitter so we can assert the payload
+        from kernel.tenant_institution.services.audit import DefaultAuditEmitter
+        emitter = DefaultAuditEmitter()
+        repo = OrgUnitRepository(audit_emitter=emitter)
+        repo.move(db_session, ctx, node_a.id, new_root.id)
+        db_session.commit()
 
-        # Verify the structured event was logged
-        audit_logs = [r for r in caplog.records if "org_unit_moved" in r.getMessage()]
-        assert len(audit_logs) >= 1, (
-            "Move should emit a structured 'org_unit_moved' log event (AC-10 placeholder) — "
-            "full C-11 audit emission deferred to Apply-D task 13.3"
+        moved_events = [e for e in emitter.events if e["action"] == "org_unit_moved"]
+        assert len(moved_events) == 1, (
+            "Move should emit exactly one 'org_unit_moved' C-11 audit event (AC-10, 13.3)"
         )
+        evt = moved_events[0]
+        assert evt["client_id"] == client.id
+        assert evt["institution_id"] == inst.id
+        payload = evt["payload"]
+        assert payload["org_unit_id"] == str(node_a.id)
+        assert payload["from_parent"] == str(node_a.parent_id) or payload["from_parent"] is None
+        assert payload["to_parent"] == str(new_root.id)
+        assert payload["moved_by"] == ctx.user_id

@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from kernel.tenant_context import TenantContext
 from kernel.tenant_institution.models import OrgUnit
 from kernel.tenant_institution.repos.base import TenantAwareRepositoryBase
+from kernel.tenant_institution.services.audit import AuditEmitter, DefaultAuditEmitter
 from kernel.tenant_institution.services.dtos import (
     OrgUnitCreateDTO,
     OrgUnitDTO,
@@ -30,8 +31,9 @@ class OrgUnitRepository(TenantAwareRepositoryBase[OrgUnit]):
     ``institution_id`` is a default business filter.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, audit_emitter: AuditEmitter | None = None) -> None:
         super().__init__(OrgUnit)
+        self._audit = audit_emitter or DefaultAuditEmitter()
 
     def _to_dto(self, obj: OrgUnit) -> OrgUnitDTO:
         return OrgUnitDTO.model_validate(obj)
@@ -132,17 +134,23 @@ class OrgUnitRepository(TenantAwareRepositoryBase[OrgUnit]):
         obj.parent_id = new_parent_id
         session.flush()
 
-        # AC-10 audit: emit a structured ``org_unit_moved`` event that the C-11
-        # audit emitter (Apply-D task 13.3) will hook into. Currently a
-        # placeholder log event — full C-11 audit emission deferred to Apply-D.
-        # Q7: NO dedicated ``org_unit_move_event`` table — the generic C-11
-        # audit event carries the provenance.
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(
-            'org_unit_moved: {"from_parent": "%s", "to_parent": "%s", '
-            '"moved_by": "%s", "org_unit_id": "%s"}',
-            old_parent, new_parent_id, getattr(ctx, "user_id", None), org_unit_id,
+        # 13.3: C-11 audit emission for OrgUnit moves (AC-10, Q7).
+        # Generic audit event ``action="org_unit_moved"`` with payload
+        # ``{from_parent, to_parent, moved_by, ...}`` — NO dedicated
+        # ``org_unit_move_event`` table (Q7). Replaces the Apply-C placeholder
+        # log (task 9.4) with the real synchronous emitter call.
+        self._audit.emit(
+            action="org_unit_moved",
+            client_id=obj.client_id,
+            institution_id=obj.institution_id,
+            actor=ctx.user_id,
+            payload={
+                "org_unit_id": str(org_unit_id),
+                "from_parent": str(old_parent) if old_parent else None,
+                "to_parent": str(new_parent_id) if new_parent_id else None,
+                "moved_by": ctx.user_id,
+                "institution_id": str(obj.institution_id),
+            },
         )
 
         return self._to_dto(obj)

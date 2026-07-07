@@ -24,6 +24,7 @@ from kernel.tenant_institution.manifest import manifest as c01_manifest
 from kernel.tenant_context import TenantContext, set_tenant_context
 from kernel.middleware import mint_test_jwt
 from kernel.tenant_institution.dependencies import reset_service_singleton
+from kernel.tenant_institution.services.audit import AuditEmitter, DefaultAuditEmitter
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
@@ -225,3 +226,58 @@ def make_tenant_client(app, test_jwt):
             "Host": f"{subdomain}.localhost",
         })
     return _make
+
+
+# ============================================================
+# Apply-D fixtures: audit emitter (13.x) + role contexts (12.x)
+# ============================================================
+
+@pytest.fixture
+def audit_emitter() -> DefaultAuditEmitter:
+    """Capture audit emitter for 13.x tests (records emitted events in a list)."""
+    return DefaultAuditEmitter()
+
+
+@pytest.fixture
+def platform_owner_ctx():
+    """Platform Owner TenantContext (D11 — ALL C-01 operations)."""
+    return TenantContext(
+        client_id=uuid.uuid4(),
+        is_platform_owner=True,
+        roles=["platform_owner"],
+        user_id="platform-owner",
+    )
+
+
+@pytest.fixture
+def client_director_ctx():
+    """Client Director TenantContext (D11 — own-client scope)."""
+    return TenantContext(
+        client_id=uuid.uuid4(),
+        is_platform_owner=False,
+        roles=["client_director"],
+        user_id="client-director",
+    )
+
+
+@pytest.fixture
+def institution_admin_ctx():
+    """Institution Admin TenantContext (D11 — own-institution scope)."""
+    return TenantContext(
+        client_id=uuid.uuid4(),
+        institution_id=uuid.uuid4(),
+        is_platform_owner=False,
+        roles=["institution_admin"],
+        user_id="institution-admin",
+    )
+
+
+@pytest.fixture
+def cross_institution_role_ctx():
+    """Cross-institution role TenantContext (D11 — READ-only on C-01)."""
+    return TenantContext(
+        client_id=uuid.uuid4(),
+        is_platform_owner=False,
+        roles=["regional_manager"],
+        user_id="regional-manager",
+    )

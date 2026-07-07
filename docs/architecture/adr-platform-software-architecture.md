@@ -17,7 +17,7 @@
 | # | Decision | Lock |
 |---|---|---|
 | A1 | Deployment shape | Modular monolith — ONE deployable FastAPI app, ONE Postgres. Kernel/shared/business are in-process Python packages, not separate services. |
-| A2 | Tier membership rule | By dependency depth. Kernel = foundational capabilities everything transitively needs (C-01 tenant, C-02 users, C-03 auth, C-04 authz, C-08 config, C-11 audit). Shared = cross-cutting services reusable across business modules but not foundational (notifications, file management, C-13 address, C-12 business codes). Business = school ERP domain features (Attendance, Fees, Homework, Exams, Timetable, …). |
+| A2 | Tier membership rule | Based on what every business module must import ("consumed-by-all" rule). **Kernel** = infrastructure services every business module depends on: `TenantContext`, subdomain+JWT middleware, `TenantAwareRepositoryBase`, `AuditEmitter` Protocol, `TransferCoordinator` Protocol, C-03 auth (infrastructure), C-04 authz (infrastructure), C-08 config, C-11 audit (infrastructure). **Business** = domain logic used only by the owning capability's workflows: tenant/institution domain (C-01b), user/role domain (C-02b), attendance, fees, homework, exams, timetable, … **Shared** = cross-cutting services reusable across business modules but not foundational (notifications, file management, C-13 address, C-12 business codes). See [platform-capabilities-v3.md](../platform-capabilities/platform-capabilities-v3.md) Appendix A for the complete classification matrix (Kernel\* footnoted capabilities produce both infrastructure and domain). |
 | A3 | Dependency law | `kernel → ∅`; `shared → kernel (+ other shared, acyclic)`; `business → kernel + shared + other business (acyclic, public interfaces only)`. **Never:** kernel→shared/business, shared→business. |
 | A4 | Cross-module communication | Synchronous direct call to a module's **published service interface** only — never internal repo/model imports. Dependency graph must stay acyclic. Enforced by `import-linter`. No event bus for synchronous needs (consistent with C-01 Q4). |
 | A5 | Module composition | **Module manifest + app factory.** Each module is a Python package exposing a manifest with hooks (`register_routes`, `on_startup`, `register_casbin_policies`, `register_cli`, scheduled jobs, …). The kernel's app factory reads a configured module list and invokes the hooks. |
@@ -46,15 +46,17 @@ This ADR records both, decided via a one-question-at-a-time grilling session in 
 
 **A1 — Modular monolith, one deployable.** Kernel, shared, and business modules are in-process Python packages composed into ONE FastAPI deployable running against ONE Postgres (the locked shared-schema + RLS model, D1). "Developed separately" means separate packages with enforced boundaries — not separate services or repos. This matches `architecture-v1.md`'s "modular monolith" principle and is consistent with the single-Postgres+RLS model.
 
-**A2 — Tiers by dependency depth.**
+**A2 — Tiers by consumed-by-all rule.**
 
 | Tier | Contains | Examples |
 |---|---|---|
-| **kernel** | Foundational capabilities every module transitively depends on | C-01 tenant/institution, C-02 users, C-03 auth, C-04 authz, C-08 config, C-11 audit |
+| **kernel** | Infrastructure EVERY business module must import. Flat packages under `kernel/`. | `kernel/tenant_context.py` (TenantContext), `kernel/middleware.py` (subdomain+JWT), `kernel/repo_base.py` (TenantAwareRepositoryBase), `kernel/audit.py` (AuditEmitter), `kernel/transfer_coordinator.py` (TransferCoordinator), C-03 auth infrastructure, C-04 authz infrastructure, C-08 config, C-11 audit infrastructure |
 | **shared** | Cross-cutting services reusable across business modules, not foundational | notifications, file management, C-13 address, C-12 business codes |
-| **business** | School ERP domain features | Attendance, Fees, Homework, Exams, Timetable, … |
+| **business** | Domain logic used only by the owning capability's workflows. Under `business/`. | `business/tenant_institution/` (Client/Institution/OrgUnit lifecycle, templates, transfers — C-01b), Attendance, Fees, Homework, Exams, Timetable, … |
 
-This mirrors the capability catalog's existing dependency-level structure (C-01 is "Level 1, zero-dependency root").
+Several capabilities produce BOTH kernel infrastructure AND a business domain module (e.g., C-01a Tenant Identity Infrastructure + C-01b Tenant & Institution Domain). The infrastructure lives under `kernel/`; the domain lives under `business/`. This split is recorded in the capability catalog's Classification Matrix ([platform-capabilities-v3.md](../platform-capabilities/platform-capabilities-v3.md) Appendix A) where `Kernel*` marks capabilities that will be split when built, following the C-01a/C-01b precedent.
+
+C-01b is the first business module and the Level 1 zero-dependency root for the business tier — it depends only on C-01a (its own kernel infrastructure) and C-08 (configuration).
 
 **A3 — Dependency law.**
 - `kernel → ∅` (kernel depends on nothing in-app; only framework/stdlib)
@@ -128,26 +130,32 @@ One git repo, one CI, atomic cross-stack commits. `/packages` holds generated Op
 Modular monolith — one deployable, one Postgres
 
   /backend  (Python / uv / FastAPI)
-    app/                      ← kernel app factory
-      main.py                 composes modules: kernel → shared → business
-      kernel/
-        tenant_context.py     TenantContext + Depends(get_tenant_context)
-        auth/                  Supabase JWT middleware → contextvar
-        casbin/                enforcer; modules register policies
-        audit/                AuditEmitter (per-request via Depends)
-        db/                    SQLAlchemy base, session, RLS helpers
-      shared/
-        notifications/         manifest: register_routes, on_startup, ...
-        files/, address/, codes/
-      modules/                 business tier
-        attendance/            manifest + routes/ + services/ (published) + repos/ + models/
-        fees/
-        homework/
-        ...
-      migrations/              ONE Alembic env, module-prefixed files
-        001_c01_create_clients.py
-        002_c01_institutions.py
-        ...
+    kernel/
+      app_factory.py         create_app() + ModuleManifest Protocol (A5)
+      db.py                  SQLAlchemy DeclarativeBase
+      tenant_context.py      TenantContext + Depends(get_tenant_context)
+      middleware.py           Subdomain+JWT middleware → sets contextvar (A6)
+      repo_base.py            TenantAwareRepositoryBase (returns DTOs, injects client_id)
+      audit.py                AuditEmitter Protocol + DefaultAuditEmitter
+      transfer_coordinator.py TransferCoordinator Protocol + defaults
+      casbin/                 enforcer; business modules register policies (C-04)
+    shared/
+      notifications/          manifest: register_routes, on_startup, ...
+      files/, address/, codes/
+    business/                 business tier (domain logic)
+      tenant_institution/     C-01b — Client/Institution/OrgUnit lifecycle + transfers
+        manifest.py           registers routes, Casbin policies, middleware
+        models/               SQLAlchemy models (client, institution, org_unit, ...)
+        repos/                tenant-aware repos (inherit from kernel.repo_base)
+        routes/               platform-scoped + client-portal routers
+        services/             state machines, approval, DTOs, service layer
+        policies.py           D11 Casbin permission matrix
+      attendance/             (future)
+      fees/                   (future)
+      ...
+    migrations/               ONE Alembic env, module-prefixed files
+      001_c01_initial.py      all C-01 tables + RLS + seeds
+      ...
     alembic.ini
   /frontend  (Vite + React + pnpm)
     src/

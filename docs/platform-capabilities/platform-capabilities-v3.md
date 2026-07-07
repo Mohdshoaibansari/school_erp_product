@@ -176,7 +176,7 @@ Each capability is classified across four dimensions:
 
 ## C-01: Tenant & Institution Management
 
-> **Layer:** Kernel  
+> **Layer:** Kernel (C-01a infrastructure) + Business (C-01b domain) — see §5.1 for split  
 > **Criticality:** Critical  
 > **Phase:** 1  
 > **Institution Scope:** Agnostic  
@@ -228,7 +228,19 @@ Platform Owner
 
 | Dependency | Type | Rationale |
 |---|---|---|
-| None | — | Root capability, built first |
+| C-01a (Tenant Identity Infrastructure) | Infrastructure | Subdomain resolution, TenantContext, tenant-aware repository base, AuditEmitter, TransferCoordinator — built first within C-01 |
+| None (domain) | — | C-01b has no business-module dependencies beyond its own kernel infrastructure |
+
+### 5.1 Infrastructure vs. Domain
+
+C-01 is composed of two separately classified concerns:
+
+| Sub-capability | ID | Layer | What it provides | Consumed by |
+|---|---|---|---|---|
+| Tenant Identity Infrastructure | C-01a | **Kernel** | `TenantContext` (request-scoped tenant identity), subdomain+JWT middleware (sets contextvar), `TenantAwareRepositoryBase` (auto-injects `client_id` into every query, returns DTOs), `AuditEmitter` Protocol (synchronous C-11 audit emission), `TransferCoordinator` Protocol (ownership-transfer boundary hooks for C-05/C-02/C-07/C-23/C-11) | Every business module — Attendance, Fees, Exams, and all future modules import these from `kernel/` |
+| Tenant & Institution Domain | C-01b | **Business** | Client CRUD + lifecycle state machine, Institution CRUD + lifecycle + effective-state gating, OrgUnit hierarchy + cycle-prevented moves + recursive CTE, InstitutionType template materialization, ownership transfer workflow, D11 Casbin permission matrix | Only C-01's own domain workflows — no other module imports Client lifecycle transitions or OrgUnit move logic |
+
+The infrastructure packages live under `kernel/` (flat: `kernel/repo_base.py`, `kernel/audit.py`, `kernel/transfer_coordinator.py`, alongside existing `kernel/tenant_context.py` and `kernel/middleware.py`). The domain logic lives under `business/tenant_institution/`. C-01a and C-01b share the same database migration (`001_c01_initial.py`) and are developed together, but the architectural split ensures future modules never import domain logic when they only need tenant identity infrastructure.
 
 ### 6. Startup Scope (Phase 1)
 
@@ -1708,8 +1720,9 @@ The following capabilities were absent from all four source documents. They are 
 
 ```
 Level 1 (No Dependencies — Build First)
-  ├── C-01: Tenant & Institution Management
+  ├── C-01a: Tenant Identity Infrastructure
   ├── C-08: Configuration Framework
+  ├── C-01b: Tenant & Institution Domain (depends on C-01a + C-08)
   └── C-22: Analytics Framework (define data model only)
 
 Level 2 (Depend on Level 1)
@@ -1758,7 +1771,8 @@ Level 7 (Future)
 
 | Priority | Capability | Rationale |
 |---|---|---|
-| P1 | C-01: Tenant & Institution Management | Root of everything |
+| P1 | C-01a: Tenant Identity Infrastructure | Root of all multi-tenant operations |
+| P1 | C-01b: Tenant & Institution Domain | First business module; depends on C-01a + C-08 |
 | P2 | C-08: Configuration Framework | Every capability needs configuration |
 | P3 | C-02: Identity & User Management | Users are foundational |
 | P4 | C-03: Authentication | Login required |
@@ -1874,17 +1888,18 @@ Once a capability owns a domain:
 
 | ID | Capability | Layer | Criticality | Phase | Gap? |
 |---|---|---|---|---|---|
-| C-01 | Tenant & Institution Management | Kernel | Critical | 1 | |
-| C-02 | Identity & User Management | Kernel | Critical | 1 | Refined |
-| C-03 | Authentication | Kernel | Critical | 1 | Refined |
-| C-04 | Authorization | Kernel | Critical | 1 | Refined |
-| C-05 | Academic Structure Framework | Kernel | Critical | 1 | Refined |
-| C-06 | **Relationship Management Framework** | Kernel | Critical | 1 | **🆕 NEW** |
+| C-01a | Tenant Identity Infrastructure | Kernel | Critical | 1 | Split from C-01 |
+| C-01b | Tenant & Institution Domain | Business | Critical | 1 | Split from C-01 |
+| C-02 | Identity & User Management | Kernel* | Critical | 1 | Refined |
+| C-03 | Authentication | Kernel* | Critical | 1 | Refined |
+| C-04 | Authorization | Kernel* | Critical | 1 | Refined |
+| C-05 | Academic Structure Framework | Kernel* | Critical | 1 | Refined |
+| C-06 | **Relationship Management Framework** | Kernel* | Critical | 1 | **🆕 NEW** |
 | C-07 | Subscription Management | Kernel | Critical | 1 | |
 | C-08 | Configuration Framework | Kernel | Critical | 1 | |
 | C-09 | Notification Framework | Service | Critical | 1 | |
 | C-10 | Communication Framework | Service | Important | 1 | Refined |
-| C-11 | Audit & Observability Framework | Kernel | Critical | 1 | |
+| C-11 | Audit & Observability Framework | Kernel* | Critical | 1 | |
 | C-12 | **Code & Identifier Generation Engine** | Service | Important | 1 | **🆕 NEW** |
 | C-13 | **Location & Address Management** | Service | Important | 1 | **🆕 NEW** |
 | C-14 | Document Management Framework | Service | Important | 1 | |
@@ -1899,6 +1914,8 @@ Once a capability owns a domain:
 | C-23 | Billing Framework | Pipeline | Important | 2 | |
 | C-24 | Integration Framework | Service | Important | 1 | |
 | C-25 | AI Framework | Service | Future | 6+ | |
+
+> \* Capabilities marked `Kernel*` produce both kernel infrastructure packages AND a business domain module. When built, each will be split into `<ID>a` (infrastructure) and `<ID>b` (domain) rows in this matrix, following the C-01a/C-01b precedent established by C-01. The infrastructure lives under `kernel/` and is consumed by every business module; the domain lives under `business/` and is used only by the capability's own workflows.
 
 ## Appendix B: Module Dependency Matrix
 
@@ -1921,7 +1938,7 @@ Which platform capabilities does each business module depend on?
 
 | Term | Definition |
 |---|---|
-| **Platform Kernel** | Minimum set of shared capabilities required before any business module can function (C-01 through C-13, Phase 1). |
+| **Platform Kernel** | Minimum set of capabilities required before any business module can function (all Phase 1 capabilities: C-01a+b through C-13). Defined by build order, not dependency depth — includes both kernel infrastructure (e.g., C-01a) and business domain modules that must exist first (e.g., C-01b). |
 | **Business Module** | A subscribable product that implements educational workflows (e.g., Attendance, Homework, Fees). |
 | **Shared Platform Capability** | A foundational service consumed by multiple modules (e.g., Authorization, Notifications, Relationships). |
 | **Client** | A customer organization that owns one or more institutions. |

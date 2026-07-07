@@ -1,12 +1,14 @@
 # C-01: Tenant & Institution Management — Explained with Examples
 
 > **Status:** Final  
-> **Version:** 1.0  
+> **Version:** 1.1  
 > **Purpose:** Practical explanation of C-01 with real-world examples. Companion to the formal capability definition.  
 > **Prerequisite Reading:** `platform-capabilities-v3.md` — C-01 section  
 > **Cross-References:**  
 > - [Main C-01 Definition](platform-capabilities-v3.md#c-01-tenant--institution-management)  
 > - [Architecture — Tenant Model](../architecture/architecture-v1.md#3-tenant-hierarchy)  
+>
+> **Architecture note (v1.1):** C-01 has been split into two sub-capabilities: **C-01a Tenant Identity Infrastructure** (kernel — `kernel/repo_base.py`, `kernel/audit.py`, `kernel/transfer_coordinator.py`, `kernel/tenant_context.py`, `kernel/middleware.py`) and **C-01b Tenant & Institution Domain** (business — `business/tenant_institution/`). The infrastructure packages are consumed by every future business module; the domain logic is used only by C-01's own workflows. See the [Platform Capabilities v3](platform-capabilities-v3.md) Appendix A for the formal classification.  
 
 ---
 

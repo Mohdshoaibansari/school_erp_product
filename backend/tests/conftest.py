@@ -11,10 +11,19 @@ import os
 import subprocess
 from collections.abc import Generator
 
+import uuid
+
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
+
+from kernel.app_factory import create_app
+from kernel.tenant_institution.manifest import manifest as c01_manifest
+from kernel.tenant_context import TenantContext, set_tenant_context
+from kernel.middleware import mint_test_jwt
+from kernel.tenant_institution.dependencies import reset_service_singleton
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
@@ -116,3 +125,103 @@ def db_session(db_session_factory: sessionmaker[Session]) -> Generator[Session, 
         session.execute(text(f"DELETE FROM {table_name}"))
     session.commit()
     session.close()
+
+
+# ============================================================
+# Apply-B fixtures: auth, tenant context, TestClient (7.1, 7.2)
+# ============================================================
+
+@pytest.fixture
+def test_jwt():
+    """Factory for minting Supabase-compatible test JWTs (tech-stack ADR §3).
+    C-01 consumes JWTs; tests mint them with a test secret.
+    """
+    def _mint(
+        *,
+        user_id: str = "test-user",
+        client_id: str | uuid.UUID | None = None,
+        institution_id: str | uuid.UUID | None = None,
+        is_platform_owner: bool = False,
+        roles: list[str] | None = None,
+    ) -> str:
+        return mint_test_jwt(
+            user_id=user_id,
+            client_id=str(client_id) if client_id else None,
+            institution_id=str(institution_id) if institution_id else None,
+            is_platform_owner=is_platform_owner,
+            roles=roles,
+        )
+    return _mint
+
+
+@pytest.fixture
+def tenant_context_override():
+    """Override ``get_tenant_context`` with a fixed context for tests (7.2).
+
+    Usage in a test:
+        app = create_app([c01_manifest])
+        app.dependency_overrides[get_tenant_context] = lambda: ctx
+    """
+    contexts = []
+
+    def _set(ctx: TenantContext) -> TenantContext:
+        contexts.append(ctx)
+        set_tenant_context(ctx)
+        return ctx
+
+    yield _set
+
+    # Reset the contextvar after the test
+    set_tenant_context(None)
+
+
+@pytest.fixture
+def app():
+    """Create a FastAPI app with the C-01 manifest (with middleware)."""
+    reset_service_singleton()
+    app = create_app([c01_manifest])
+    yield app
+    reset_service_singleton()
+
+
+@pytest.fixture
+def platform_client(app, test_jwt):
+    """TestClient with a Platform Owner JWT (D11).
+    Uses a platform Host (localhost) so the middleware treats it as platform-scoped.
+    """
+    token = test_jwt(is_platform_owner=True, user_id="platform-owner")
+    client = TestClient(app, headers={
+        "Authorization": f"Bearer {token}",
+        "Host": "localhost",
+    })
+    return client
+
+
+@pytest.fixture
+def make_tenant_client(app, test_jwt):
+    """Factory for creating a TestClient with a specific subdomain + JWT (7.1).
+
+    Usage:
+        client = make_tenant_client(subdomain="school-a", client_id=client_a_id)
+    """
+    def _make(
+        *,
+        subdomain: str,
+        client_id: uuid.UUID,
+        institution_id: uuid.UUID | None = None,
+        is_platform_owner: bool = False,
+        roles: list[str] | None = None,
+        user_id: str = "test-user",
+    ) -> TestClient:
+        token = test_jwt(
+            user_id=user_id,
+            client_id=client_id,
+            institution_id=institution_id,
+            is_platform_owner=is_platform_owner,
+            roles=roles or ["client_director"],
+        )
+        return TestClient(app, headers={
+            "Authorization": f"Bearer {token}",
+            "Host": f"{subdomain}.localhost",
+        })
+    return _make

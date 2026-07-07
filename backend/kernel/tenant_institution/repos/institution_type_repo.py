@@ -1,0 +1,77 @@
+"""InstitutionType repository (D7 — JSONB template, configurable via API)."""
+
+from __future__ import annotations
+
+import uuid
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from kernel.tenant_context import TenantContext
+from kernel.tenant_institution.models import InstitutionType
+from kernel.tenant_institution.repos.base import TenantAwareRepositoryBase
+from kernel.tenant_institution.services.dtos import (
+    InstitutionTypeCreateDTO,
+    InstitutionTypeDTO,
+    InstitutionTypeUpdateDTO,
+)
+
+
+class InstitutionTypeRepository(TenantAwareRepositoryBase[InstitutionType]):
+    """Repository for the InstitutionType entity (D7).
+
+    InstitutionType is platform-scoped (not tenant-scoped — no ``client_id``
+    column). Platform-Owner-only management per D11.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(InstitutionType)
+
+    @property
+    def _is_client_scoped(self) -> bool:
+        return False  # InstitutionType has no client_id column
+
+    def _client_filter(self, ctx: TenantContext):
+        """No client filter — InstitutionType is platform-scoped."""
+        return None
+
+    def _to_dto(self, obj: InstitutionType) -> InstitutionTypeDTO:
+        return InstitutionTypeDTO.model_validate(obj)
+
+    def create(
+        self, session: Session, ctx: TenantContext, dto: InstitutionTypeCreateDTO,
+    ) -> InstitutionTypeDTO:
+        """Create an InstitutionType (Platform-Owner-only, D7, D11)."""
+        obj = InstitutionType(
+            name_id=dto.name_id,
+            code=dto.code,
+            is_system=dto.is_system,
+            default_org_unit_template=dto.default_org_unit_template,
+        )
+        session.add(obj)
+        session.flush()
+        return self._to_dto(obj)
+
+    def update_template(
+        self, session: Session, ctx: TenantContext, itype_id: uuid.UUID,
+        dto: InstitutionTypeUpdateDTO,
+    ) -> InstitutionTypeDTO:
+        """Update InstitutionType template (D7)."""
+        stmt = select(InstitutionType).where(InstitutionType.id == itype_id)
+        obj = session.execute(stmt).scalars().first()
+        if not obj:
+            raise ValueError("InstitutionType not found")
+        if dto.default_org_unit_template is not None:
+            obj.default_org_unit_template = dto.default_org_unit_template
+        session.flush()
+        return self._to_dto(obj)
+
+    def get(self, session: Session, ctx: TenantContext, itype_id: uuid.UUID) -> InstitutionTypeDTO | None:
+        stmt = select(InstitutionType).where(InstitutionType.id == itype_id)
+        obj = session.execute(stmt).scalars().first()
+        return self._to_dto(obj) if obj else None
+
+    def list_all(self, session: Session, ctx: TenantContext) -> list[InstitutionTypeDTO]:
+        stmt = select(InstitutionType)
+        result = session.execute(stmt).scalars().all()
+        return [self._to_dto(obj) for obj in result]

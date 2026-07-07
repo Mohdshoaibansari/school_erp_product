@@ -59,7 +59,11 @@ class OrgUnitRepository(TenantAwareRepositoryBase[OrgUnit]):
         name: str | None = None, code: str | None = None,
         sort_order: int | None = None,
     ) -> OrgUnitDTO:
-        """Update OrgUnit identity fields (type immutable, D6/AC-8)."""
+        """Update OrgUnit identity fields (type immutable, D6/AC-8, task 9.2).
+
+        The ``type_id`` field is NOT accepted here — it is immutable after
+        creation. To change type, archive the node and create a new one (D6).
+        """
         obj = self._get_orm(session, ctx, org_unit_id)
         if not obj:
             raise ValueError("OrgUnit not found")
@@ -71,6 +75,20 @@ class OrgUnitRepository(TenantAwareRepositoryBase[OrgUnit]):
             obj.sort_order = sort_order
         session.flush()
         return self._to_dto(obj)
+
+    def update_type(
+        self, session: Session, ctx: TenantContext, org_unit_id: uuid.UUID,
+        new_type_id: uuid.UUID,
+    ) -> OrgUnitDTO:
+        """Reject type change — type is immutable after creation (D6, AC-8, task 9.2).
+
+        Always raises ``ValueError``. To change type, archive the node and
+        create a new one (D6).
+        """
+        raise ValueError(
+            "OrgUnit type is immutable after creation (D6, AC-8) — "
+            "archive the node and create a new one to change type"
+        )
 
     def move(
         self, session: Session, ctx: TenantContext, org_unit_id: uuid.UUID,
@@ -114,9 +132,18 @@ class OrgUnitRepository(TenantAwareRepositoryBase[OrgUnit]):
         obj.parent_id = new_parent_id
         session.flush()
 
-        # C-11 audit emission for move deferred to Apply-D (task 13.3).
-        # Move currently persists without audit; AC-10 full coverage deferred.
-        # The endpoint structure is in place for the audit emitter to hook in.
+        # AC-10 audit: emit a structured ``org_unit_moved`` event that the C-11
+        # audit emitter (Apply-D task 13.3) will hook into. Currently a
+        # placeholder log event — full C-11 audit emission deferred to Apply-D.
+        # Q7: NO dedicated ``org_unit_move_event`` table — the generic C-11
+        # audit event carries the provenance.
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(
+            'org_unit_moved: {"from_parent": "%s", "to_parent": "%s", '
+            '"moved_by": "%s", "org_unit_id": "%s"}',
+            old_parent, new_parent_id, getattr(ctx, "user_id", None), org_unit_id,
+        )
 
         return self._to_dto(obj)
 
@@ -160,7 +187,7 @@ class OrgUnitRepository(TenantAwareRepositoryBase[OrgUnit]):
     def get_subtree(
         self, session: Session, ctx: TenantContext, org_unit_id: uuid.UUID,
     ) -> list[OrgUnitDTO]:
-        """Get the full subtree of a node using a recursive CTE (D6)."""
+        """Get the full subtree of a node using a recursive CTE (D6, task 9.3)."""
         # Verify the root node exists and is tenant-visible
         root = self._get_orm(session, ctx, org_unit_id)
         if not root:
@@ -187,6 +214,55 @@ class OrgUnitRepository(TenantAwareRepositoryBase[OrgUnit]):
         dtos = []
         for row in rows:
             from datetime import datetime
+            dto = OrgUnitDTO(
+                id=row.id,
+                client_id=row.client_id,
+                institution_id=row.institution_id,
+                parent_id=row.parent_id,
+                name=row.name,
+                type_id=row.type_id,
+                sort_order=row.sort_order,
+                code=row.code,
+                current_lifecycle_status=row.current_lifecycle_status,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+                archived_at=row.archived_at,
+            )
+            dtos.append(dto)
+        return dtos
+
+    def get_ancestors(
+        self, session: Session, ctx: TenantContext, org_unit_id: uuid.UUID,
+    ) -> list[OrgUnitDTO]:
+        """Get the full ancestor chain of a node using a recursive CTE (D6, task 9.3).
+
+        Returns ancestors from the immediate parent up to the root, ordered
+        from nearest to furthest.
+        """
+        # Verify the node exists and is tenant-visible
+        node = self._get_orm(session, ctx, org_unit_id)
+        if not node:
+            return []
+
+        # Recursive CTE: walk up the adjacency list
+        sql = text("""
+            WITH RECURSIVE ancestor_chain AS (
+                SELECT * FROM org_unit WHERE id = :node_id AND client_id = :client_id
+                UNION ALL
+                SELECT ou.* FROM org_unit ou
+                JOIN ancestor_chain ac ON ou.id = ac.parent_id
+                WHERE ou.client_id = :client_id
+            )
+            SELECT * FROM ancestor_chain WHERE id != :node_id
+        """)
+        result = session.execute(sql, {
+            "node_id": str(org_unit_id),
+            "client_id": str(ctx.client_id),
+        })
+        rows = result.fetchall()
+
+        dtos = []
+        for row in rows:
             dto = OrgUnitDTO(
                 id=row.id,
                 client_id=row.client_id,

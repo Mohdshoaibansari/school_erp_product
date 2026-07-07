@@ -136,40 +136,29 @@ class ClientRepository(TenantAwareRepositoryBase[Client]):
         self, session: Session, ctx: TenantContext, client_id: uuid.UUID,
         new_state: str, reason: str | None, actor: str,
     ) -> ClientDTO:
-        """Transition Client lifecycle (D8 arcs). Basic validation here;
-        full state-machine + Approval flow is sub-phase C (task 8).
+        """Transition Client lifecycle (D8 arcs, AC-5).
+
+        Validates the arc via the state machine (task 8.1) and writes a
+        ``client_lifecycle_event`` row on every transition (task 8.5).
+        C-11 audit emission deferred to Apply-D (task 13.1).
         """
+        from kernel.tenant_institution.services.state_machine import (
+            validate_client_transition,
+        )
+
         stmt = select(Client).where(Client.id == client_id)
         obj = session.execute(stmt).scalars().first()
         if not obj:
             raise ValueError("Client not found")
 
         old_state = obj.current_lifecycle_status
-        # Basic arc validation (D8) — full state machine is task 8.1 (Apply-C)
-        _ALLOWED_CLIENT_ARCS = {
-            ("prospective", "active"),
-            ("prospective", "archived"),
-            ("active", "suspended"),
-            ("suspended", "active"),
-            ("active", "archived"),
-            ("archived", "active"),
-            ("suspended", "archived"),
-            ("active", "terminated"),
-            ("suspended", "terminated"),
-            ("archived", "terminated"),
-        }
-        if (old_state, new_state) not in _ALLOWED_CLIENT_ARCS:
-            raise ValueError(
-                f"Client lifecycle transition '{old_state}→{new_state}' is not allowed"
-            )
-        # Terminated is terminal (D8)
-        if old_state == "terminated":
-            raise ValueError("Client is Terminated — terminal state, no exit arcs")
+        # Full state-machine validation (D8, task 8.1)
+        validate_client_transition(old_state, new_state)
 
         obj.current_lifecycle_status = new_state
         session.flush()
 
-        # Record lifecycle event (D8) — C-11 audit emission deferred to Apply-D (task 13.1)
+        # Record lifecycle event (D8, task 8.5) — one row per transition
         from kernel.tenant_institution.models import ClientLifecycleEvent
         event = ClientLifecycleEvent(
             client_id=obj.id,

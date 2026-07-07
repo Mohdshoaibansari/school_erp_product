@@ -222,6 +222,38 @@ class TenantInstitutionService:
         with self._session_factory() as session:
             return self._org_unit_repo.get_subtree(session, ctx, org_unit_id)
 
+    def get_org_unit_ancestors(
+        self, ctx: TenantContext, org_unit_id: uuid.UUID,
+    ) -> list[OrgUnitDTO]:
+        """Get the full ancestor chain of an OrgUnit (task 9.3, D6)."""
+        with self._session_factory() as session:
+            return self._org_unit_repo.get_ancestors(session, ctx, org_unit_id)
+
+    def update_org_unit_type(
+        self, ctx: TenantContext, org_unit_id: uuid.UUID, new_type_id: uuid.UUID,
+    ) -> OrgUnitDTO:
+        """Reject OrgUnit type change — type is immutable (task 9.2, AC-8).
+
+        Always raises ValueError. To change type, archive + recreate (D6).
+        """
+        with self._session_factory() as session:
+            return self._org_unit_repo.update_type(session, ctx, org_unit_id, new_type_id)
+
+    # ---- Effective-state gating (task 8.3, AC-7) ----
+
+    def get_institution_effective_state(
+        self, ctx: TenantContext, institution_id: uuid.UUID,
+    ) -> str:
+        """Compute the effective operational state at runtime (AC-7, task 8.3).
+
+        Returns ``"active"`` if both Institution and Client are active,
+        ``"gated"`` if the Institution is active but the Client is not
+        (runtime gating without persisted mutation), or the Institution's
+        own state otherwise.
+        """
+        with self._session_factory() as session:
+            return self._institution_repo.get_effective_state(session, ctx, institution_id)
+
     # ---- Ownership transfer ----
 
     def request_ownership_transfer(
@@ -240,12 +272,29 @@ class TenantInstitutionService:
         institution_id: uuid.UUID, from_client_id: uuid.UUID,
         to_client_id: uuid.UUID, consent_source: bool,
         consent_dest: bool, reason: str | None,
+        coordinator=None,
     ) -> OwnershipTransferEventDTO:
+        """Approve and execute the ownership transfer (D12, AC-11, tasks 11.1–11.7).
+
+        Executes in a single transaction (AC-11). Calls the TransferCoordinator
+        boundary hooks for C-05/C-02/C-11 (in-transaction) and C-07/C-23
+        (post-commit billing handoff).
+        """
+        from kernel.tenant_institution.services.transfer import DefaultTransferCoordinator
+
+        if coordinator is None:
+            coordinator = DefaultTransferCoordinator()
+
         with self._session_factory() as session:
             result = self._transfer_repo.approve_transfer(
                 session, ctx, approval_id, institution_id,
                 from_client_id, to_client_id,
                 consent_source, consent_dest, reason,
+                coordinator=coordinator,
             )
             session.commit()
-            return result
+
+        # Task 11.7: C-07/C-23 boundary — billing handoff (next cycle, post-commit)
+        coordinator.migrate_billing(institution_id, from_client_id, to_client_id)
+
+        return result

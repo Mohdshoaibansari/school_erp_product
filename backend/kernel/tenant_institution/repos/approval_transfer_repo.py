@@ -1,4 +1,16 @@
-"""Approval + ownership-transfer repository (Q3, D12, AC-11, AC-19)."""
+"""Approval + ownership-transfer repository (Q3, D12, AC-11, AC-19).
+
+Approval flow (task 8.4): the dependent transition/transfer cannot complete
+until ``status=approved``; ``status=denied`` blocks.
+
+Ownership transfer (D12, tasks 11.1–11.7):
+- request creates a pending Approval (Q3, AC-19).
+- approve checks consent (11.1), asserts approval is pending, executes the
+  single-transaction transfer (11.2), records OwnershipTransferEvent (11.4),
+  calls TransferCoordinator boundary hooks (11.2/11.5/11.6/11.7).
+- C-05/C-02/C-07/C-23/C-11 downstream behavior is a BOUNDARY — hooks are
+  no-op stubs; those capabilities plug in their own implementations.
+"""
 
 from __future__ import annotations
 
@@ -109,10 +121,11 @@ class OwnershipTransferRepository:
         institution_id: uuid.UUID, to_client_id: uuid.UUID,
         reason: str | None,
     ) -> ApprovalDTO:
-        """Request an ownership transfer (D12 step 1).
+        """Request an ownership transfer (D12 step 1, task 11.1).
 
         Creates a pending Approval row (Q3, AC-19). The transfer cannot
-        complete until the Approval is granted (sub-phase C task 8.4).
+        complete until the Approval is granted AND both-client consent is
+        provided (task 11.1).
         """
         # Verify the institution exists and belongs to the current client
         stmt = select(Institution).where(
@@ -136,25 +149,65 @@ class OwnershipTransferRepository:
         approval_id: uuid.UUID, institution_id: uuid.UUID,
         from_client_id: uuid.UUID, to_client_id: uuid.UUID,
         consent_source: bool, consent_dest: bool, reason: str | None,
+        coordinator=None,
     ) -> OwnershipTransferEventDTO:
-        """Approve and execute the ownership transfer (D12, AC-11).
+        """Approve and execute the ownership transfer (D12, AC-11, tasks 11.1–11.7).
 
-        Executes in a single transaction: updates ``institution.client_id``
-        and all ``org_unit.client_id`` from A→B. Records an
-        ``OwnershipTransferEvent``.
+        Blocking approval (task 8.4, 11.1): the transfer cannot execute until
+        the Approval is granted. Consent (task 11.1): both ``consent_source``
+        and ``consent_dest`` must be ``True``.
 
-        NOTE: C-05 academic structure + C-02 student/user record updates are
-        downstream coordination points (owned by C-05/C-02). C-11 audit
-        emission is deferred to Apply-D (task 13.4). The transaction boundary
-        is in place; downstream tables will be added when those capabilities
-        exist.
+        This method first marks the Approval as ``approved`` (Q3, AC-19), then
+        executes the single-transaction transfer. If the Approval is already
+        ``denied``, the transfer is permanently blocked.
+
+        Single-transaction transfer (task 11.2):
+        - Update ``institution.client_id`` A→B (C-01 owned).
+        - Update all ``org_unit.client_id`` A→B (C-01 owned).
+        - Call ``coordinator.migrate_academic_structure`` (C-05 boundary hook).
+        - Call ``coordinator.migrate_users`` (C-02 boundary hook).
+        - Call ``coordinator.preserve_audit_client_ids`` (C-11 boundary invariant).
+        - Record ``OwnershipTransferEvent`` (task 11.4).
+        - After commit: call ``coordinator.migrate_billing`` (C-07/C-23 boundary).
+
+        If any part fails, the entire transaction rolls back (AC-11).
+
+        Boundary declarations:
+        - C-05 academic structure migration: hook in place, C-05 owns it.
+        - C-02 student/user record migration: hook in place, C-02 owns it.
+        - C-07/C-23 billing handoff: hook in place, C-07/C-23 own it.
+        - C-11 audit immutability invariant: hook in place, C-11 owns the log.
         """
+        from kernel.tenant_institution.services.transfer import DefaultTransferCoordinator
+
+        if coordinator is None:
+            coordinator = DefaultTransferCoordinator()
+
+        # Task 8.4/11.1: check the approval status BEFORE executing.
+        # If denied, the transfer is permanently blocked.
+        existing_approval = self._approval_repo.get(session, ctx, approval_id)
+        if existing_approval is None:
+            raise ValueError("Approval not found")
+        if existing_approval.status == "denied":
+            from kernel.tenant_institution.services.approval import ApprovalDeniedError
+            raise ApprovalDeniedError(approval_id)
+
         # Mark Approval as approved (Q3, AC-19)
-        approval = self._approval_repo.approve(
+        self._approval_repo.approve(
             session, ctx, approval_id, ctx.user_id or "platform_owner",
         )
 
-        # Single-transaction transfer (D12, AC-11)
+        # Task 11.1: both-client consent required (D12)
+        if not consent_source:
+            raise ValueError(
+                "Source client consent is required for ownership transfer (D12, AC-11)"
+            )
+        if not consent_dest:
+            raise ValueError(
+                "Destination client consent is required for ownership transfer (D12, AC-11)"
+            )
+
+        # Single-transaction transfer (D12, AC-11, task 11.2)
         # Update Institution.client_id A→B
         stmt = select(Institution).where(Institution.id == institution_id)
         inst = session.execute(stmt).scalars().first()
@@ -174,7 +227,24 @@ class OwnershipTransferRepository:
             ou.client_id = to_client_id
         session.flush()
 
-        # Record OwnershipTransferEvent (D12)
+        # Task 11.2: C-05 boundary hook — academic structure migration
+        coordinator.migrate_academic_structure(
+            institution_id, from_client_id, to_client_id, session,
+        )
+
+        # Task 11.6: C-02 boundary hook — user-institution assignments + student records
+        coordinator.migrate_users(
+            institution_id, from_client_id, to_client_id, session,
+        )
+
+        # Task 11.5: C-11 boundary invariant — pre-transfer audit events keep
+        # their original client_id. The transfer MUST NOT rewrite audit
+        # event client_ids (ADR §5 constraint 14).
+        coordinator.preserve_audit_client_ids(
+            institution_id, from_client_id, to_client_id, session,
+        )
+
+        # Task 11.4: Record OwnershipTransferEvent (D12)
         event = OwnershipTransferEvent(
             client_id=to_client_id,  # new owner
             from_client_id=from_client_id,
@@ -189,7 +259,8 @@ class OwnershipTransferRepository:
         session.add(event)
         session.flush()
 
-        # C-11 audit emission deferred to Apply-D (task 13.4).
-        # Post-move isolation verification deferred to Apply-C (task 11.3).
+        # Task 11.7: C-07/C-23 boundary hook — billing handoff (next cycle).
+        # Called AFTER the transfer transaction is committed by the service
+        # layer (billing handoff is next-cycle, not in-transaction).
 
         return OwnershipTransferEventDTO.model_validate(event)

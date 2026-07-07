@@ -107,6 +107,79 @@ class InstitutionRepository(TenantAwareRepositoryBase[Institution]):
         elif isinstance(template, dict) and "children" in template:
             _create_nodes(template.get("children", []), None)
 
+    def get_effective_state(
+        self, session: Session, ctx: TenantContext, institution_id: uuid.UUID,
+    ) -> str:
+        """Compute the **effective** operational state at runtime (D9, AC-7, task 8.3).
+
+        An Institution is operationally Active only if BOTH its own
+        ``current_lifecycle_status`` is ``active`` AND its Client's
+        ``current_lifecycle_status`` is ``active``.
+
+        This is a **runtime** computation — it does NOT mutate any persisted
+        state. When a Client is suspended, the Institution's row is untouched;
+        this method returns ``"gated"`` instead of ``"active"``. When the
+        Client is restored, it returns ``"active"`` again with no persisted
+        state restoration needed (AC-7).
+
+        Returns:
+            - ``"active"`` if both Institution and Client are active.
+            - ``"gated"`` if the Institution's own state is active but the
+              Client is not active (runtime gating — AC-7).
+            - The Institution's own ``current_lifecycle_status`` otherwise
+              (onboarding, inactive, archived).
+        """
+        from kernel.tenant_institution.services.state_machine import (
+            is_institution_operationally_active,
+        )
+        from kernel.tenant_institution.models import Client
+
+        stmt = select(Institution).where(
+            Institution.id == institution_id,
+            Institution.client_id == ctx.client_id,
+        )
+        inst = session.execute(stmt).scalars().first()
+        if not inst:
+            raise ValueError("Institution not found")
+
+        # If the institution's own state is not "active", return it directly
+        if inst.current_lifecycle_status != "active":
+            return inst.current_lifecycle_status
+
+        # Look up the Client's state (no tenant filter — platform-level lookup)
+        client_stmt = select(Client).where(Client.id == inst.client_id)
+        client = session.execute(client_stmt).scalars().first()
+        if not client:
+            raise ValueError("Client not found for institution")
+
+        if is_institution_operationally_active(
+            inst.current_lifecycle_status, client.current_lifecycle_status,
+        ):
+            return "active"
+        # Institution is active but Client is not — runtime gated (AC-7)
+        return "gated"
+
+    def get_client_lifecycle_status(
+        self, session: Session, institution_id: uuid.UUID,
+    ) -> str:
+        """Get the Client's lifecycle status for an Institution (runtime effective-state, AC-7).
+
+        Used by the effective-state computation (task 8.3). No tenant filter —
+        this is a platform-level lookup for the gating computation.
+        """
+        from kernel.tenant_institution.models import Client
+
+        stmt = select(Institution).where(Institution.id == institution_id)
+        inst = session.execute(stmt).scalars().first()
+        if not inst:
+            raise ValueError("Institution not found")
+
+        client_stmt = select(Client).where(Client.id == inst.client_id)
+        client = session.execute(client_stmt).scalars().first()
+        if not client:
+            raise ValueError("Client not found")
+        return client.current_lifecycle_status
+
     def update_identity(
         self, session: Session, ctx: TenantContext, institution_id: uuid.UUID,
         dto: InstitutionUpdateDTO,
@@ -132,9 +205,16 @@ class InstitutionRepository(TenantAwareRepositoryBase[Institution]):
         self, session: Session, ctx: TenantContext, institution_id: uuid.UUID,
         new_state: str, reason: str | None, actor: str,
     ) -> InstitutionDTO:
-        """Transition Institution lifecycle (D9 arcs). Go-live = Onboarding→Active.
-        Full state-machine + Approval flow is sub-phase C (task 8).
+        """Transition Institution lifecycle (D9 arcs, AC-6).
+
+        Validates the arc via the state machine (task 8.2) and writes an
+        ``institution_lifecycle_event`` row on every transition (task 8.5).
+        C-11 audit emission deferred to Apply-D (task 13.2).
         """
+        from kernel.tenant_institution.services.state_machine import (
+            validate_institution_transition,
+        )
+
         stmt = select(Institution).where(
             Institution.id == institution_id,
             Institution.client_id == ctx.client_id,
@@ -144,25 +224,13 @@ class InstitutionRepository(TenantAwareRepositoryBase[Institution]):
             raise ValueError("Institution not found")
 
         old_state = obj.current_lifecycle_status
-        # Basic arc validation (D9) — full state machine is task 8.2 (Apply-C)
-        _ALLOWED_INSTITUTION_ARCS = {
-            ("onboarding", "active"),
-            ("onboarding", "archived"),
-            ("active", "inactive"),
-            ("inactive", "active"),
-            ("active", "archived"),
-            ("inactive", "archived"),
-            ("archived", "active"),
-        }
-        if (old_state, new_state) not in _ALLOWED_INSTITUTION_ARCS:
-            raise ValueError(
-                f"Institution lifecycle transition '{old_state}→{new_state}' is not allowed"
-            )
+        # Full state-machine validation (D9, task 8.2) — no Terminated for institutions
+        validate_institution_transition(old_state, new_state)
 
         obj.current_lifecycle_status = new_state
         session.flush()
 
-        # Record lifecycle event (D9) — C-11 audit emission deferred to Apply-D (task 13.2)
+        # Record lifecycle event (D9, task 8.5) — one row per transition
         from kernel.tenant_institution.models import InstitutionLifecycleEvent
         event = InstitutionLifecycleEvent(
             client_id=obj.client_id,

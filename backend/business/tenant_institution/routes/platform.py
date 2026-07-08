@@ -16,8 +16,8 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from kernel.tenant_context import TenantContext, require_platform_owner
-from kernel.tenant_institution.dependencies import get_tenant_institution_service
-from kernel.tenant_institution.services import (
+from business.tenant_institution.dependencies import get_tenant_institution_service
+from business.tenant_institution.services import (
     TenantInstitutionService,
     ClientCreateDTO,
     ClientDTO,
@@ -215,9 +215,9 @@ def approve_ownership_transfer(
 
     try:
         # Get the institution_id and from_client_id from the Approval context
-        from kernel.tenant_institution.dependencies import get_db_session_factory
-        from kernel.tenant_institution.repos import ApprovalRepository
-        from kernel.tenant_institution.models import Institution
+        from business.tenant_institution.dependencies import get_db_session_factory
+        from business.tenant_institution.repos import ApprovalRepository
+        from business.tenant_institution.models import Institution
         from sqlalchemy import select
 
         sf = get_db_session_factory()

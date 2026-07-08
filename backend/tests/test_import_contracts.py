@@ -13,6 +13,7 @@ import pathlib
 import pkgutil
 
 import kernel
+import business.tenant_institution
 
 
 def test_kernel_imports_nothing_from_shared_or_business():
@@ -42,31 +43,31 @@ def test_kernel_imports_nothing_from_shared_or_business():
 def test_c01_services_is_published_interface():
     """14b.2, A4: ``services/`` is C-01's only published interface.
 
-    Cross-module consumers must import from ``kernel.tenant_institution.services``
+    Cross-module consumers must import from ``business.tenant_institution.services``
     only; ``repos/`` and ``models/`` are internal implementation packages and
-    must not be imported from outside the ``kernel.tenant_institution`` package.
+    must not be imported from outside the ``business.tenant_institution`` package.
     ``services/`` MUST exist as a package (the published interface).
     """
-    c01_root = pathlib.Path(kernel.tenant_institution.__file__).parent
+    c01_root = pathlib.Path(business.tenant_institution.__file__).parent
     services_dir = c01_root / "services"
     repos_dir = c01_root / "repos"
     models_dir = c01_root / "models"
     # The published interface packages exist
     assert services_dir.is_dir(), (
-        "kernel/tenant_institution/services/ must exist (published interface, A4)"
+        "business/tenant_institution/services/ must exist (published interface, A4)"
     )
     assert repos_dir.is_dir()
     assert models_dir.is_dir()
 
     internal_submodules = ("repos", "models")
 
-    # Walk the kernel package OUTSIDE kernel.tenant_institution and assert no
-    # import of ``kernel.tenant_institution.<internal_submodule>``.
+    # Walk the kernel package OUTSIDE business.tenant_institution and assert no
+    # import of ``business.tenant_institution.<internal_submodule>``.
     kernel_pkg = importlib.import_module("kernel")
     for importer, modname, ispkg in pkgutil.walk_packages(
         kernel_pkg.__path__, prefix="kernel."
     ):
-        if modname.startswith("kernel.tenant_institution"):
+        if modname.startswith("business.tenant_institution"):
             continue  # internal imports within C-01 are allowed (routes import repos/models)
         mod = importlib.import_module(modname)
         py_path = pathlib.Path(getattr(mod, "__file__", "") or "")
@@ -80,11 +81,11 @@ def test_c01_services_is_published_interface():
             elif isinstance(node, ast.ImportFrom) and node.module:
                 target = node.module
             if target and any(
-                target == f"kernel.tenant_institution.{s}"
-                or target.startswith(f"kernel.tenant_institution.{s}.")
+                target == f"business.tenant_institution.{s}"
+                or target.startswith(f"business.tenant_institution.{s}.")
                 for s in internal_submodules
             ):
                 raise AssertionError(
                     f"{modname} imports C-01 internal package '{target}' — "
-                    "only kernel.tenant_institution.services is the published interface (A4, 14b.2)"
+                    "only business.tenant_institution.services is the published interface (A4, 14b.2)"
                 )

@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from kernel.tenant_context import TenantContext
-from kernel.tenant_institution.models import (
+from business.tenant_institution.models import (
     Client,
     InstitutionType,
     Institution,
@@ -24,12 +24,12 @@ from kernel.tenant_institution.models import (
     InstitutionTypeName,
     OrgUnitType,
 )
-from kernel.tenant_institution.repos import (
+from business.tenant_institution.repos import (
     ClientRepository,
     InstitutionRepository,
     OrgUnitRepository,
 )
-from kernel.tenant_institution.services.dtos import (
+from business.tenant_institution.services.dtos import (
     ClientDTO,
     InstitutionDTO,
     OrgUnitDTO,

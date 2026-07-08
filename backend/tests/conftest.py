@@ -20,11 +20,11 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from kernel.app_factory import create_app
-from kernel.tenant_institution.manifest import manifest as c01_manifest
+from business.tenant_institution.manifest import manifest as c01_manifest
 from kernel.tenant_context import TenantContext, set_tenant_context
 from kernel.middleware import mint_test_jwt
-from kernel.tenant_institution.dependencies import reset_service_singleton
-from kernel.tenant_institution.services.audit import AuditEmitter, DefaultAuditEmitter
+from business.tenant_institution.dependencies import reset_service_singleton
+from kernel.audit import AuditEmitter, DefaultAuditEmitter
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",

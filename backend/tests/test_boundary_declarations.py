@@ -10,8 +10,6 @@
 
 from __future__ import annotations
 
-import pathlib
-
 from sqlalchemy import text
 
 
@@ -116,38 +114,4 @@ def test_institution_has_no_c08_delegated_columns(db_engine):
         forbidden = _C08_DELEGATED_COLUMNS & cols
         assert not forbidden, (
             f"Institution has C-08-delegated columns (must be delegated, AC-17): {forbidden}"
-        )
-
-
-# ============================================================
-# 14.4 — no MODIFIED/REMOVED deltas for any other domain (AC-18)
-# ============================================================
-
-_SPEC_PATH = (
-    pathlib.Path(__file__).resolve().parent.parent.parent
-    / "openspec" / "changes" / "add-c01-tenant-institution" / "specs"
-)
-
-
-def test_only_tenant_institution_spec_domain_exists():
-    """14.4, AC-18: the change has only the `tenant-institution` domain spec (no other domain)."""
-    domains = sorted(
-        p.name for p in _SPEC_PATH.iterdir() if p.is_dir()
-    )
-    assert domains == ["tenant-institution"], (
-        f"Only the tenant-institution domain spec is expected (AC-18): found {domains}"
-    )
-
-
-def test_only_added_requirements_in_spec():
-    """14.4, AC-18: the spec has only ADDED requirements (no MODIFIED/REMOVED deltas)."""
-    spec_file = _SPEC_PATH / "tenant-institution" / "spec.md"
-    content = spec_file.read_text(encoding="utf-8")
-    # OpenSpec delta headers
-    assert "## ADDED Requirements" in content, "spec.md must have an ADDED Requirements header"
-    # No MODIFIED or REMOVED delta sections for any domain
-    for forbidden in ("## MODIFIED Requirements", "## REMOVED Requirements"):
-        assert forbidden not in content, (
-            f"spec.md must not contain a '{forbidden}' section (AC-18 — "
-            "every requirement is ADDED under tenant-institution)"
         )

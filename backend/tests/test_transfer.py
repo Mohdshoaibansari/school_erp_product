@@ -19,7 +19,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from kernel.tenant_context import TenantContext
-from kernel.tenant_institution.models import (
+from business.tenant_institution.models import (
     Client,
     Institution,
     InstitutionType,
@@ -29,20 +29,20 @@ from kernel.tenant_institution.models import (
     OrgUnit,
     OwnershipTransferEvent,
 )
-from kernel.tenant_institution.repos import (
+from business.tenant_institution.repos import (
     ApprovalRepository,
     OwnershipTransferRepository,
     InstitutionRepository,
     ClientRepository,
 )
-from kernel.tenant_institution.services.approval import (
+from business.tenant_institution.services.approval import (
     ApprovalDeniedError,
 )
-from kernel.tenant_institution.services.transfer import (
+from kernel.transfer_coordinator import (
     TransferCoordinator,
     DefaultTransferCoordinator,
 )
-from kernel.tenant_institution.dependencies import get_tenant_institution_service
+from business.tenant_institution.dependencies import get_tenant_institution_service
 
 
 # ============================================================

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from sqlalchemy import text
 
-from kernel.tenant_institution.models import (
+from business.tenant_institution.models import (
     LegalEntityType,
     OrgUnitType,
     InstitutionTypeName,

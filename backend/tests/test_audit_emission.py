@@ -18,7 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from kernel.tenant_context import TenantContext
-from kernel.tenant_institution.models import (
+from business.tenant_institution.models import (
     Client,
     Institution,
     InstitutionType,
@@ -27,13 +27,13 @@ from kernel.tenant_institution.models import (
     OrgUnitType,
     OrgUnit,
 )
-from kernel.tenant_institution.repos import (
+from business.tenant_institution.repos import (
     ClientRepository,
     InstitutionRepository,
     OrgUnitRepository,
     OwnershipTransferRepository,
 )
-from kernel.tenant_institution.services.audit import (
+from kernel.audit import (
     AuditEmitter,
     DefaultAuditEmitter,
 )
@@ -316,7 +316,7 @@ class TestNoMessageBroker:
         import pathlib
 
         broker_modules = {"pika", "kafka", "redis", "celery", "aio_pika", "aiokafka"}
-        c01_root = pathlib.Path("kernel/tenant_institution")
+        c01_root = pathlib.Path("business/tenant_institution")
         violations = []
         for py in c01_root.rglob("*.py"):
             tree = ast.parse(py.read_text(encoding="utf-8"), filename=str(py))

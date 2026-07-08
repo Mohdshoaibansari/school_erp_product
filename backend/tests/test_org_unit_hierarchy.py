@@ -15,7 +15,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from kernel.tenant_context import TenantContext
-from kernel.tenant_institution.models import (
+from business.tenant_institution.models import (
     Client,
     Institution,
     InstitutionType,
@@ -24,8 +24,8 @@ from kernel.tenant_institution.models import (
     OrgUnitType,
     OrgUnit,
 )
-from kernel.tenant_institution.repos import OrgUnitRepository
-from kernel.tenant_institution.services.dtos import OrgUnitDTO
+from business.tenant_institution.repos import OrgUnitRepository
+from business.tenant_institution.services.dtos import OrgUnitDTO
 
 
 # ============================================================
@@ -295,7 +295,7 @@ class TestOrgUnitMove:
         db_session.commit()
 
         # Inject a capture emitter so we can assert the payload
-        from kernel.tenant_institution.services.audit import DefaultAuditEmitter
+        from kernel.audit import DefaultAuditEmitter
         emitter = DefaultAuditEmitter()
         repo = OrgUnitRepository(audit_emitter=emitter)
         repo.move(db_session, ctx, node_a.id, new_root.id)

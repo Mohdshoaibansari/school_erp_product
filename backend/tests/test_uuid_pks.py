@@ -10,7 +10,7 @@ import uuid
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
-from kernel.tenant_institution.models import (
+from business.tenant_institution.models import (
     LegalEntityType,
     OrgUnitType,
     InstitutionTypeName,

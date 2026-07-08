@@ -21,15 +21,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from kernel.tenant_context import TenantContext
-from kernel.tenant_institution.models import (
+from business.tenant_institution.models import (
     Approval,
     Institution,
     OrgUnit,
     OwnershipTransferEvent,
 )
-from kernel.tenant_institution.repos.base import TenantAwareRepositoryBase
-from kernel.tenant_institution.services.audit import AuditEmitter, DefaultAuditEmitter
-from kernel.tenant_institution.services.dtos import (
+from kernel.repo_base import TenantAwareRepositoryBase
+from kernel.audit import AuditEmitter, DefaultAuditEmitter
+from business.tenant_institution.services.dtos import (
     ApprovalDTO,
     OwnershipTransferEventDTO,
 )
@@ -180,7 +180,7 @@ class OwnershipTransferRepository:
         - C-07/C-23 billing handoff: hook in place, C-07/C-23 own it.
         - C-11 audit immutability invariant: hook in place, C-11 owns the log.
         """
-        from kernel.tenant_institution.services.transfer import DefaultTransferCoordinator
+        from kernel.transfer_coordinator import DefaultTransferCoordinator
 
         if coordinator is None:
             coordinator = DefaultTransferCoordinator()
@@ -191,7 +191,7 @@ class OwnershipTransferRepository:
         if existing_approval is None:
             raise ValueError("Approval not found")
         if existing_approval.status == "denied":
-            from kernel.tenant_institution.services.approval import ApprovalDeniedError
+            from business.tenant_institution.services.approval import ApprovalDeniedError
             raise ApprovalDeniedError(approval_id)
 
         # Mark Approval as approved (Q3, AC-19)

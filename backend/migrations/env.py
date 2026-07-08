@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from kernel.db import Base  # noqa: E402
 
 # Import all model modules so they register with Base.metadata
-from kernel.tenant_institution import models  # noqa: E402, F401
+from business.tenant_institution import models  # noqa: E402, F401
 
 config = context.config
 

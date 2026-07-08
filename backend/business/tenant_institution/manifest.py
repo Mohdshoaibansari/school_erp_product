@@ -29,7 +29,7 @@ class TenantInstitutionManifest(ManifestBase):
         app.add_middleware(SubdomainJWTMiddleware)
 
         # Register routers (7.3–7.7)
-        from kernel.tenant_institution.routes import platform_router, client_portal_router
+        from business.tenant_institution.routes import platform_router, client_portal_router
         app.include_router(platform_router)
         app.include_router(client_portal_router)
 
@@ -37,7 +37,7 @@ class TenantInstitutionManifest(ManifestBase):
         # 12.1 (section 12): register the D11 tiered-delegation matrix as Casbin
         # RBAC+ABAC policies on the given enforcer (A5; C-04 owns the framework,
         # C-01 supplies the matrix content + registers its own policies).
-        from kernel.tenant_institution.policies import register_policies
+        from business.tenant_institution.policies import register_policies
         register_policies(enforcer)
 
     def on_startup(self) -> None:

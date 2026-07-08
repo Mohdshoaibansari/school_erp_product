@@ -33,15 +33,16 @@ testpaths = ["tests"]
 include_external_packages = true
 root_packages = [
     "kernel",
+    "business",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Kernel has no in-app dependencies (A3)"
 type = "forbidden"
 source_modules = ["kernel"]
-forbidden_modules = ["shared", "modules"]
+forbidden_modules = ["shared", "business"]
 
 [[tool.importlinter.contracts]]
 name = "Dependency graph is acyclic (A4)"
 type = "layers"
-layers = ["kernel"]
+layers = ["business", "kernel"]

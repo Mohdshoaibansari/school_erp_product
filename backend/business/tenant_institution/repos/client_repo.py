@@ -8,10 +8,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from kernel.tenant_context import TenantContext
-from kernel.tenant_institution.models import Client
-from kernel.tenant_institution.repos.base import TenantAwareRepositoryBase
-from kernel.tenant_institution.services.audit import AuditEmitter, DefaultAuditEmitter
-from kernel.tenant_institution.services.dtos import (
+from business.tenant_institution.models import Client
+from kernel.repo_base import TenantAwareRepositoryBase
+from kernel.audit import AuditEmitter, DefaultAuditEmitter
+from business.tenant_institution.services.dtos import (
     ClientCreateDTO,
     ClientDTO,
     ClientUpdateDTO,
@@ -144,7 +144,7 @@ class ClientRepository(TenantAwareRepositoryBase[Client]):
         ``client_lifecycle_event`` row on every transition (task 8.5).
         C-11 audit emission deferred to Apply-D (task 13.1).
         """
-        from kernel.tenant_institution.services.state_machine import (
+        from business.tenant_institution.services.state_machine import (
             validate_client_transition,
         )
 
@@ -161,7 +161,7 @@ class ClientRepository(TenantAwareRepositoryBase[Client]):
         session.flush()
 
         # Record lifecycle event (D8, task 8.5) — one row per transition
-        from kernel.tenant_institution.models import ClientLifecycleEvent
+        from business.tenant_institution.models import ClientLifecycleEvent
         event = ClientLifecycleEvent(
             client_id=obj.id,
             state=new_state,

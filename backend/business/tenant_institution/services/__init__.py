@@ -3,8 +3,8 @@
 Endpoints call services; services call repos. This is the module boundary.
 """
 
-from kernel.tenant_institution.services.service import TenantInstitutionService
-from kernel.tenant_institution.services.dtos import (
+from business.tenant_institution.services.service import TenantInstitutionService
+from business.tenant_institution.services.dtos import (
     ApprovalDTO,
     ClientCreateDTO,
     ClientDTO,
@@ -24,7 +24,7 @@ from kernel.tenant_institution.services.dtos import (
     OwnershipTransferEventDTO,
     OwnershipTransferRequestDTO,
 )
-from kernel.tenant_institution.services.state_machine import (
+from business.tenant_institution.services.state_machine import (
     InvalidTransitionError,
     CLIENT_ARCS,
     CLIENT_STATES,
@@ -37,7 +37,7 @@ from kernel.tenant_institution.services.state_machine import (
     is_client_state_terminal,
     is_institution_operationally_active,
 )
-from kernel.tenant_institution.services.approval import (
+from business.tenant_institution.services.approval import (
     ApprovalNotGrantedError,
     ApprovalDeniedError,
     request_approval,
@@ -45,11 +45,11 @@ from kernel.tenant_institution.services.approval import (
     deny_approval,
     assert_approved,
 )
-from kernel.tenant_institution.services.transfer import (
+from kernel.transfer_coordinator import (
     TransferCoordinator,
     DefaultTransferCoordinator,
 )
-from kernel.tenant_institution.services.audit import (
+from kernel.audit import (
     AuditEmitter,
     DefaultAuditEmitter,
 )

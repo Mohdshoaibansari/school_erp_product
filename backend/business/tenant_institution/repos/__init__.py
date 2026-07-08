@@ -5,16 +5,16 @@ Repos are module-scoped singletons (A6). They inject ``client_id`` from
 objects** (tech-stack ADR §3).
 """
 
-from kernel.tenant_institution.repos.base import TenantAwareRepositoryBase
-from kernel.tenant_institution.repos.client_repo import (
+from kernel.repo_base import TenantAwareRepositoryBase
+from business.tenant_institution.repos.client_repo import (
     ClientRepository,
     is_reserved_slug,
     validate_slug_format,
 )
-from kernel.tenant_institution.repos.institution_repo import InstitutionRepository
-from kernel.tenant_institution.repos.institution_type_repo import InstitutionTypeRepository
-from kernel.tenant_institution.repos.org_unit_repo import OrgUnitRepository
-from kernel.tenant_institution.repos.approval_transfer_repo import (
+from business.tenant_institution.repos.institution_repo import InstitutionRepository
+from business.tenant_institution.repos.institution_type_repo import InstitutionTypeRepository
+from business.tenant_institution.repos.org_unit_repo import OrgUnitRepository
+from business.tenant_institution.repos.approval_transfer_repo import (
     ApprovalRepository,
     OwnershipTransferRepository,
 )

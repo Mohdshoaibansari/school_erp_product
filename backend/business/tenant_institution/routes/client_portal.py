@@ -15,8 +15,8 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from kernel.tenant_context import TenantContext, get_tenant_context
-from kernel.tenant_institution.dependencies import get_tenant_institution_service
-from kernel.tenant_institution.services import (
+from business.tenant_institution.dependencies import get_tenant_institution_service
+from business.tenant_institution.services import (
     TenantInstitutionService,
     InstitutionCreateDTO,
     InstitutionDTO,

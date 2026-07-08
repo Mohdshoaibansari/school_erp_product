@@ -8,9 +8,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from kernel.tenant_context import TenantContext
-from kernel.tenant_institution.models import InstitutionType, OrgUnitType
-from kernel.tenant_institution.repos.base import TenantAwareRepositoryBase
-from kernel.tenant_institution.services.dtos import (
+from business.tenant_institution.models import InstitutionType, OrgUnitType
+from kernel.repo_base import TenantAwareRepositoryBase
+from business.tenant_institution.services.dtos import (
     InstitutionTypeCreateDTO,
     InstitutionTypeDTO,
     InstitutionTypeUpdateDTO,

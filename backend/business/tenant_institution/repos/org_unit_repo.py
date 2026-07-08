@@ -13,10 +13,10 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from kernel.tenant_context import TenantContext
-from kernel.tenant_institution.models import OrgUnit
-from kernel.tenant_institution.repos.base import TenantAwareRepositoryBase
-from kernel.tenant_institution.services.audit import AuditEmitter, DefaultAuditEmitter
-from kernel.tenant_institution.services.dtos import (
+from business.tenant_institution.models import OrgUnit
+from kernel.repo_base import TenantAwareRepositoryBase
+from kernel.audit import AuditEmitter, DefaultAuditEmitter
+from business.tenant_institution.services.dtos import (
     OrgUnitCreateDTO,
     OrgUnitDTO,
     OrgUnitMoveDTO,

@@ -16,7 +16,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from kernel.tenant_context import TenantContext
-from kernel.tenant_institution.models import (
+from business.tenant_institution.models import (
     Client,
     Institution,
     InstitutionType,
@@ -26,13 +26,13 @@ from kernel.tenant_institution.models import (
     ClientLifecycleEvent,
     InstitutionLifecycleEvent,
 )
-from kernel.tenant_institution.repos import (
+from business.tenant_institution.repos import (
     ClientRepository,
     InstitutionRepository,
     ApprovalRepository,
     OwnershipTransferRepository,
 )
-from kernel.tenant_institution.services.state_machine import (
+from business.tenant_institution.services.state_machine import (
     InvalidTransitionError,
     validate_client_transition,
     validate_institution_transition,
@@ -41,7 +41,7 @@ from kernel.tenant_institution.services.state_machine import (
     CLIENT_ARCS,
     INSTITUTION_ARCS,
 )
-from kernel.tenant_institution.services.approval import (
+from business.tenant_institution.services.approval import (
     ApprovalNotGrantedError,
     ApprovalDeniedError,
     request_approval,

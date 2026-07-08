@@ -7,6 +7,10 @@ lazy-load tenant bypass).
 
 Repos are module-scoped singletons (A6); ``TenantContext`` is request-scoped
 via ``Depends``.
+
+This module lives in ``kernel/`` (not ``business/``) because every business
+module needs ``TenantAwareRepositoryBase``. It imports nothing from any
+business package — A3 (kernel → ∅) is satisfied.
 """
 
 from __future__ import annotations
@@ -18,8 +22,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from kernel.tenant_context import TenantContext
-
-from kernel.tenant_institution.models import Client, Institution, OrgUnit
 
 ModelT = TypeVar("ModelT")
 
@@ -42,7 +44,7 @@ class TenantAwareRepositoryBase(Generic[ModelT]):
         The ``client`` table itself has NO ``client_id`` column (Q1) — it
         uses ``id = current_client_id`` RLS instead.
         """
-        return self._model is not Client
+        return hasattr(self._model, "client_id")
 
     def _client_filter(self, ctx: TenantContext):
         """Return the SQLAlchemy filter clause that enforces ``client_id``."""

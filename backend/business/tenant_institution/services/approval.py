@@ -19,8 +19,8 @@ import uuid
 from sqlalchemy.orm import Session
 
 from kernel.tenant_context import TenantContext
-from kernel.tenant_institution.repos import ApprovalRepository
-from kernel.tenant_institution.services.dtos import ApprovalDTO
+from business.tenant_institution.repos import ApprovalRepository
+from business.tenant_institution.services.dtos import ApprovalDTO
 
 
 class ApprovalNotGrantedError(ValueError):

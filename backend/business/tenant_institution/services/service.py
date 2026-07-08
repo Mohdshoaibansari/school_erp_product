@@ -12,7 +12,7 @@ from typing import Any
 from sqlalchemy.orm import Session, sessionmaker
 
 from kernel.tenant_context import TenantContext
-from kernel.tenant_institution.repos import (
+from business.tenant_institution.repos import (
     ApprovalRepository,
     ClientRepository,
     InstitutionRepository,
@@ -20,8 +20,8 @@ from kernel.tenant_institution.repos import (
     OrgUnitRepository,
     OwnershipTransferRepository,
 )
-from kernel.tenant_institution.services.audit import AuditEmitter, DefaultAuditEmitter
-from kernel.tenant_institution.services.dtos import (
+from kernel.audit import AuditEmitter, DefaultAuditEmitter
+from business.tenant_institution.services.dtos import (
     ApprovalDTO,
     ClientCreateDTO,
     ClientDTO,
@@ -291,7 +291,7 @@ class TenantInstitutionService:
         boundary hooks for C-05/C-02/C-11 (in-transaction) and C-07/C-23
         (post-commit billing handoff).
         """
-        from kernel.tenant_institution.services.transfer import DefaultTransferCoordinator
+        from kernel.transfer_coordinator import DefaultTransferCoordinator
 
         if coordinator is None:
             coordinator = DefaultTransferCoordinator()

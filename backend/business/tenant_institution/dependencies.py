@@ -12,7 +12,7 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from kernel.tenant_institution.services import TenantInstitutionService
+from business.tenant_institution.services import TenantInstitutionService
 
 # Lazy singleton — created on first use
 _service: TenantInstitutionService | None = None

@@ -19,9 +19,9 @@ from sqlalchemy.orm import Session
 
 from kernel.app_factory import create_app
 from kernel.tenant_context import TenantContext, get_tenant_context, set_tenant_context
-from kernel.tenant_institution.dependencies import reset_service_singleton
-from kernel.tenant_institution.manifest import manifest as c01_manifest
-from kernel.tenant_institution.models import (
+from business.tenant_institution.dependencies import reset_service_singleton
+from business.tenant_institution.manifest import manifest as c01_manifest
+from business.tenant_institution.models import (
     Client,
     InstitutionType,
     Institution,
@@ -697,7 +697,7 @@ class TestOwnershipTransfer:
         # We need to use a different approach -- override the dependency.
 
         # Let's use a direct approach with the service
-        from kernel.tenant_institution.dependencies import get_tenant_institution_service
+        from business.tenant_institution.dependencies import get_tenant_institution_service
         from kernel.tenant_context import TenantContext
 
         svc = get_tenant_institution_service()
@@ -745,7 +745,7 @@ class TestOwnershipTransfer:
         db_session.add(org)
         db_session.commit()
 
-        from kernel.tenant_institution.dependencies import get_tenant_institution_service
+        from business.tenant_institution.dependencies import get_tenant_institution_service
         from kernel.tenant_context import TenantContext
 
         svc = get_tenant_institution_service()

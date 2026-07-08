@@ -3,7 +3,7 @@
 from fastapi.testclient import TestClient
 
 from kernel.app_factory import create_app
-from kernel.tenant_institution.manifest import manifest as c01_manifest
+from business.tenant_institution.manifest import manifest as c01_manifest
 
 
 def test_app_boots_with_zero_modules():

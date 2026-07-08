@@ -20,8 +20,8 @@ import uuid
 
 import pytest
 
-from kernel.tenant_institution.manifest import manifest as c01_manifest
-from kernel.tenant_institution.policies import (
+from business.tenant_institution.manifest import manifest as c01_manifest
+from business.tenant_institution.policies import (
     build_enforcer,
     make_subject,
     make_resource,

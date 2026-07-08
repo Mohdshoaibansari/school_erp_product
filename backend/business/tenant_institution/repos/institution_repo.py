@@ -8,10 +8,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from kernel.tenant_context import TenantContext
-from kernel.tenant_institution.models import Institution, InstitutionType, OrgUnit, OrgUnitType
-from kernel.tenant_institution.repos.base import TenantAwareRepositoryBase
-from kernel.tenant_institution.services.audit import AuditEmitter, DefaultAuditEmitter
-from kernel.tenant_institution.services.dtos import (
+from business.tenant_institution.models import Institution, InstitutionType, OrgUnit, OrgUnitType
+from kernel.repo_base import TenantAwareRepositoryBase
+from kernel.audit import AuditEmitter, DefaultAuditEmitter
+from business.tenant_institution.services.dtos import (
     InstitutionCreateDTO,
     InstitutionDTO,
     InstitutionUpdateDTO,
@@ -131,10 +131,10 @@ class InstitutionRepository(TenantAwareRepositoryBase[Institution]):
             - The Institution's own ``current_lifecycle_status`` otherwise
               (onboarding, inactive, archived).
         """
-        from kernel.tenant_institution.services.state_machine import (
+        from business.tenant_institution.services.state_machine import (
             is_institution_operationally_active,
         )
-        from kernel.tenant_institution.models import Client
+        from business.tenant_institution.models import Client
 
         stmt = select(Institution).where(
             Institution.id == institution_id,
@@ -169,7 +169,7 @@ class InstitutionRepository(TenantAwareRepositoryBase[Institution]):
         Used by the effective-state computation (task 8.3). No tenant filter —
         this is a platform-level lookup for the gating computation.
         """
-        from kernel.tenant_institution.models import Client
+        from business.tenant_institution.models import Client
 
         stmt = select(Institution).where(Institution.id == institution_id)
         inst = session.execute(stmt).scalars().first()
@@ -213,7 +213,7 @@ class InstitutionRepository(TenantAwareRepositoryBase[Institution]):
         ``institution_lifecycle_event`` row on every transition (task 8.5).
         C-11 audit emission deferred to Apply-D (task 13.2).
         """
-        from kernel.tenant_institution.services.state_machine import (
+        from business.tenant_institution.services.state_machine import (
             validate_institution_transition,
         )
 
@@ -233,7 +233,7 @@ class InstitutionRepository(TenantAwareRepositoryBase[Institution]):
         session.flush()
 
         # Record lifecycle event (D9, task 8.5) — one row per transition
-        from kernel.tenant_institution.models import InstitutionLifecycleEvent
+        from business.tenant_institution.models import InstitutionLifecycleEvent
         event = InstitutionLifecycleEvent(
             client_id=obj.client_id,
             institution_id=obj.id,

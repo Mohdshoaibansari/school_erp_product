@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from kernel.tenant_context import TenantContext
-from kernel.tenant_institution.models import (
+from business.tenant_institution.models import (
     Client,
     Institution,
     InstitutionType,
@@ -24,15 +24,15 @@ from kernel.tenant_institution.models import (
     OrgUnitType,
     OrgUnit,
 )
-from kernel.tenant_institution.repos import (
+from business.tenant_institution.repos import (
     InstitutionTypeRepository,
     InstitutionRepository,
 )
-from kernel.tenant_institution.repos.institution_type_repo import (
+from business.tenant_institution.repos.institution_type_repo import (
     TemplateValidationError,
     validate_template,
 )
-from kernel.tenant_institution.services.dtos import (
+from business.tenant_institution.services.dtos import (
     InstitutionTypeCreateDTO,
     InstitutionCreateDTO,
     InstitutionDTO,
@@ -234,7 +234,7 @@ class TestInstitutionTypeImmutability:
 
     def test_institution_type_id_not_updated(self, db_session: Session):
         """AC-16: updating institution_type_id is rejected (silently ignored)."""
-        from kernel.tenant_institution.services.dtos import InstitutionUpdateDTO
+        from business.tenant_institution.services.dtos import InstitutionUpdateDTO
 
         client = _make_client(db_session, slug="imm-type-client")
         itype1 = _make_institution_type(db_session, code="IT_IMM1", template=None)

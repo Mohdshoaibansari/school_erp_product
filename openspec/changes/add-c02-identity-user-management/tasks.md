@@ -45,21 +45,21 @@
 
 > Models live under `/backend/kernel/user/models/`. Each model inherits from `kernel.db.Base`. DTOs are separate from ORM objects (repos return DTOs).
 
-- [ ] 5.1 Implement `UserCategory` ORM model (`id`, `name`). — evidence: `models/user_category.py` exists; `test_user_category_model_fields` passes.
-- [ ] 5.2 Implement `Role` ORM model (`id`, `name`). — evidence: `models/role.py` exists; `test_role_model_fields` passes.
-- [ ] 5.3 Implement `User` ORM model (`id`, `client_id`, `institution_id`, `email`, `name`, `user_category_id`, `lifecycle_status`, `created_at`, `updated_at`). FK to `UserCategory`. — evidence: `models/user.py` exists; `test_user_model_fields` + `test_user_model_fk_user_category` pass.
-- [ ] 5.4 Implement `UserProfile` ORM model (`id`, `user_id`, `photo`, `date_of_birth`, `gender`, `blood_group`, `created_at`, `updated_at`). FK to `User` (1:1). — evidence: `models/user_profile.py` exists; `test_user_profile_model_fields` + `test_user_profile_model_fk_user` pass.
-- [ ] 5.5 Implement `RoleAssignment` ORM model (`id`, `client_id`, `user_id`, `role_id`, `scope`, `created_at`, `updated_at`). FK to `User` and `Role`. — evidence: `models/role_assignment.py` exists; `test_role_assignment_model_fields` + `test_role_assignment_model_fks` pass.
-- [ ] 5.6 Implement `UserIdentifier` ORM model (`id`, `client_id`, `user_id`, `type`, `value`, `created_at`, `updated_at`). FK to `User`. — evidence: `models/user_identifier.py` exists; `test_user_identifier_model_fields` + `test_user_identifier_model_fk_user` pass.
-- [ ] 5.7 Implement `UserLifecycleEvent` ORM model (`id`, `client_id`, `user_id`, `state`, `reason`, `actor`, `entered_at`). FK to `User`. — evidence: `models/user_lifecycle_event.py` exists; `test_user_lifecycle_event_model_fields` + `test_user_lifecycle_event_model_fk_user` pass.
-- [ ] 5.8 Implement DTOs for all C-02 entities (UserDTO, UserProfileDTO, RoleAssignmentDTO, UserIdentifierDTO, etc.) under `services/dtos.py`. — evidence: `services/dtos.py` exists; DTOs are Pydantic BaseModel subclasses; `test_dto_serialization` passes.
+- [x] 5.1 Implement `UserCategory` ORM model (`id`, `name`). — evidence: `models/user_category.py` exists; `test_user_category_model_fields` passes.
+- [x] 5.2 Implement `Role` ORM model (`id`, `name`). — evidence: `models/role.py` exists; `test_role_model_fields` passes.
+- [x] 5.3 Implement `User` ORM model (`id`, `client_id`, `institution_id`, `email`, `name`, `user_category_id`, `lifecycle_status`, `created_at`, `updated_at`). FK to `UserCategory`. — evidence: `models/user.py` exists; `test_user_model_fields` + `test_user_model_fk_user_category` pass.
+- [x] 5.4 Implement `UserProfile` ORM model (`id`, `user_id`, `photo`, `date_of_birth`, `gender`, `blood_group`, `created_at`, `updated_at`). FK to `User` (1:1). — evidence: `models/user_profile.py` exists; `test_user_profile_model_fields` + `test_user_profile_model_fk_user` pass.
+- [x] 5.5 Implement `RoleAssignment` ORM model (`id`, `client_id`, `user_id`, `role_id`, `scope`, `created_at`, `updated_at`). FK to `User` and `Role`. — evidence: `models/role_assignment.py` exists; `test_role_assignment_model_fields` + `test_role_assignment_model_fks` pass.
+- [x] 5.6 Implement `UserIdentifier` ORM model (`id`, `client_id`, `user_id`, `type`, `value`, `created_at`, `updated_at`). FK to `User`. — evidence: `models/user_identifier.py` exists; `test_user_identifier_model_fields` + `test_user_identifier_model_fk_user` pass.
+- [x] 5.7 Implement `UserLifecycleEvent` ORM model (`id`, `client_id`, `user_id`, `state`, `reason`, `actor`, `entered_at`). FK to `User`. — evidence: `models/user_lifecycle_event.py` exists; `test_user_lifecycle_event_model_fields` + `test_user_lifecycle_event_model_fk_user` pass.
+- [x] 5.8 Implement DTOs for all C-02 entities (UserDTO, UserProfileDTO, RoleAssignmentDTO, UserIdentifierDTO, etc.) under `services/dtos.py`. — evidence: `services/dtos.py` exists; DTOs are Pydantic BaseModel subclasses; `test_dto_serialization` passes.
 
 ## 6. Lifecycle state machine (Decision 8, AC-10, AC-11)
 
 > State machine lives under `/backend/kernel/user/services/state_machine.py`. Same pattern as C-01's `services/state_machine.py`.
 
-- [ ] 6.1 Implement User lifecycle state machine: states (Invited, Pending, Active, Suspended, Archived), arcs (Invited→Pending, Pending→Active, Active→Suspended, Suspended→Active, Active→Archived, Suspended→Archived), Archived terminal. — evidence: `services/state_machine.py` (USER_ARCS, validate_user_transition); `test_user_lifecycle_all_arcs_accepted` + `test_user_lifecycle_archived_terminal` + `test_user_lifecycle_disallowed_arc_rejected` pass.
-- [ ] 6.2 Implement lifecycle event recording: every transition writes a `user_lifecycle_event` row with `state`, `reason`, `actor`, `entered_at`. — evidence: `repos/user_repo.py::transition_lifecycle` writes event rows; `test_user_lifecycle_event_recording` passes.
+- [x] 6.1 Implement User lifecycle state machine: states (Invited, Pending, Active, Suspended, Archived), arcs (Invited→Pending, Pending→Active, Active→Suspended, Suspended→Active, Active→Archived, Suspended→Archived), Archived terminal. — evidence: `services/state_machine.py` (USER_ARCS, validate_user_transition); `test_user_lifecycle_all_arcs_accepted` + `test_user_lifecycle_archived_terminal` + `test_user_lifecycle_disallowed_arc_rejected` pass.
+- [x] 6.2 Implement lifecycle event recording: every transition writes a `user_lifecycle_event` row with `state`, `reason`, `actor`, `entered_at`. — evidence: `repos/user_repo.py::transition_lifecycle` writes event rows; `test_user_lifecycle_event_recording` passes.
 
 ## 7. Repository layer — tenant-aware data access (Decision 1, AC-1, AC-17)
 

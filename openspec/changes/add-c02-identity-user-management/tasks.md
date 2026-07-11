@@ -99,8 +99,8 @@
 
 > Integration tests verify the full request flow: middleware → route → service → repo → database.
 
-- [ ] 11.1 Test full user creation flow: create User → create UserProfile → create RoleAssignment → create UserIdentifier. — evidence: `test_integration_full_user_onboarding` passes.
-- [ ] 11.2 Test tenant isolation: User at School A cannot see User at School B. — evidence: `test_integration_cross_tenant_isolation` passes.
-- [ ] 11.3 Test lifecycle flow: Invited → Pending → Active → Suspended → Active → Archived. — evidence: `test_integration_full_lifecycle_flow` passes.
-- [ ] 11.4 Test email uniqueness: duplicate email rejected across institutions and clients. — evidence: `test_integration_email_uniqueness` passes.
-- [ ] 11.5 Test lookup tables: UserCategory and Role are queryable and usable for FK validation. — evidence: `test_integration_lookup_tables` passes.
+- [x] 11.1 Test full user creation flow: create User → create UserProfile → create RoleAssignment → create UserIdentifier. — evidence: `test_integration_full_user_onboarding` passes.
+- [x] 11.2 Test tenant isolation: User at School A cannot see User at School B. — evidence: `test_integration_cross_tenant_isolation` passes.
+- [x] 11.3 Test lifecycle flow: Invited → Pending → Active → Suspended → Active → Archived. — evidence: `test_integration_full_lifecycle_flow` passes.
+- [x] 11.4 Test email uniqueness: duplicate email rejected across institutions and clients. — evidence: `test_integration_email_uniqueness` passes.
+- [x] 11.5 Test lookup tables: UserCategory and Role are queryable and usable for FK validation. — evidence: `test_integration_lookup_tables` passes.

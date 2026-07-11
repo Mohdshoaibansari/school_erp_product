@@ -10,36 +10,36 @@
 
 > C-02 is a kernel-tier module (A2). It registers via the ModuleManifest Protocol (A5). The manifest hooks are invoked by the app factory in dependency order.
 
-- [ ] 1.1 Create the C-02 module directory structure under `/backend/kernel/user/` with `__init__.py`, `manifest.py`, `models/`, `repos/`, `routes/`, `services/`, `policies.py`, `dependencies.py`. — evidence: directory structure exists; `__init__.py` files importable.
-- [ ] 1.2 Implement `IdentityUserManagementManifest` (subclass of `ManifestBase`) with `register_routes`, `register_casbin_policies`, `on_startup`, `on_shutdown`, `register_cli` hooks. Create a `manifest` singleton. — evidence: `manifest.py` exists; `manifest` object importable; `register_routes` and `register_casbin_policies` hooks callable.
-- [ ] 1.3 Register C-02 manifest in the app factory's module list (after C-01, in dependency order). — evidence: `test_app_boots_with_c02_manifest` passes; C-02 routes mounted.
+- [x] 1.1 Create the C-02 module directory structure under `/backend/kernel/user/` with `__init__.py`, `manifest.py`, `models/`, `repos/`, `routes/`, `services/`, `policies.py`, `dependencies.py`. — evidence: directory structure exists; `__init__.py` files importable.
+- [x] 1.2 Implement `IdentityUserManagementManifest` (subclass of `ManifestBase`) with `register_routes`, `register_casbin_policies`, `on_startup`, `on_shutdown`, `register_cli` hooks. Create a `manifest` singleton. — evidence: `manifest.py` exists; `manifest` object importable; `register_routes` and `register_casbin_policies` hooks callable.
+- [x] 1.3 Register C-02 manifest in the app factory's module list (after C-01, in dependency order). — evidence: `test_app_boots_with_c02_manifest` passes; C-02 routes mounted.
 
 ## 2. Database schema — C-02 entity tables (Decision 4, AC-4) — Alembic migration `002_c02_identity_user_management.py`
 
 > All C-02 migrations live in the single Alembic env at `/backend/migrations/` (A7) under filenames prefixed `002_c02_*`. RLS policies are written as raw SQL inside the same Alembic migration.
 
-- [ ] 2.1 Create the `user_category` lookup table (`id` UUID v4 PK, `name` unique). — evidence: migration creates `user_category` table; `test_user_category_pk_is_uuid_v4` + `test_user_category_name_unique` pass.
-- [ ] 2.2 Create the `role` lookup table (`id` UUID v4 PK, `name` unique). — evidence: migration creates `role` table; `test_role_pk_is_uuid_v4` + `test_role_name_unique` pass.
-- [ ] 2.3 Create the `user` table (`id` UUID v4 PK, `client_id` FK + RLS, `institution_id` FK, `email` globally unique, `name`, `user_category_id` FK → user_category, `lifecycle_status`, `created_at`, `updated_at`). — evidence: migration creates `user` table; `test_user_pk_is_uuid_v4` + `test_user_email_unique` + `test_user_has_client_id` + `test_user_has_institution_id` pass.
-- [ ] 2.4 Create the `user_profile` table (`id` UUID v4 PK, `user_id` FK unique (1:1), `photo`, `date_of_birth`, `gender`, `blood_group`, `created_at`, `updated_at`). — evidence: migration creates `user_profile` table; `test_user_profile_pk_is_uuid_v4` + `test_user_profile_unique_user` pass.
-- [ ] 2.5 Create the `role_assignment` table (`id` UUID v4 PK, `client_id` FK + RLS, `user_id` FK, `role_id` FK, `scope`, `created_at`, `updated_at`). — evidence: migration creates `role_assignment` table; `test_role_assignment_pk_is_uuid_v4` + `test_role_assignment_has_client_id` pass.
-- [ ] 2.6 Create the `user_identifier` table (`id` UUID v4 PK, `client_id` FK + RLS, `user_id` FK, `type`, `value`, `created_at`, `updated_at`). — evidence: migration creates `user_identifier` table; `test_user_identifier_pk_is_uuid_v4` + `test_user_identifier_has_client_id` pass.
-- [ ] 2.7 Create the `user_lifecycle_event` table (`id` UUID v4 PK, `client_id` FK + RLS, `user_id` FK, `state`, `reason`, `actor`, `entered_at`). — evidence: migration creates `user_lifecycle_event` table; `test_user_lifecycle_event_pk_is_uuid_v4` + `test_user_lifecycle_event_has_client_id` pass.
+- [x] 2.1 Create the `user_category` lookup table (`id` UUID v4 PK, `name` unique). — evidence: migration creates `user_category` table; `test_user_category_pk_is_uuid_v4` + `test_user_category_name_unique` pass.
+- [x] 2.2 Create the `role` lookup table (`id` UUID v4 PK, `name` unique). — evidence: migration creates `role` table; `test_role_pk_is_uuid_v4` + `test_role_name_unique` pass.
+- [x] 2.3 Create the `user` table (`id` UUID v4 PK, `client_id` FK + RLS, `institution_id` FK, `email` globally unique, `name`, `user_category_id` FK → user_category, `lifecycle_status`, `created_at`, `updated_at`). — evidence: migration creates `user` table; `test_user_pk_is_uuid_v4` + `test_user_email_unique` + `test_user_has_client_id` + `test_user_has_institution_id` pass.
+- [x] 2.4 Create the `user_profile` table (`id` UUID v4 PK, `user_id` FK unique (1:1), `photo`, `date_of_birth`, `gender`, `blood_group`, `created_at`, `updated_at`). — evidence: migration creates `user_profile` table; `test_user_profile_pk_is_uuid_v4` + `test_user_profile_unique_user` pass.
+- [x] 2.5 Create the `role_assignment` table (`id` UUID v4 PK, `client_id` FK + RLS, `user_id` FK, `role_id` FK, `scope`, `created_at`, `updated_at`). — evidence: migration creates `role_assignment` table; `test_role_assignment_pk_is_uuid_v4` + `test_role_assignment_has_client_id` pass.
+- [x] 2.6 Create the `user_identifier` table (`id` UUID v4 PK, `client_id` FK + RLS, `user_id` FK, `type`, `value`, `created_at`, `updated_at`). — evidence: migration creates `user_identifier` table; `test_user_identifier_pk_is_uuid_v4` + `test_user_identifier_has_client_id` pass.
+- [x] 2.7 Create the `user_lifecycle_event` table (`id` UUID v4 PK, `client_id` FK + RLS, `user_id` FK, `state`, `reason`, `actor`, `entered_at`). — evidence: migration creates `user_lifecycle_event` table; `test_user_lifecycle_event_pk_is_uuid_v4` + `test_user_lifecycle_event_has_client_id` pass.
 
 ## 3. Database schema — seed data (Decision 9, Decision 10, R6)
 
 > Seed data for UserCategory and Role lookup tables, inserted in the same Alembic migration.
 
-- [ ] 3.1 Seed UserCategory lookup data: Learner, Academic Staff, Academic Leadership, Administrative Staff, Executive Leadership. — evidence: migration inserts 5 rows into `user_category`; `test_user_category_seed_data` passes.
-- [ ] 3.2 Seed Role lookup data: Teacher, HOD, Principal, Student, Parent, Staff, Admin. — evidence: migration inserts 7 rows into `role`; `test_role_seed_data` passes.
+- [x] 3.1 Seed UserCategory lookup data: Learner, Academic Staff, Academic Leadership, Administrative Staff, Executive Leadership. — evidence: migration inserts 5 rows into `user_category`; `test_user_category_seed_data` passes.
+- [x] 3.2 Seed Role lookup data: Teacher, HOD, Principal, Student, Parent, Staff, Admin. — evidence: migration inserts 7 rows into `role`; `test_role_seed_data` passes.
 
 ## 4. Database schema — RLS policies (Decision 1, AC-1, AC-20) — raw SQL inside the same Alembic migration
 
 > RLS policies are emitted as `CREATE POLICY` raw SQL inside `002_c02_*` Alembic migration files. Same pattern as C-01.
 
-- [ ] 4.1 Enable RLS and create a `client_id`-matching policy on every tenant-scoped C-02 table (`user`, `role_assignment`, `user_identifier`, `user_lifecycle_event`). — evidence: migration enables FORCE RLS + creates policies on 4 tenant-scoped tables; `test_cross_tenant_isolation_user` + `test_cross_tenant_isolation_role_assignment` pass.
-- [ ] 4.2 Verify `user_profile` does NOT have its own RLS policy (it's accessed via User FK, not directly queried by client_id). — evidence: `test_user_profile_no_rls_policy` inspects policy expressions; profile is accessed through User relationship.
-- [ ] 4.3 Verify `user_category` and `role` lookup tables do NOT have RLS policies (they are global/shared, not tenant-scoped). — evidence: `test_user_category_no_rls` + `test_role_no_rls` pass.
+- [x] 4.1 Enable RLS and create a `client_id`-matching policy on every tenant-scoped C-02 table (`user`, `role_assignment`, `user_identifier`, `user_lifecycle_event`). — evidence: migration enables FORCE RLS + creates policies on 4 tenant-scoped tables; `test_cross_tenant_isolation_user` + `test_cross_tenant_isolation_role_assignment` pass.
+- [x] 4.2 Verify `user_profile` does NOT have its own RLS policy (it's accessed via User FK, not directly queried by client_id). — evidence: `test_user_profile_no_rls_policy` inspects policy expressions; profile is accessed through User relationship.
+- [x] 4.3 Verify `user_category` and `role` lookup tables do NOT have RLS policies (they are global/shared, not tenant-scoped). — evidence: `test_user_category_no_rls` + `test_role_no_rls` pass.
 
 ## 5. Models — SQLAlchemy ORM models (Decision 4, Decision 5, Decision 6, Decision 7, Decision 8)
 

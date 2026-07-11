@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from kernel.app_factory import create_app
 from business.tenant_institution.manifest import manifest as c01_manifest
+from kernel.user.manifest import manifest as c02_manifest
 from kernel.tenant_context import TenantContext, set_tenant_context
 from kernel.middleware import mint_test_jwt
 from business.tenant_institution.dependencies import reset_service_singleton
@@ -32,10 +33,15 @@ DATABASE_URL = os.environ.get(
 )
 
 # Tables that hold seed data (should NOT be cleaned between tests)
-_SEED_TABLES = {"legal_entity_type", "org_unit_type", "institution_type_name"}
+_SEED_TABLES = {"legal_entity_type", "org_unit_type", "institution_type_name", "user_category", "role"}
 
-# All C-01 entity tables in reverse dependency order for cleanup
+# All entity tables in reverse dependency order for cleanup
 _C01_TABLES = [
+    "user_lifecycle_event",
+    "user_identifier",
+    "role_assignment",
+    "user_profile",
+    "app_user",
     "ownership_transfer_event",
     "institution_lifecycle_event",
     "client_lifecycle_event",
@@ -178,11 +184,14 @@ def tenant_context_override():
 
 @pytest.fixture
 def app():
-    """Create a FastAPI app with the C-01 manifest (with middleware)."""
+    """Create a FastAPI app with the C-01 and C-02 manifests (with middleware)."""
+    from kernel.user.dependencies import reset_service_singleton as reset_c02_service
     reset_service_singleton()
-    app = create_app([c01_manifest])
+    reset_c02_service()
+    app = create_app([c01_manifest, c02_manifest])
     yield app
     reset_service_singleton()
+    reset_c02_service()
 
 
 @pytest.fixture

@@ -28,7 +28,7 @@ Key architectural decisions: no Person table (each User record is per-institutio
 
 ## Impact
 
-- **New code:** `backend/business/identity_user_management/` (models, repos, routes, services, manifest, policies)
+- **New code:** `backend/kernel/user/` (models, repos, routes, services, manifest, policies)
 - **New migration:** `002_c02_identity_user_management.py` — User, UserProfile, UserCategory, Role, RoleAssignment, UserIdentifier, UserLifecycleEvent tables + RLS policies + seed data
 - **Kernel dependencies:** C-02 inherits TenantAwareRepositoryBase, TenantContext, AuditEmitter from kernel (no kernel modifications)
 - **Future consumers:** C-03 (Auth) will verify user identity and issue JWTs; C-04 (AuthZ) will enforce permissions via Casbin; C-09 (Notification) will consume user data for delivery; C-12 (Business Codes) will generate UserIdentifier values

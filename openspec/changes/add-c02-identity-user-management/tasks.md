@@ -8,9 +8,9 @@
 
 ## 1. Module structure & manifest (A5, AC-16)
 
-> C-02 is a business-tier module (A2). It registers via the ModuleManifest Protocol (A5). The manifest hooks are invoked by the app factory in dependency order.
+> C-02 is a kernel-tier module (A2). It registers via the ModuleManifest Protocol (A5). The manifest hooks are invoked by the app factory in dependency order.
 
-- [ ] 1.1 Create the C-02 module directory structure under `/backend/business/identity_user_management/` with `__init__.py`, `manifest.py`, `models/`, `repos/`, `routes/`, `services/`, `policies.py`, `dependencies.py`. — evidence: directory structure exists; `__init__.py` files importable.
+- [ ] 1.1 Create the C-02 module directory structure under `/backend/kernel/user/` with `__init__.py`, `manifest.py`, `models/`, `repos/`, `routes/`, `services/`, `policies.py`, `dependencies.py`. — evidence: directory structure exists; `__init__.py` files importable.
 - [ ] 1.2 Implement `IdentityUserManagementManifest` (subclass of `ManifestBase`) with `register_routes`, `register_casbin_policies`, `on_startup`, `on_shutdown`, `register_cli` hooks. Create a `manifest` singleton. — evidence: `manifest.py` exists; `manifest` object importable; `register_routes` and `register_casbin_policies` hooks callable.
 - [ ] 1.3 Register C-02 manifest in the app factory's module list (after C-01, in dependency order). — evidence: `test_app_boots_with_c02_manifest` passes; C-02 routes mounted.
 
@@ -43,7 +43,7 @@
 
 ## 5. Models — SQLAlchemy ORM models (Decision 4, Decision 5, Decision 6, Decision 7, Decision 8)
 
-> Models live under `/backend/business/identity_user_management/models/`. Each model inherits from `kernel.db.Base`. DTOs are separate from ORM objects (repos return DTOs).
+> Models live under `/backend/kernel/user/models/`. Each model inherits from `kernel.db.Base`. DTOs are separate from ORM objects (repos return DTOs).
 
 - [ ] 5.1 Implement `UserCategory` ORM model (`id`, `name`). — evidence: `models/user_category.py` exists; `test_user_category_model_fields` passes.
 - [ ] 5.2 Implement `Role` ORM model (`id`, `name`). — evidence: `models/role.py` exists; `test_role_model_fields` passes.
@@ -56,14 +56,14 @@
 
 ## 6. Lifecycle state machine (Decision 8, AC-10, AC-11)
 
-> State machine lives under `/backend/business/identity_user_management/services/state_machine.py`. Same pattern as C-01's `services/state_machine.py`.
+> State machine lives under `/backend/kernel/user/services/state_machine.py`. Same pattern as C-01's `services/state_machine.py`.
 
 - [ ] 6.1 Implement User lifecycle state machine: states (Invited, Pending, Active, Suspended, Archived), arcs (Invited→Pending, Pending→Active, Active→Suspended, Suspended→Active, Active→Archived, Suspended→Archived), Archived terminal. — evidence: `services/state_machine.py` (USER_ARCS, validate_user_transition); `test_user_lifecycle_all_arcs_accepted` + `test_user_lifecycle_archived_terminal` + `test_user_lifecycle_disallowed_arc_rejected` pass.
 - [ ] 6.2 Implement lifecycle event recording: every transition writes a `user_lifecycle_event` row with `state`, `reason`, `actor`, `entered_at`. — evidence: `repos/user_repo.py::transition_lifecycle` writes event rows; `test_user_lifecycle_event_recording` passes.
 
 ## 7. Repository layer — tenant-aware data access (Decision 1, AC-1, AC-17)
 
-> C-02 repos live under `/backend/business/identity_user_management/repos/`. Repos inherit `TenantAwareRepositoryBase` from `kernel/repo_base.py`. Repos return DTOs, not ORM objects.
+> C-02 repos live under `/backend/kernel/user/repos/`. Repos inherit `TenantAwareRepositoryBase` from `kernel/repo_base.py`. Repos return DTOs, not ORM objects.
 
 - [ ] 7.1 Implement `UserRepository` (inherits `TenantAwareRepositoryBase[User]`). Methods: `create`, `get`, `list`, `update`, `transition_lifecycle`. Auto-injects `client_id` from TenantContext. Returns UserDTO. — evidence: `repos/user_repo.py` exists; `test_user_repo_create` + `test_user_repo_list_filters_by_client_id` + `test_user_repo_returns_dtos` pass.
 - [ ] 7.2 Implement `UserProfileRepository` (inherits `TenantAwareRepositoryBase[UserProfile]`). Methods: `create`, `get`, `update`. Returns UserProfileDTO. — evidence: `repos/user_profile_repo.py` exists; `test_user_profile_repo_create` + `test_user_profile_repo_get` pass.
@@ -72,14 +72,14 @@
 
 ## 8. Service layer — published interface (Decision 1–11, A4)
 
-> Services live under `/backend/business/identity_user_management/services/`. Services orchestrate repos + TenantContext. Endpoints call services; services call repos. This is the module boundary other modules see.
+> Services live under `/backend/kernel/user/services/`. Services orchestrate repos + TenantContext. Endpoints call services; services call repos. This is the module boundary other modules see.
 
 - [ ] 8.1 Implement `IdentityUserService` with methods: `create_user`, `get_user`, `list_users`, `update_user`, `transition_lifecycle`, `create_profile`, `get_profile`, `update_profile`, `create_role_assignment`, `list_role_assignments`, `delete_role_assignment`, `create_identifier`, `list_identifiers`, `delete_identifier`. — evidence: `services/service.py` exists; `test_service_create_user` + `test_service_list_users` + `test_service_transition_lifecycle` pass.
 - [ ] 8.2 Wire audit emission via `AuditEmitter` Protocol for: user creation, lifecycle transitions, role assignment/removal, identifier creation/deletion. — evidence: `test_audit_emission_user_created` + `test_audit_emission_lifecycle_transition` + `test_audit_emission_role_assignment` + `test_audit_emission_identifier_created` pass.
 
 ## 9. API layer — routes (Decision 1–11, A6, AC-16)
 
-> Routes live under `/backend/business/identity_user_management/routes/`. Routes registered via the manifest `register_routes` hook (A5). Endpoints read `TenantContext` via `Depends(get_tenant_context)` (A6).
+> Routes live under `/backend/kernel/user/routes/`. Routes registered via the manifest `register_routes` hook (A5). Endpoints read `TenantContext` via `Depends(get_tenant_context)` (A6).
 
 - [ ] 9.1 Implement User CRUD endpoints: create User, get User, list Users (with filters: UserCategory, Role, lifecycle status), update User. — evidence: `routes/users.py` exists; `test_create_user` + `test_get_user` + `test_list_users` + `test_update_user` pass.
 - [ ] 9.2 Implement User lifecycle endpoints: transition lifecycle (Invited→Pending→Active→Suspended→Archived). — evidence: `routes/users.py`; `test_transition_user_lifecycle` + `test_transition_user_lifecycle_archived_terminal` pass.
@@ -90,7 +90,7 @@
 
 ## 10. Dependencies — FastAPI dependency injection (A6)
 
-> Dependencies live under `/backend/business/identity_user_management/dependencies.py`. Same pattern as C-01's `dependencies.py`.
+> Dependencies live under `/backend/kernel/user/dependencies.py`. Same pattern as C-01's `dependencies.py`.
 
 - [ ] 10.1 Implement `get_identity_user_service()` dependency (returns the service singleton). — evidence: `dependencies.py` exists; `test_dependency_get_service` passes.
 - [ ] 10.2 Wire dependencies in route handlers via `Depends(get_identity_user_service)`. — evidence: all route handlers use `Depends`; `test_route_dependency_wiring` passes.

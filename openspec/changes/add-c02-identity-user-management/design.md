@@ -2,6 +2,8 @@
 
 C-02 (Identity & User Management) is the second-most depended-upon capability in the School ERP, after C-01 (Tenant & Institution Management). Every business module — Attendance, Fees, Homework, Exams, Timetable, Parent Communication, Leave Management, Transport, Events — references users. C-02 provides the unified user identity foundation that all these modules key off.
 
+**C-02 is entirely Kernel (not Kernel\*).** User management is platform infrastructure, not business domain. No school administrator wants to "create users" — they want to take attendance and manage homework. User management is a prerequisite for business operations, not a business operation itself. Therefore, all C-02 code lives under `kernel/` (not `business/`), and C-02 does NOT produce a business domain module.
+
 The `openspec/specs/` tree contains one existing spec: `tenant-institution/spec.md` (C-01). C-02 is a NEW domain — all requirements are ADDED. The decisional source of truth for this design is the grill-me session (11 locked decisions, 2026-07-08) and PRD `docs/prd/c-02-identity-user-management.md` (AC-1..AC-20).
 
 C-02 follows the same architectural patterns established by C-01: module manifest (A5), TenantAwareRepositoryBase (A6), TenantContext (A6), service layer (A4), state machine, lifecycle events, lookup tables, RLS, DTOs, and AuditEmitter Protocol (C-11 boundary). C-02 does NOT modify C-01's behavioral spec.

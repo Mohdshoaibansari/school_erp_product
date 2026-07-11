@@ -22,11 +22,6 @@ Depends on: `kernel/tenant_context.py`, `kernel/middleware.py`, `kernel/repo_bas
 
 | ID | Module | Phase | Description |
 |---|---|---|---|
-| C-02b | User & Role Domain | 1 | User lifecycle, role assignment, institution-scoped user management |
-| C-03b | Auth Methods & Session Domain | 1 | Login methods, session management, MFA configuration |
-| C-04b | Permission & Role Domain | 1 | Role definitions, permission groups, ABAC policy authoring |
-| C-05b | Academic Structure Domain | 1 | AcademicYear, Term, Grade, Class, Section, Subject hierarchies |
-| C-06b | Relationship Domain | 1 | Student-parent/guardian relationships, emergency contacts |
 | — | Attendance | 1 | Student attendance marking, reports, absence alerts |
 | — | Homework | 1 | Assignment creation, submission tracking, grading |
 | — | Fees | 1 | Fee plans, collection tracking, receipt generation |

@@ -1890,7 +1890,7 @@ Once a capability owns a domain:
 |---|---|---|---|---|---|
 | C-01a | Tenant Identity Infrastructure | Kernel | Critical | 1 | Split from C-01 |
 | C-01b | Tenant & Institution Domain | Business | Critical | 1 | Split from C-01 |
-| C-02 | Identity & User Management | Kernel* | Critical | 1 | Refined |
+| C-02 | Identity & User Management | Kernel | Critical | 1 | Refined |
 | C-03 | Authentication | Kernel* | Critical | 1 | Refined |
 | C-04 | Authorization | Kernel* | Critical | 1 | Refined |
 | C-05 | Academic Structure Framework | Kernel* | Critical | 1 | Refined |
@@ -1915,7 +1915,7 @@ Once a capability owns a domain:
 | C-24 | Integration Framework | Service | Important | 1 | |
 | C-25 | AI Framework | Service | Future | 6+ | |
 
-> \* Capabilities marked `Kernel*` produce both kernel infrastructure packages AND a business domain module. When built, each will be split into `<ID>a` (infrastructure) and `<ID>b` (domain) rows in this matrix, following the C-01a/C-01b precedent established by C-01. The infrastructure lives under `kernel/` and is consumed by every business module; the domain lives under `business/` and is used only by the capability's own workflows.
+> \* Capabilities marked `Kernel*` produce both kernel infrastructure packages AND a business domain module. When built, each will be split into `<ID>a` (infrastructure) and `<ID>b` (domain) rows in this matrix, following the C-01a/C-01b precedent established by C-01. The infrastructure lives under `kernel/` and is consumed by every business module; the domain lives under `business/` and is used only by the capability's own workflows. **Note:** C-02 (Identity & User Management) was originally marked `Kernel*` but is now classified as entirely `Kernel` — user management is platform infrastructure, not business domain (no school administrator wants to "create users"; they want to take attendance and manage homework).
 
 ## Appendix B: Module Dependency Matrix
 

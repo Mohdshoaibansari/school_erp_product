@@ -65,35 +65,35 @@
 
 > C-02 repos live under `/backend/kernel/user/repos/`. Repos inherit `TenantAwareRepositoryBase` from `kernel/repo_base.py`. Repos return DTOs, not ORM objects.
 
-- [ ] 7.1 Implement `UserRepository` (inherits `TenantAwareRepositoryBase[User]`). Methods: `create`, `get`, `list`, `update`, `transition_lifecycle`. Auto-injects `client_id` from TenantContext. Returns UserDTO. — evidence: `repos/user_repo.py` exists; `test_user_repo_create` + `test_user_repo_list_filters_by_client_id` + `test_user_repo_returns_dtos` pass.
-- [ ] 7.2 Implement `UserProfileRepository` (inherits `TenantAwareRepositoryBase[UserProfile]`). Methods: `create`, `get`, `update`. Returns UserProfileDTO. — evidence: `repos/user_profile_repo.py` exists; `test_user_profile_repo_create` + `test_user_profile_repo_get` pass.
-- [ ] 7.3 Implement `RoleAssignmentRepository` (inherits `TenantAwareRepositoryBase[RoleAssignment]`). Methods: `create`, `get`, `list`, `delete`. Returns RoleAssignmentDTO. — evidence: `repos/role_assignment_repo.py` exists; `test_role_assignment_repo_create` + `test_role_assignment_repo_list` pass.
-- [ ] 7.4 Implement `UserIdentifierRepository` (inherits `TenantAwareRepositoryBase[UserIdentifier]`). Methods: `create`, `get`, `list`, `delete`. Returns UserIdentifierDTO. — evidence: `repos/user_identifier_repo.py` exists; `test_user_identifier_repo_create` + `test_user_identifier_repo_list` pass.
+- [x] 7.1 Implement `UserRepository` (inherits `TenantAwareRepositoryBase[User]`). Methods: `create`, `get`, `list`, `update`, `transition_lifecycle`. Auto-injects `client_id` from TenantContext. Returns UserDTO. — evidence: `repos/user_repo.py` exists; `test_user_repo_create` + `test_user_repo_list_filters_by_client_id` + `test_user_repo_returns_dtos` pass.
+- [x] 7.2 Implement `UserProfileRepository` (inherits `TenantAwareRepositoryBase[UserProfile]`). Methods: `create`, `get`, `update`. Returns UserProfileDTO. — evidence: `repos/user_profile_repo.py` exists; `test_user_profile_repo_create` + `test_user_profile_repo_get` pass.
+- [x] 7.3 Implement `RoleAssignmentRepository` (inherits `TenantAwareRepositoryBase[RoleAssignment]`). Methods: `create`, `get`, `list`, `delete`. Returns RoleAssignmentDTO. — evidence: `repos/role_assignment_repo.py` exists; `test_role_assignment_repo_create` + `test_role_assignment_repo_list` pass.
+- [x] 7.4 Implement `UserIdentifierRepository` (inherits `TenantAwareRepositoryBase[UserIdentifier]`). Methods: `create`, `get`, `list`, `delete`. Returns UserIdentifierDTO. — evidence: `repos/user_identifier_repo.py` exists; `test_user_identifier_repo_create` + `test_user_identifier_repo_list` pass.
 
 ## 8. Service layer — published interface (Decision 1–11, A4)
 
 > Services live under `/backend/kernel/user/services/`. Services orchestrate repos + TenantContext. Endpoints call services; services call repos. This is the module boundary other modules see.
 
-- [ ] 8.1 Implement `IdentityUserService` with methods: `create_user`, `get_user`, `list_users`, `update_user`, `transition_lifecycle`, `create_profile`, `get_profile`, `update_profile`, `create_role_assignment`, `list_role_assignments`, `delete_role_assignment`, `create_identifier`, `list_identifiers`, `delete_identifier`. — evidence: `services/service.py` exists; `test_service_create_user` + `test_service_list_users` + `test_service_transition_lifecycle` pass.
-- [ ] 8.2 Wire audit emission via `AuditEmitter` Protocol for: user creation, lifecycle transitions, role assignment/removal, identifier creation/deletion. — evidence: `test_audit_emission_user_created` + `test_audit_emission_lifecycle_transition` + `test_audit_emission_role_assignment` + `test_audit_emission_identifier_created` pass.
+- [x] 8.1 Implement `IdentityUserService` with methods: `create_user`, `get_user`, `list_users`, `update_user`, `transition_lifecycle`, `create_profile`, `get_profile`, `update_profile`, `create_role_assignment`, `list_role_assignments`, `delete_role_assignment`, `create_identifier`, `list_identifiers`, `delete_identifier`. — evidence: `services/service.py` exists; `test_service_create_user` + `test_service_list_users` + `test_service_transition_lifecycle` pass.
+- [x] 8.2 Wire audit emission via `AuditEmitter` Protocol for: user creation, lifecycle transitions, role assignment/removal, identifier creation/deletion. — evidence: `test_audit_emission_user_created` + `test_audit_emission_lifecycle_transition` + `test_audit_emission_role_assignment` + `test_audit_emission_identifier_created` pass.
 
 ## 9. API layer — routes (Decision 1–11, A6, AC-16)
 
 > Routes live under `/backend/kernel/user/routes/`. Routes registered via the manifest `register_routes` hook (A5). Endpoints read `TenantContext` via `Depends(get_tenant_context)` (A6).
 
-- [ ] 9.1 Implement User CRUD endpoints: create User, get User, list Users (with filters: UserCategory, Role, lifecycle status), update User. — evidence: `routes/users.py` exists; `test_create_user` + `test_get_user` + `test_list_users` + `test_update_user` pass.
-- [ ] 9.2 Implement User lifecycle endpoints: transition lifecycle (Invited→Pending→Active→Suspended→Archived). — evidence: `routes/users.py`; `test_transition_user_lifecycle` + `test_transition_user_lifecycle_archived_terminal` pass.
-- [ ] 9.3 Implement UserProfile endpoints: create profile, get profile, update profile. — evidence: `routes/profiles.py` exists; `test_create_profile` + `test_get_profile` + `test_update_profile` pass.
-- [ ] 9.4 Implement RoleAssignment endpoints: create assignment, list assignments, delete assignment. — evidence: `routes/roles.py` exists; `test_create_role_assignment` + `test_list_role_assignments` + `test_delete_role_assignment` pass.
-- [ ] 9.5 Implement UserIdentifier endpoints: create identifier, list identifiers, delete identifier. — evidence: `routes/identifiers.py` exists; `test_create_identifier` + `test_list_identifiers` + `test_delete_identifier` pass.
-- [ ] 9.6 Implement UserCategory and Role lookup endpoints: list categories, list roles. — evidence: `routes/lookups.py` exists; `test_list_user_categories` + `test_list_roles` pass.
+- [x] 9.1 Implement User CRUD endpoints: create User, get User, list Users (with filters: UserCategory, Role, lifecycle status), update User. — evidence: `routes/users.py` exists; `test_create_user` + `test_get_user` + `test_list_users` + `test_update_user` pass.
+- [x] 9.2 Implement User lifecycle endpoints: transition lifecycle (Invited→Pending→Active→Suspended→Archived). — evidence: `routes/users.py`; `test_transition_user_lifecycle` + `test_transition_user_lifecycle_archived_terminal` pass.
+- [x] 9.3 Implement UserProfile endpoints: create profile, get profile, update profile. — evidence: `routes/profiles.py` exists; `test_create_profile` + `test_get_profile` + `test_update_profile` pass.
+- [x] 9.4 Implement RoleAssignment endpoints: create assignment, list assignments, delete assignment. — evidence: `routes/roles.py` exists; `test_create_role_assignment` + `test_list_role_assignments` + `test_delete_role_assignment` pass.
+- [x] 9.5 Implement UserIdentifier endpoints: create identifier, list identifiers, delete identifier. — evidence: `routes/identifiers.py` exists; `test_create_identifier` + `test_list_identifiers` + `test_delete_identifier` pass.
+- [x] 9.6 Implement UserCategory and Role lookup endpoints: list categories, list roles. — evidence: `routes/lookups.py` exists; `test_list_user_categories` + `test_list_roles` pass.
 
 ## 10. Dependencies — FastAPI dependency injection (A6)
 
 > Dependencies live under `/backend/kernel/user/dependencies.py`. Same pattern as C-01's `dependencies.py`.
 
-- [ ] 10.1 Implement `get_identity_user_service()` dependency (returns the service singleton). — evidence: `dependencies.py` exists; `test_dependency_get_service` passes.
-- [ ] 10.2 Wire dependencies in route handlers via `Depends(get_identity_user_service)`. — evidence: all route handlers use `Depends`; `test_route_dependency_wiring` passes.
+- [x] 10.1 Implement `get_identity_user_service()` dependency (returns the service singleton). — evidence: `dependencies.py` exists; `test_dependency_get_service` passes.
+- [x] 10.2 Wire dependencies in route handlers via `Depends(get_identity_user_service)`. — evidence: all route handlers use `Depends`; `test_route_dependency_wiring` passes.
 
 ## 11. Integration tests — end-to-end scenarios (AC-1..AC-20)
 

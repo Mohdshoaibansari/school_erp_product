@@ -97,6 +97,9 @@ def _resolve_client_from_subdomain(subdomain: str) -> uuid.UUID | None:
     engine = create_engine(db_url)
     try:
         with engine.connect() as conn:
+            # Set platform owner context so RLS allows seeing all clients
+            # This is an infrastructure lookup, not a user-facing query
+            conn.execute(text("SET LOCAL app.is_platform_owner = 'true'"))
             result = conn.execute(
                 text("SELECT id FROM client WHERE slug = :slug"),
                 {"slug": subdomain},
@@ -174,10 +177,16 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
                     is_platform_owner = payload.get("is_platform_owner", False)
                     roles = payload.get("roles", [])
             except JWTError:
-                return JSONResponse(
-                    status_code=401,
-                    content={"detail": "Invalid or expired JWT"},
-                )
+                # For auth routes, tolerate invalid JWT — set subdomain-only context (D25)
+                # For non-auth routes, reject with 401
+                if is_auth_path:
+                    # Auth route with invalid JWT — continue with subdomain-only context
+                    pass
+                else:
+                    return JSONResponse(
+                        status_code=401,
+                        content={"detail": "Invalid or expired JWT"},
+                    )
 
         # Determine client_id:
         # - Platform-scoped path → Platform Owner (no specific client)

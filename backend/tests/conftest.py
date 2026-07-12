@@ -38,6 +38,7 @@ _SEED_TABLES = {"legal_entity_type", "org_unit_type", "institution_type_name", "
 
 # All entity tables in reverse dependency order for cleanup
 _C01_TABLES = [
+    "login_attempt",
     "user_lifecycle_event",
     "user_identifier",
     "role_assignment",
@@ -185,10 +186,17 @@ def tenant_context_override():
 
 @pytest.fixture
 def app():
-    """Create a FastAPI app with the C-01, C-02, and C-03 manifests (with middleware)."""
-    from kernel.user.dependencies import reset_service_singleton as reset_c02_service
+    """Create a FastAPI app with the C-01, C-02, and C-03 manifests (with middleware).
+
+    Phase 5 (15.1): Injects FakeSupabaseAuth into both C-02 and C-03 services.
+    """
+    from kernel.user.dependencies import (
+        reset_service_singleton as reset_c02_service,
+        set_supabase_client as set_c02_supabase,
+    )
     from kernel.auth.dependencies import (
         reset_supabase_auth_client as reset_c03_client,
+        set_supabase_auth_client,
         set_auth_service,
         reset_auth_service,
     )
@@ -201,7 +209,7 @@ def app():
     reset_c03_client()
     reset_auth_service()
 
-    # Inject FakeSupabaseAuth into AuthService for tests
+    # Create a shared FakeSupabaseAuth for both C-02 and C-03
     fake_supabase = FakeSupabaseAuth()
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
@@ -211,11 +219,17 @@ def app():
     )
     engine = create_engine(database_url)
     session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+
+    # Inject FakeSupabaseAuth into C-03 AuthService and supabase client
+    set_supabase_auth_client(fake_supabase)
     auth_svc = AuthService(
         supabase_client=fake_supabase,
         session_factory=session_factory,
     )
     set_auth_service(auth_svc)
+
+    # Phase 5 (15.1): Inject FakeSupabaseAuth into C-02 IdentityUserService
+    set_c02_supabase(fake_supabase)
 
     app = create_app([c01_manifest, c02_manifest, c03_manifest])
     yield app

@@ -56,6 +56,7 @@ class UserUpdateDTO(BaseModel):
 
     name: str | None = None
     email: str | None = None  # Phase 4 (12.5): email changes propagated to Supabase
+    lifecycle_status: str | None = None  # C-03: used by activate endpoint
 
 
 class UserDTO(BaseModel):

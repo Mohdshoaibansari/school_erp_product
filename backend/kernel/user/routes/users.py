@@ -22,14 +22,14 @@ router = APIRouter(prefix="/api/v1/users", tags=["users"])
 # ============================================================
 
 @router.post("", response_model=UserDTO, status_code=status.HTTP_201_CREATED)
-def create_user(
+async def create_user(
     dto: UserCreateDTO,
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> UserDTO:
     """Create a new User."""
     try:
-        return svc.create_user(ctx, dto)
+        return await svc.create_user(ctx, dto)
     except ValueError as e:
         err = str(e)
         if "email" in err.lower() and "taken" in err.lower():
@@ -67,7 +67,7 @@ def get_user(
 
 
 @router.patch("/{user_id}", response_model=UserDTO)
-def update_user(
+async def update_user(
     user_id: uuid.UUID,
     dto: UserUpdateDTO,
     ctx: TenantContext = Depends(get_tenant_context),
@@ -75,7 +75,7 @@ def update_user(
 ) -> UserDTO:
     """Update User identity fields (email immutable)."""
     try:
-        return svc.update_user(ctx, user_id, dto)
+        return await svc.update_user(ctx, user_id, dto)
     except ValueError:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -85,7 +85,7 @@ def update_user(
 # ============================================================
 
 @router.post("/{user_id}/transition", response_model=UserDTO)
-def transition_user_lifecycle(
+async def transition_user_lifecycle(
     user_id: uuid.UUID,
     dto: LifecycleTransitionDTO,
     ctx: TenantContext = Depends(get_tenant_context),
@@ -100,6 +100,6 @@ def transition_user_lifecycle(
     if not dto.new_state:
         raise HTTPException(status_code=400, detail="new_state is required")
     try:
-        return svc.transition_lifecycle(ctx, user_id, dto.new_state, dto.reason)
+        return await svc.transition_lifecycle(ctx, user_id, dto.new_state, dto.reason)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

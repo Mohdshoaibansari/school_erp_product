@@ -1,4 +1,4 @@
-"""Bootstrap CLI for creating the platform owner in Supabase Auth (D30).
+"""Bootstrap CLI for creating the platform owner in Supabase Auth (D30, task 13.1).
 
 Run once after `alembic upgrade` to create the platform owner's Supabase Auth
 user. The migration inserts the `app_user` row; this CLI creates the matching
@@ -6,16 +6,22 @@ user. The migration inserts the `app_user` row; this CLI creates the matching
 
 Usage:
     uv run python -m kernel.auth.bootstrap
+
+Environment:
+    SUPABASE_URL — Supabase project URL
+    SUPABASE_SERVICE_ROLE_KEY — Supabase service-role key
+    PLATFORM_OWNER_INITIAL_PASSWORD — initial password for platform owner
+    DATABASE_URL — optional, defaults to local Supabase Postgres
 """
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
-import uuid
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 
 
 def _get_database_url() -> str:
@@ -25,7 +31,7 @@ def _get_database_url() -> str:
     )
 
 
-def bootstrap_platform_owner() -> None:
+async def bootstrap_platform_owner() -> None:
     """Create the platform owner in Supabase Auth (D30).
 
     Looks up the platform owner `app_user` row. Calls Supabase Auth
@@ -52,7 +58,12 @@ def bootstrap_platform_owner() -> None:
 
     with session_factory() as session:
         result = session.execute(
-            text("SELECT id, email FROM app_user WHERE lifecycle_status = 'active' AND name = 'Platform Owner' LIMIT 1")
+            text(
+                "SELECT id, email FROM app_user "
+                "WHERE lifecycle_status = 'active' "
+                "AND user_category_id = (SELECT id FROM user_category WHERE name = 'Executive Leadership') "
+                "LIMIT 1"
+            )
         )
         row = result.fetchone()
         if not row:
@@ -62,32 +73,43 @@ def bootstrap_platform_owner() -> None:
         platform_owner_id = row[0]
         platform_owner_email = row[1]
 
-    # Create the Supabase Auth user
-    from supabase import create_client
-    client = create_client(supabase_url, service_role_key)
+    print(f"Found platform owner: {platform_owner_email} (id={platform_owner_id})")
+
+    # Create SupabaseAuthClient and call Supabase
+    from kernel.auth.supabase_client import SupabaseAuthClientImpl, SupabaseAuthError
+
+    client = SupabaseAuthClientImpl(supabase_url, service_role_key)
 
     try:
         # Check if user already exists in Supabase Auth
         try:
-            existing = client.auth.admin.get_user_by_id(str(platform_owner_id))
-            if existing and existing.user:
+            existing = await client.update_user(platform_owner_id, email=platform_owner_email)
+            if existing and existing.get("user"):
                 print(f"Platform owner already exists in Supabase Auth: {platform_owner_email}")
+                # Ensure password is set and email confirmed
+                await client.update_user(
+                    platform_owner_id,
+                    password=initial_password,
+                    email_confirm=True,
+                )
+                print("Password and email confirmation updated.")
                 return
-        except Exception:
+        except SupabaseAuthError:
             pass  # User doesn't exist, create them
 
         # Create the user
-        response = client.auth.admin.create_user({
-            "id": str(platform_owner_id),
-            "email": platform_owner_email,
-            "password": initial_password,
-            "email_confirm": True,
-        })
+        await client.create_user(platform_owner_id, platform_owner_email)
+        # Set password and confirm email
+        await client.update_user(
+            platform_owner_id,
+            password=initial_password,
+            email_confirm=True,
+        )
         print(f"Platform owner created in Supabase Auth: {platform_owner_email}")
-    except Exception as e:
+    except SupabaseAuthError as e:
         print(f"ERROR: Failed to create platform owner: {e}")
         sys.exit(1)
 
 
 if __name__ == "__main__":
-    bootstrap_platform_owner()
+    asyncio.run(bootstrap_platform_owner())

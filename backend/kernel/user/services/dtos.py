@@ -52,9 +52,10 @@ class UserCreateDTO(BaseModel):
 
 
 class UserUpdateDTO(BaseModel):
-    """Request body for updating a User (name only — email immutable)."""
+    """Request body for updating a User."""
 
     name: str | None = None
+    email: str | None = None  # Phase 4 (12.5): email changes propagated to Supabase
 
 
 class UserDTO(BaseModel):

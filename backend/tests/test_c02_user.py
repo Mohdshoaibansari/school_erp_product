@@ -434,7 +434,7 @@ class TestLifecycleFlow:
     def test_disallowed_arc_rejected(
         self, make_tenant_client, db_session, client_obj, institution
     ):
-        """11.3 evidence: disallowed arc rejected (e.g., Invited→Active is not a valid arc)."""
+        """11.3 evidence: disallowed arc rejected (e.g., Invited→Suspended is not a valid arc)."""
         tc = make_tenant_client(
             subdomain="test-school",
             client_id=client_obj.id,
@@ -449,12 +449,12 @@ class TestLifecycleFlow:
         )
         user_id = user_data["id"]
 
-        # Attempt Invited → Active (skip Pending) — must fail
+        # Attempt Invited → Suspended (not a valid arc) — must fail
         response = tc.post(f"/api/v1/users/{user_id}/transition", json={
-            "new_state": "active",
+            "new_state": "suspended",
             "reason": "Skip pending",
         })
-        assert response.status_code == 400, "Invited→Active should be rejected (must go through Pending)"
+        assert response.status_code == 400, "Invited→Suspended should be rejected (not a valid arc)"
 
 
 # ============================================================

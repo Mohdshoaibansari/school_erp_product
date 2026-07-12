@@ -32,7 +32,7 @@ USER_STATES: frozenset[str] = frozenset({
 USER_TERMINAL_STATES: frozenset[str] = frozenset({"archived"})
 
 USER_ARCS: dict[str, frozenset[str]] = {
-    "invited": frozenset({"pending"}),
+    "invited": frozenset({"pending", "active"}),  # D29: invited → active directly
     "pending": frozenset({"active"}),
     "active": frozenset({"suspended", "archived"}),
     "suspended": frozenset({"active", "archived"}),

@@ -61,7 +61,7 @@ class UserRepository(TenantAwareRepositoryBase[User]):
     def update(
         self, session: Session, ctx: TenantContext, user_id: uuid.UUID, dto: UserUpdateDTO,
     ) -> UserDTO:
-        """Update User identity fields (email immutable)."""
+        """Update User identity fields."""
         stmt = select(User).where(User.id == user_id)
         stmt = self._apply_tenant_filter(stmt, ctx)
         obj = session.execute(stmt).scalars().first()
@@ -69,8 +69,13 @@ class UserRepository(TenantAwareRepositoryBase[User]):
             raise ValueError("User not found")
 
         data = dto.model_dump(exclude_unset=True)
-        # Email is immutable — never update it
-        data.pop("email", None)
+        # Check email uniqueness if email is being changed
+        if "email" in data and data["email"] != obj.email:
+            existing = session.execute(
+                select(User).where(User.email == data["email"], User.id != user_id)
+            ).scalars().first()
+            if existing:
+                raise ValueError(f"Email '{data['email']}' is already taken")
         for key, value in data.items():
             setattr(obj, key, value)
         session.flush()

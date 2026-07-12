@@ -187,15 +187,43 @@ def tenant_context_override():
 def app():
     """Create a FastAPI app with the C-01, C-02, and C-03 manifests (with middleware)."""
     from kernel.user.dependencies import reset_service_singleton as reset_c02_service
-    from kernel.auth.dependencies import reset_supabase_auth_client as reset_c03_client
+    from kernel.auth.dependencies import (
+        reset_supabase_auth_client as reset_c03_client,
+        set_auth_service,
+        reset_auth_service,
+    )
+    from kernel.auth.services.service import AuthService
+    from kernel.auth.supabase_client import SupabaseAuthClient
+    from tests.fake_supabase_auth import FakeSupabaseAuth
+
     reset_service_singleton()
     reset_c02_service()
     reset_c03_client()
+    reset_auth_service()
+
+    # Inject FakeSupabaseAuth into AuthService for tests
+    fake_supabase = FakeSupabaseAuth()
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    database_url = os.environ.get(
+        "DATABASE_URL",
+        "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+    )
+    engine = create_engine(database_url)
+    session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+    auth_svc = AuthService(
+        supabase_client=fake_supabase,
+        session_factory=session_factory,
+    )
+    set_auth_service(auth_svc)
+
     app = create_app([c01_manifest, c02_manifest, c03_manifest])
     yield app
+
     reset_service_singleton()
     reset_c02_service()
     reset_c03_client()
+    reset_auth_service()
 
 
 @pytest.fixture

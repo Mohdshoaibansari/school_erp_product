@@ -83,8 +83,9 @@ class TestAppBootsWithC03:
         """C-03 routes should be mounted and accessible."""
         # Test that the auth login endpoint is accessible
         response = platform_client.post('/api/auth/login', json={'email': 'test@example.com', 'password': 'test'})
-        # Should get 501 (not implemented) rather than 404
-        assert response.status_code == 501
+        # Should get 401 (bad credentials) rather than 404 (not found)
+        # 401 means the route is mounted and the service is working
+        assert response.status_code == 401
 
 
 # ============================================================

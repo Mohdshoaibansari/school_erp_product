@@ -30,3 +30,12 @@ class LoginAttemptDTO(BaseModel):
     user_agent: str | None
     occurred_at: datetime
     created_at: datetime
+
+
+class TokenResponseDTO(BaseModel):
+    """Response DTO for token responses (D8b)."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int = 3600

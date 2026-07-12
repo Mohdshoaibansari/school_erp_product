@@ -123,6 +123,7 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
         host = request.headers.get("host", "")
         subdomain = _extract_subdomain(host)
         is_platform_path = path.startswith(_PLATFORM_PREFIX)
+        is_auth_path = path.startswith("/api/auth/")
 
         # Extract JWT from Authorization header
         auth_header = request.headers.get("authorization", "")
@@ -139,12 +140,39 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
 
         if token:
             try:
-                payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-                user_id = payload.get("sub")
-                jwt_client_id = payload.get("client_id")
-                jwt_institution_id = payload.get("institution_id")
-                is_platform_owner = payload.get("is_platform_owner", False)
-                roles = payload.get("roles", [])
+                # First try to decode as invite JWT (different secret, D6)
+                from kernel.auth.services.invite_token import (
+                    INVITE_JWT_SECRET,
+                    INVITE_JWT_ALGORITHM,
+                    INVITE_JWT_ISSUER,
+                )
+                try:
+                    invite_payload = jwt.decode(
+                        token,
+                        INVITE_JWT_SECRET,
+                        algorithms=[INVITE_JWT_ALGORITHM],
+                        options={"verify_exp": False},
+                    )
+                    if invite_payload.get("iss") == INVITE_JWT_ISSUER:
+                        # This is an invite JWT — set subdomain-only context (D25)
+                        # Don't set user_id from invite JWT
+                        pass
+                    else:
+                        # Not an invite JWT — decode as Supabase JWT
+                        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+                        user_id = payload.get("sub")
+                        jwt_client_id = payload.get("client_id")
+                        jwt_institution_id = payload.get("institution_id")
+                        is_platform_owner = payload.get("is_platform_owner", False)
+                        roles = payload.get("roles", [])
+                except JWTError:
+                    # Invite JWT decode failed — try as Supabase JWT
+                    payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+                    user_id = payload.get("sub")
+                    jwt_client_id = payload.get("client_id")
+                    jwt_institution_id = payload.get("institution_id")
+                    is_platform_owner = payload.get("is_platform_owner", False)
+                    roles = payload.get("roles", [])
             except JWTError:
                 return JSONResponse(
                     status_code=401,
@@ -155,6 +183,7 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
         # - Platform-scoped path → Platform Owner (no specific client)
         # - Subdomain-resolved → resolve Client from subdomain (D3)
         # - JWT carries client_id as fallback
+        # - Auth routes without JWT → subdomain-only context (D25)
         import uuid
 
         client_id = None
@@ -172,6 +201,13 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
         institution_id = None
         if jwt_institution_id:
             institution_id = uuid.UUID(jwt_institution_id)
+
+        # For auth routes without JWT, set subdomain-only context (D25)
+        # This allows auth endpoints to read client_id from TenantContext
+        if is_auth_path and not user_id and not is_platform_path:
+            # Auth route without JWT — set subdomain-only context
+            # client_id is already resolved from subdomain above
+            pass
 
         ctx = TenantContext(
             client_id=client_id,

@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from kernel.app_factory import create_app
 from business.tenant_institution.manifest import manifest as c01_manifest
 from kernel.user.manifest import manifest as c02_manifest
+from kernel.auth.manifest import manifest as c03_manifest
 from kernel.tenant_context import TenantContext, set_tenant_context
 from kernel.middleware import mint_test_jwt
 from business.tenant_institution.dependencies import reset_service_singleton
@@ -184,14 +185,17 @@ def tenant_context_override():
 
 @pytest.fixture
 def app():
-    """Create a FastAPI app with the C-01 and C-02 manifests (with middleware)."""
+    """Create a FastAPI app with the C-01, C-02, and C-03 manifests (with middleware)."""
     from kernel.user.dependencies import reset_service_singleton as reset_c02_service
+    from kernel.auth.dependencies import reset_supabase_auth_client as reset_c03_client
     reset_service_singleton()
     reset_c02_service()
-    app = create_app([c01_manifest, c02_manifest])
+    reset_c03_client()
+    app = create_app([c01_manifest, c02_manifest, c03_manifest])
     yield app
     reset_service_singleton()
     reset_c02_service()
+    reset_c03_client()
 
 
 @pytest.fixture

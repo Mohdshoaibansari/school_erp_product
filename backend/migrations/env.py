@@ -22,6 +22,8 @@ from kernel.db import Base  # noqa: E402
 
 # Import all model modules so they register with Base.metadata
 from business.tenant_institution import models  # noqa: E402, F401
+from kernel.user import models as user_models  # noqa: E402, F401
+from kernel.auth import models as auth_models  # noqa: E402, F401
 
 config = context.config
 

@@ -12,32 +12,32 @@
 
 > C-03 is a kernel-tier module (A2). It registers via the ModuleManifest Protocol (A5). The manifest hooks are invoked by the app factory in dependency order (after C-02).
 
-- [ ] 1.1 Create the C-03 module directory structure under `/backend/kernel/auth/` with `__init__.py`, `manifest.py`, `models/`, `repos/`, `routes/`, `services/`, `dependencies.py`, `bootstrap.py`, `supabase_client.py`. — evidence: directory structure exists; `__init__.py` files importable.
-- [ ] 1.2 Implement `AuthenticationManifest` (subclass of `ManifestBase`) with `register_routes`, `register_casbin_policies`, `on_startup`, `on_shutdown`, `register_cli` hooks. Create a `manifest` singleton. — evidence: `manifest.py` exists; `manifest` object importable; `register_routes` mounts `/auth/*`; `register_cli` registers bootstrap command.
-- [ ] 1.3 Register C-03 manifest in the app factory's module list (after C-02, in dependency order). — evidence: `test_app_boots_with_c03_manifest` passes; C-03 routes mounted.
+- [x] 1.1 Create the C-03 module directory structure under `/backend/kernel/auth/` with `__init__.py`, `manifest.py`, `models/`, `repos/`, `routes/`, `services/`, `dependencies.py`, `bootstrap.py`, `supabase_client.py`. — evidence: directory structure exists; `__init__.py` files importable.
+- [x] 1.2 Implement `AuthenticationManifest` (subclass of `ManifestBase`) with `register_routes`, `register_casbin_policies`, `on_startup`, `on_shutdown`, `register_cli` hooks. Create a `manifest` singleton. — evidence: `manifest.py` exists; `manifest` object importable; `register_routes` mounts `/auth/*`; `register_cli` registers bootstrap command.
+- [x] 1.3 Register C-03 manifest in the app factory's module list (after C-02, in dependency order). — evidence: `test_app_boots_with_c03_manifest` passes; C-03 routes mounted.
 
 ## 2. Database schema — login_attempt table (D11, D28a, D33, AC-5, AC-21, AC-22) — Alembic migration `003_c03_authentication.py`
 
 > All C-03 migrations live in the single Alembic env at `/backend/migrations/` (A7) under filenames prefixed `003_c03_*`. RLS policies are written as raw SQL inside the same Alembic migration.
 
-- [ ] 2.1 Create the `login_attempt` table (`id` UUID v4 PK, `client_id` UUID FK → client nullable, `user_id` UUID FK → app_user nullable, `email` TEXT NOT NULL, `event_type` TEXT NOT NULL, `ip_address` TEXT, `user_agent` TEXT, `occurred_at` TIMESTAMPTZ NOT NULL, `created_at` TIMESTAMPTZ NOT NULL DEFAULT now()). — evidence: migration creates `login_attempt` table; `test_login_attempt_pk_is_uuid_v4` + `test_login_attempt_has_client_id` + `test_login_attempt_has_user_id` pass.
-- [ ] 2.2 Enable RLS and create `client_id`-matching policy on `login_attempt` (same pattern as C-02's tenant-scoped tables). — evidence: migration enables FORCE RLS + creates policies; `test_login_attempt_rls_tenant_select` + `test_login_attempt_rls_platform_owner_select` pass.
-- [ ] 2.3 Seed the platform owner `app_user` row in the migration (no Supabase call — migration is data-only). — evidence: migration inserts platform owner `app_user` row with `lifecycle_status='active'`; `test_platform_owner_app_user_exists` passes.
+- [x] 2.1 Create the `login_attempt` table (`id` UUID v4 PK, `client_id` UUID FK → client nullable, `user_id` UUID FK → app_user nullable, `email` TEXT NOT NULL, `event_type` TEXT NOT NULL, `ip_address` TEXT, `user_agent` TEXT, `occurred_at` TIMESTAMPTZ NOT NULL, `created_at` TIMESTAMPTZ NOT NULL DEFAULT now()). — evidence: migration creates `login_attempt` table; `test_login_attempt_pk_is_uuid_v4` + `test_login_attempt_has_client_id` + `test_login_attempt_has_user_id` pass.
+- [x] 2.2 Enable RLS and create `client_id`-matching policy on `login_attempt` (same pattern as C-02's tenant-scoped tables). — evidence: migration enables FORCE RLS + creates policies; `test_login_attempt_rls_tenant_select` + `test_login_attempt_rls_platform_owner_select` pass.
+- [x] 2.3 Seed the platform owner `app_user` row in the migration (no Supabase call — migration is data-only). — evidence: migration inserts platform owner `app_user` row with `lifecycle_status='active'`; `test_platform_owner_app_user_exists` passes.
 
 ## 3. SupabaseAuthClient Protocol + impls (D21, D23, D24, D26, AC-24, AC-25)
 
 > The Protocol lives at `/backend/kernel/auth/supabase_client.py`. Production impl wraps the Supabase SDK. Fake impl is in-memory.
 
-- [ ] 3.1 Define `SupabaseAuthClient` Protocol with methods: `create_user`, `sign_in_with_password`, `sign_in_with_otp`, `verify_otp`, `reset_password_for_email`, `update_user`, `sign_out`, `delete_user`, `refresh_token`, `revoke_refresh_token`. — evidence: `supabase_client.py` exists; Protocol is a `typing.Protocol` subclass; `test_protocol_methods_defined` passes.
-- [ ] 3.2 Implement `SupabaseAuthClientImpl` (production impl) wrapping the Supabase SDK. Uses `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` env vars. — evidence: `supabase_client.py` contains `SupabaseAuthClientImpl`; `test_production_impl_uses_service_role_key` passes.
-- [ ] 3.3 Implement `FakeSupabaseAuth` (test impl) — in-memory dict store, happy-path + documented failure modes (invalid credentials, user not found, user already exists, refresh revoked). — evidence: `tests/fake_supabase_auth.py` exists; `test_fake_create_user` + `test_fake_sign_in_with_password_success` + `test_fake_sign_in_with_password_failure` + `test_fake_update_user` + `test_fake_sign_out` + `test_fake_delete_user` pass.
+- [x] 3.1 Define `SupabaseAuthClient` Protocol with methods: `create_user`, `sign_in_with_password`, `sign_in_with_otp`, `verify_otp`, `reset_password_for_email`, `update_user`, `sign_out`, `delete_user`, `refresh_token`, `revoke_refresh_token`. — evidence: `supabase_client.py` exists; Protocol is a `typing.Protocol` subclass; `test_protocol_methods_defined` passes.
+- [x] 3.2 Implement `SupabaseAuthClientImpl` (production impl) wrapping the Supabase SDK. Uses `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` env vars. — evidence: `supabase_client.py` contains `SupabaseAuthClientImpl`; `test_production_impl_uses_service_role_key` passes.
+- [x] 3.3 Implement `FakeSupabaseAuth` (test impl) — in-memory dict store, happy-path + documented failure modes (invalid credentials, user not found, user already exists, refresh revoked). — evidence: `tests/fake_supabase_auth.py` exists; `test_fake_create_user` + `test_fake_sign_in_with_password_success` + `test_fake_sign_in_with_password_failure` + `test_fake_update_user` + `test_fake_sign_out` + `test_fake_delete_user` pass.
 
 ## 4. Supabase client configuration (D22, AC-18)
 
 > Supabase client constructed at app startup from env vars. Injected via FastAPI dependency.
 
-- [ ] 4.1 Load `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from env at app startup. Missing keys cause fatal startup error. — evidence: `supabase_client.py` raises `ValueError` on missing keys; `test_missing_supabase_url_fatal` + `test_missing_supabase_key_fatal` pass.
-- [ ] 4.2 Wire the Supabase client into the app factory as a singleton. Injected via FastAPI dependency `get_supabase_auth_client()`. — evidence: `dependencies.py` contains `get_supabase_auth_client`; `test_dependency_supabase_client` passes.
+- [x] 4.1 Load `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from env at app startup. Missing keys cause fatal startup error. — evidence: `supabase_client.py` raises `ValueError` on missing keys; `test_missing_supabase_url_fatal` + `test_missing_supabase_key_fatal` pass.
+- [x] 4.2 Wire the Supabase client into the app factory as a singleton. Injected via FastAPI dependency `get_supabase_auth_client()`. — evidence: `dependencies.py` contains `get_supabase_auth_client`; `test_dependency_supabase_client` passes.
 
 ## 5. Invite token minting (D4, D5, D6, AC-11)
 
@@ -73,9 +73,9 @@
 
 > LoginAttempt repo lives at `/backend/kernel/auth/repos/login_attempt_repo.py`. Inherits `TenantAwareRepositoryBase`.
 
-- [ ] 8.1 Implement `LoginAttemptRepository` (inherits `TenantAwareRepositoryBase[LoginAttempt]`). Methods: `record(session, ctx, email, event_type, user_id=None, ip_address=None, user_agent=None)`. Returns `LoginAttemptDTO`. — evidence: `repos/login_attempt_repo.py` exists; `test_login_attempt_repo_record` + `test_login_attempt_repo_filters_by_client_id` pass.
-- [ ] 8.2 Implement `LoginAttempt` ORM model at `models/login_attempt.py`. — evidence: `models/login_attempt.py` exists; `test_login_attempt_model_fields` pass.
-- [ ] 8.3 Implement `LoginAttemptDTO` at `services/dtos.py`. — evidence: DTO exists; `test_login_attempt_dto_serialization` passes.
+- [x] 8.1 Implement `LoginAttemptRepository` (inherits `TenantAwareRepositoryBase[LoginAttempt]`). Methods: `record(session, ctx, email, event_type, user_id=None, ip_address=None, user_agent=None)`. Returns `LoginAttemptDTO`. — evidence: `repos/login_attempt_repo.py` exists; `test_login_attempt_repo_record` + `test_login_attempt_repo_filters_by_client_id` pass.
+- [x] 8.2 Implement `LoginAttempt` ORM model at `models/login_attempt.py`. — evidence: `models/login_attempt.py` exists; `test_login_attempt_model_fields` pass.
+- [x] 8.3 Implement `LoginAttemptDTO` at `services/dtos.py`. — evidence: DTO exists; `test_login_attempt_dto_serialization` passes.
 
 ## 9. Auth routes — FastAPI endpoints (D14, D19)
 

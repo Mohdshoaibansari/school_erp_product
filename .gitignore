@@ -1,4 +1,5 @@
 # Agent runtime artifacts
+.pi/
 .pi-subagents/
 
 # Dependencies

@@ -46,3 +46,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Loose project docs (canonical copies in docs/)
+Functional_Requirement.md
+School_ERP_Architecture_v1.md
+Shared_Platform_Capabilities.md
+Shared_Platform_Capabilities_v2.md
+Shared_Platform_Capabilities_v3.md
+StartUp_Strategy.md

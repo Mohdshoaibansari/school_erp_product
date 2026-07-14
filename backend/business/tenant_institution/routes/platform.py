@@ -16,6 +16,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from kernel.tenant_context import TenantContext, require_platform_owner
+from kernel.authz.dependencies import require_permission
 from business.tenant_institution.dependencies import get_tenant_institution_service
 from business.tenant_institution.services import (
     TenantInstitutionService,
@@ -42,6 +43,7 @@ router = APIRouter(prefix="/api/v1/platform", tags=["platform"])
 @router.post("/clients", response_model=ClientDTO, status_code=status.HTTP_201_CREATED)
 def create_client(
     dto: ClientCreateDTO,
+    _authz: None = Depends(require_permission("client", "create")),
     ctx: TenantContext = Depends(require_platform_owner),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> ClientDTO:
@@ -63,6 +65,7 @@ def create_client(
 
 @router.get("/clients", response_model=list[ClientDTO])
 def list_clients(
+    _authz: None = Depends(require_permission("client", "read")),
     ctx: TenantContext = Depends(require_platform_owner),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> list[ClientDTO]:
@@ -73,6 +76,7 @@ def list_clients(
 @router.get("/clients/{client_id}", response_model=ClientDTO)
 def get_client(
     client_id: uuid.UUID,
+    _authz: None = Depends(require_permission("client", "read")),
     ctx: TenantContext = Depends(require_platform_owner),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> ClientDTO:
@@ -87,6 +91,7 @@ def get_client(
 def update_client(
     client_id: uuid.UUID,
     dto: ClientUpdateDTO,
+    _authz: None = Depends(require_permission("client", "update")),
     ctx: TenantContext = Depends(require_platform_owner),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> ClientDTO:
@@ -101,6 +106,7 @@ def update_client(
 def transition_client_lifecycle(
     client_id: uuid.UUID,
     dto: LifecycleTransitionDTO,
+    _authz: None = Depends(require_permission("client", "transition_lifecycle")),
     ctx: TenantContext = Depends(require_platform_owner),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> ClientDTO:
@@ -124,6 +130,7 @@ def transition_client_lifecycle(
 @router.post("/institution-types", response_model=InstitutionTypeDTO, status_code=status.HTTP_201_CREATED)
 def create_institution_type(
     dto: InstitutionTypeCreateDTO,
+    _authz: None = Depends(require_permission("institution_type", "create")),
     ctx: TenantContext = Depends(require_platform_owner),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> InstitutionTypeDTO:
@@ -136,6 +143,7 @@ def create_institution_type(
 
 @router.get("/institution-types", response_model=list[InstitutionTypeDTO])
 def list_institution_types(
+    _authz: None = Depends(require_permission("institution_type", "read")),
     ctx: TenantContext = Depends(require_platform_owner),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> list[InstitutionTypeDTO]:
@@ -146,6 +154,7 @@ def list_institution_types(
 @router.get("/institution-types/{itype_id}", response_model=InstitutionTypeDTO)
 def get_institution_type(
     itype_id: uuid.UUID,
+    _authz: None = Depends(require_permission("institution_type", "read")),
     ctx: TenantContext = Depends(require_platform_owner),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> InstitutionTypeDTO:
@@ -160,6 +169,7 @@ def get_institution_type(
 def update_institution_type(
     itype_id: uuid.UUID,
     dto: InstitutionTypeUpdateDTO,
+    _authz: None = Depends(require_permission("institution_type", "update")),
     ctx: TenantContext = Depends(require_platform_owner),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> InstitutionTypeDTO:
@@ -177,6 +187,7 @@ def update_institution_type(
 @router.post("/ownership-transfers", response_model=ApprovalDTO, status_code=status.HTTP_201_CREATED)
 def request_ownership_transfer(
     dto: OwnershipTransferRequestDTO,
+    _authz: None = Depends(require_permission("client", "transfer_ownership")),
     ctx: TenantContext = Depends(require_platform_owner),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> ApprovalDTO:

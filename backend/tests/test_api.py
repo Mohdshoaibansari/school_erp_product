@@ -168,7 +168,7 @@ def test_endpoint_overrides_dependency_cleanly(app, db_session):
     fake_inst_id = uuid.uuid4()
     ctx = TenantContext(
         client_id=fake_client_id, institution_id=fake_inst_id,
-        user_id="test-override", is_platform_owner=False,
+        user_id="test-override", is_platform_owner=True, roles=["platform_owner"],
     )
     app.dependency_overrides[get_tenant_context] = lambda: ctx
 

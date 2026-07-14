@@ -15,6 +15,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from kernel.tenant_context import TenantContext, get_tenant_context
+from kernel.authz.dependencies import require_permission
 from business.tenant_institution.dependencies import get_tenant_institution_service
 from business.tenant_institution.services import (
     TenantInstitutionService,
@@ -38,6 +39,7 @@ router = APIRouter(prefix="/api/v1", tags=["client-portal"])
 @router.post("/institutions", response_model=InstitutionDTO, status_code=status.HTTP_201_CREATED)
 def create_institution(
     dto: InstitutionCreateDTO,
+    _authz: None = Depends(require_permission("institution", "create")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> InstitutionDTO:
@@ -57,6 +59,7 @@ def create_institution(
 @router.get("/institutions", response_model=list[InstitutionDTO])
 def list_institutions(
     cross_institution: bool = False,
+    _authz: None = Depends(require_permission("institution", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> list[InstitutionDTO]:
@@ -71,6 +74,7 @@ def list_institutions(
 @router.get("/institutions/{institution_id}", response_model=InstitutionDTO)
 def get_institution(
     institution_id: uuid.UUID,
+    _authz: None = Depends(require_permission("institution", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> InstitutionDTO:
@@ -85,6 +89,7 @@ def get_institution(
 def update_institution(
     institution_id: uuid.UUID,
     dto: InstitutionUpdateDTO,
+    _authz: None = Depends(require_permission("institution", "update")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> InstitutionDTO:
@@ -99,6 +104,7 @@ def update_institution(
 def transition_institution_lifecycle(
     institution_id: uuid.UUID,
     dto: LifecycleTransitionDTO,
+    _authz: None = Depends(require_permission("institution", "transition_lifecycle")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> InstitutionDTO:
@@ -119,6 +125,7 @@ def transition_institution_lifecycle(
 def go_live_institution(
     institution_id: uuid.UUID,
     dto: LifecycleTransitionDTO,
+    _authz: None = Depends(require_permission("institution", "transition_lifecycle")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> InstitutionDTO:
@@ -145,6 +152,7 @@ def go_live_institution(
 @router.post("/org-units", response_model=OrgUnitDTO, status_code=status.HTTP_201_CREATED)
 def create_org_unit(
     dto: OrgUnitCreateDTO,
+    _authz: None = Depends(require_permission("org_unit", "create")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> OrgUnitDTO:
@@ -161,6 +169,7 @@ def create_org_unit(
 def list_org_units(
     institution_id: uuid.UUID,
     cross_institution: bool = False,
+    _authz: None = Depends(require_permission("org_unit", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> list[OrgUnitDTO]:
@@ -171,6 +180,7 @@ def list_org_units(
 @router.get("/org-units/{org_unit_id}/subtree", response_model=list[OrgUnitDTO])
 def get_org_unit_subtree(
     org_unit_id: uuid.UUID,
+    _authz: None = Depends(require_permission("org_unit", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> list[OrgUnitDTO]:
@@ -182,6 +192,7 @@ def get_org_unit_subtree(
 def move_org_unit(
     org_unit_id: uuid.UUID,
     dto: OrgUnitMoveDTO,
+    _authz: None = Depends(require_permission("org_unit", "move")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> OrgUnitDTO:

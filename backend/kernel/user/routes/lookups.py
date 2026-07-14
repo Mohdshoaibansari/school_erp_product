@@ -8,6 +8,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from kernel.tenant_context import TenantContext, get_tenant_context
+from kernel.authz.dependencies import require_permission
 from kernel.user.models.user_category import UserCategory
 from kernel.user.models.role import Role
 from kernel.user.services.dtos import UserCategoryDTO, RoleDTO
@@ -19,6 +20,7 @@ router = APIRouter(prefix="/api/v1/lookups", tags=["lookups"])
 
 @router.get("/user-categories", response_model=list[UserCategoryDTO])
 def list_user_categories(
+    _authz: None = Depends(require_permission("user", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[UserCategoryDTO]:
     """List all UserCategory lookup values."""
@@ -30,6 +32,7 @@ def list_user_categories(
 
 @router.get("/roles", response_model=list[RoleDTO])
 def list_roles(
+    _authz: None = Depends(require_permission("role_assignment", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[RoleDTO]:
     """List all Role lookup values."""

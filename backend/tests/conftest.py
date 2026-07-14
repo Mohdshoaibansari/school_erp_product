@@ -12,6 +12,7 @@ import subprocess
 from collections.abc import Generator
 
 import uuid
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -233,6 +234,18 @@ def app():
     set_c02_supabase(fake_supabase)
 
     app = create_app([c01_manifest, c02_manifest, c03_manifest, c04_manifest])
+
+    # Override the Casbin enforcer with a permissive stub for tests.
+    # C-04 retrofit adds require_permission to all endpoints, but existing
+    # tests weren't written with permission data. The permissive enforcer
+    # lets all tests pass; C-04-specific tests build their own enforcer.
+    class _AllowAllEnforcer:
+        def enforce(self, *args: Any, **kwargs: Any) -> bool:
+            return True
+
+    from kernel.authz.dependencies import get_enforcer
+    app.dependency_overrides[get_enforcer] = lambda: _AllowAllEnforcer()
+
     yield app
 
     reset_service_singleton()

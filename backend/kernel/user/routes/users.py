@@ -10,6 +10,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from kernel.tenant_context import TenantContext, get_tenant_context
+from kernel.authz.dependencies import require_permission
 from kernel.user.dependencies import get_identity_user_service
 from kernel.user.services.service import IdentityUserService
 from kernel.user.services.dtos import UserCreateDTO, UserDTO, UserUpdateDTO, LifecycleTransitionDTO
@@ -24,6 +25,7 @@ router = APIRouter(prefix="/api/v1/users", tags=["users"])
 @router.post("", response_model=UserDTO, status_code=status.HTTP_201_CREATED)
 async def create_user(
     dto: UserCreateDTO,
+    _authz: None = Depends(require_permission("user", "create")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> UserDTO:
@@ -41,6 +43,7 @@ async def create_user(
 def list_users(
     user_category_id: uuid.UUID | None = None,
     lifecycle_status: str | None = None,
+    _authz: None = Depends(require_permission("user", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> list[UserDTO]:
@@ -56,6 +59,7 @@ def list_users(
 @router.get("/{user_id}", response_model=UserDTO)
 def get_user(
     user_id: uuid.UUID,
+    _authz: None = Depends(require_permission("user", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> UserDTO:
@@ -70,6 +74,7 @@ def get_user(
 async def update_user(
     user_id: uuid.UUID,
     dto: UserUpdateDTO,
+    _authz: None = Depends(require_permission("user", "update")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> UserDTO:
@@ -88,6 +93,7 @@ async def update_user(
 async def transition_user_lifecycle(
     user_id: uuid.UUID,
     dto: LifecycleTransitionDTO,
+    _authz: None = Depends(require_permission("user", "suspend")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> UserDTO:

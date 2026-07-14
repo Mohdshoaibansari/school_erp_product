@@ -37,17 +37,19 @@ def require_permission(
     resource: str,
     action: str,
     *,
-    client_id: uuid.UUID | None = None,
-    institution_id: uuid.UUID | None = None,
     owner_id: uuid.UUID | None = None,
 ):
     """FastAPI dependency: enforce Casbin role+scope + optional ownership check.
 
     Usage:
         @router.post("/institutions")
-        def create(..., _ = Depends(require_permission("institution", "create",
-                client_id=dto.client_id))):
+        def create(..., _ = Depends(require_permission("institution", "create"))):
             ...
+
+    Scope data (client_id, institution_id) is taken from ``TenantContext`` —
+    the endpoint's own client/institution is used as the object's scope.
+    This is correct for the majority of endpoints (same-tenant operations)
+    per D19.
 
     Returns a dependency closure that reads ``TenantContext`` and the Casbin
     enforcer, then:
@@ -67,12 +69,13 @@ def require_permission(
             raise HTTPException(status_code=500, detail="Authorization service not available")
 
         roles = ctx.roles or []
-        if not roles:
-            raise HTTPException(status_code=403, detail="Permission denied — no roles assigned")
 
-        # Platform owner bypass (D28)
+        # Platform owner bypass (D28) — check BEFORE role validation
         if ctx.is_platform_owner or "platform_owner" in roles:
             return
+
+        if not roles:
+            raise HTTPException(status_code=403, detail="Permission denied — no roles assigned")
 
         # Build Casbin subject from TenantContext
         sub = {
@@ -81,11 +84,13 @@ def require_permission(
             "institution_id": str(ctx.institution_id) if ctx.institution_id else "",
         }
 
-        # Build Casbin object from parameters
+        # Build Casbin object — use TenantContext values (D19: endpoint
+        # passes what it knows; for same-tenant operations, the object
+        # inherits the user's client/institution scope)
         obj = {
             "name": resource,
-            "client_id": str(client_id) if client_id else "",
-            "institution_id": str(institution_id) if institution_id else "",
+            "client_id": str(ctx.client_id) if ctx.client_id else "",
+            "institution_id": str(ctx.institution_id) if ctx.institution_id else "",
         }
 
         # Step 1: Casbin role+scope check (D12)
@@ -99,4 +104,4 @@ def require_permission(
             if not enforcer.enforce(sub, admin_obj, action):
                 raise HTTPException(status_code=403, detail="You can only access your own resource")
 
-    return Depends(_enforce)
+    return _enforce

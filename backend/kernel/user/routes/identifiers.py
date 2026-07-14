@@ -10,6 +10,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from kernel.tenant_context import TenantContext, get_tenant_context
+from kernel.authz.dependencies import require_permission
 from kernel.user.dependencies import get_identity_user_service
 from kernel.user.services.service import IdentityUserService
 from kernel.user.services.dtos import UserIdentifierCreateDTO, UserIdentifierDTO
@@ -21,6 +22,7 @@ router = APIRouter(prefix="/api/v1/users/{user_id}/identifiers", tags=["identifi
 def create_identifier(
     user_id: uuid.UUID,
     dto: UserIdentifierCreateDTO,
+    _authz: None = Depends(require_permission("user_identifier", "create")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> UserIdentifierDTO:
@@ -34,6 +36,7 @@ def create_identifier(
 @router.get("", response_model=list[UserIdentifierDTO])
 def list_identifiers(
     user_id: uuid.UUID,
+    _authz: None = Depends(require_permission("user_identifier", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> list[UserIdentifierDTO]:
@@ -45,6 +48,7 @@ def list_identifiers(
 def delete_identifier(
     user_id: uuid.UUID,
     identifier_id: uuid.UUID,
+    _authz: None = Depends(require_permission("user_identifier", "delete")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> None:

@@ -10,6 +10,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from kernel.tenant_context import TenantContext, get_tenant_context
+from kernel.authz.dependencies import require_permission
 from kernel.user.dependencies import get_identity_user_service
 from kernel.user.services.service import IdentityUserService
 from kernel.user.services.dtos import UserProfileCreateDTO, UserProfileDTO, UserProfileUpdateDTO
@@ -21,6 +22,7 @@ router = APIRouter(prefix="/api/v1/users/{user_id}/profile", tags=["profiles"])
 def create_profile(
     user_id: uuid.UUID,
     dto: UserProfileCreateDTO,
+    _authz: None = Depends(require_permission("user_profile", "create")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> UserProfileDTO:
@@ -34,6 +36,7 @@ def create_profile(
 @router.get("", response_model=UserProfileDTO)
 def get_profile(
     user_id: uuid.UUID,
+    _authz: None = Depends(require_permission("user_profile", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> UserProfileDTO:
@@ -48,6 +51,7 @@ def get_profile(
 def update_profile(
     user_id: uuid.UUID,
     dto: UserProfileUpdateDTO,
+    _authz: None = Depends(require_permission("user_profile", "update")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> UserProfileDTO:

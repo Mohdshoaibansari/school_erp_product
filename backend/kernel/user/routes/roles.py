@@ -10,6 +10,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from kernel.tenant_context import TenantContext, get_tenant_context
+from kernel.authz.dependencies import require_permission
 from kernel.user.dependencies import get_identity_user_service
 from kernel.user.services.service import IdentityUserService
 from kernel.user.services.dtos import RoleAssignmentCreateDTO, RoleAssignmentDTO
@@ -21,6 +22,7 @@ router = APIRouter(prefix="/api/v1/users/{user_id}/roles", tags=["roles"])
 def create_role_assignment(
     user_id: uuid.UUID,
     dto: RoleAssignmentCreateDTO,
+    _authz: None = Depends(require_permission("role_assignment", "create")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> RoleAssignmentDTO:
@@ -34,6 +36,7 @@ def create_role_assignment(
 @router.get("", response_model=list[RoleAssignmentDTO])
 def list_role_assignments(
     user_id: uuid.UUID,
+    _authz: None = Depends(require_permission("role_assignment", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> list[RoleAssignmentDTO]:
@@ -45,6 +48,7 @@ def list_role_assignments(
 def delete_role_assignment(
     user_id: uuid.UUID,
     assignment_id: uuid.UUID,
+    _authz: None = Depends(require_permission("role_assignment", "delete")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> None:

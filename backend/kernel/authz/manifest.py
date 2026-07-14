@@ -38,9 +38,11 @@ class AuthorizationManifest(ManifestBase):
 
         Runs after DB is ready.  Reads ``role_permission`` and stores the
         mapping in a module-level dict for ``register_casbin_policies``.
+        Idempotent — skips if already loaded (may be called twice: factory + lifespan).
         """
-        from kernel.authz.services.policy_loader import load_permission_map
-        load_permission_map()
+        from kernel.authz.services.policy_loader import load_permission_map, get_permission_map
+        if not get_permission_map():
+            load_permission_map()
 
     def on_shutdown(self) -> None:
         """Shutdown hook — currently a no-op."""

@@ -86,6 +86,11 @@ def create_app(module_manifests: list[ModuleManifest] | None = None) -> FastAPI:
         logger.info("Registering module: %s (tier=%s)", manifest.name, manifest.tier)
         manifest.register_routes(app)
 
+    # Invoke on_startup hooks so modules can initialise (DB reads, policy loads, ...)
+    # BEFORE the Casbin enforcer is created and policies are registered (D29)
+    for manifest in manifests:
+        manifest.on_startup()
+
     # Create Casbin enforcer and register policies from all manifests (D10, D29)
     _create_casbin_enforcer(manifests)
 

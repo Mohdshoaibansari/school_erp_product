@@ -86,6 +86,9 @@ def create_app(module_manifests: list[ModuleManifest] | None = None) -> FastAPI:
         logger.info("Registering module: %s (tier=%s)", manifest.name, manifest.tier)
         manifest.register_routes(app)
 
+    # Create Casbin enforcer and register policies from all manifests (D10, D29)
+    _create_casbin_enforcer(manifests)
+
     # Register startup/shutdown hooks via lifespan
     @asynccontextmanager
     async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -104,3 +107,32 @@ def create_app(module_manifests: list[ModuleManifest] | None = None) -> FastAPI:
         return {"status": "ok"}
 
     return app
+
+
+def _create_casbin_enforcer(manifests: list[ModuleManifest]) -> None:
+    """Create Casbin enforcer and register policies from all manifests (D10, D29).
+
+    Creates the enforcer from the canonical model at ``kernel/authz/casbin_model.conf``,
+    iterates manifests in dependency order calling ``register_casbin_policies(enforcer)``,
+    and stores the singleton via ``kernel.authz.dependencies.set_enforcer()``.
+    """
+    import os
+    import casbin
+    from kernel.authz.dependencies import set_enforcer
+
+    model_path = os.path.join(
+        os.path.dirname(__file__), "authz", "casbin_model.conf",
+    )
+    if not os.path.exists(model_path):
+        logger.warning("Casbin model not found at %s — skipping enforcer creation", model_path)
+        return
+
+    enforcer = casbin.Enforcer(model_path)
+    logger.info("Casbin enforcer created from %s", model_path)
+
+    for manifest in manifests:
+        manifest.register_casbin_policies(enforcer)
+        logger.debug("Registered Casbin policies for module: %s", manifest.name)
+
+    set_enforcer(enforcer)
+    logger.info("Casbin enforcer registered with %d role definitions", len(enforcer.get_all_roles()))

@@ -92,8 +92,13 @@ PERMISSION_POLICIES: list[tuple[str, str, str, str]] = [
 
 
 def casbin_model_path() -> str:
-    """Absolute path to the C-01 Casbin model file."""
-    return os.path.join(os.path.dirname(__file__), "casbin_model.conf")
+    """Absolute path to the C-04 Casbin model file (D14).
+
+    C-04 owns the Casbin framework; the canonical model now lives at
+    ``kernel/authz/casbin_model.conf``.
+    """
+    import kernel.authz
+    return os.path.join(os.path.dirname(kernel.authz.__file__), "casbin_model.conf")
 
 
 def register_policies(enforcer: Any) -> None:

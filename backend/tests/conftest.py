@@ -25,6 +25,7 @@ from business.tenant_institution.manifest import manifest as c01_manifest
 from kernel.user.manifest import manifest as c02_manifest
 from kernel.auth.manifest import manifest as c03_manifest
 from kernel.authz.manifest import manifest as c04_manifest
+from business.fees.manifest import manifest as fees_manifest
 from kernel.tenant_context import TenantContext, set_tenant_context
 from kernel.middleware import mint_test_jwt
 from business.tenant_institution.dependencies import reset_service_singleton
@@ -233,7 +234,7 @@ def app():
     # Phase 5 (15.1): Inject FakeSupabaseAuth into C-02 IdentityUserService
     set_c02_supabase(fake_supabase)
 
-    app = create_app([c01_manifest, c02_manifest, c03_manifest, c04_manifest])
+    app = create_app([c01_manifest, c02_manifest, c03_manifest, c04_manifest, fees_manifest])
 
     # Override the Casbin enforcer with a permissive stub for tests.
     # C-04 retrofit adds require_permission to all endpoints, but existing

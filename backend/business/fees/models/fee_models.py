@@ -7,9 +7,9 @@ from datetime import date, datetime
 
 from sqlalchemy import Column, Date, DateTime, ForeignKey, Numeric, String, Text, Boolean
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import relationship
 
-Base = declarative_base()
+from kernel.db import Base
 
 
 class FeeType(Base):

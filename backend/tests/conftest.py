@@ -41,6 +41,9 @@ _SEED_TABLES = {"legal_entity_type", "org_unit_type", "institution_type_name", "
 
 # All entity tables in reverse dependency order for cleanup
 _C01_TABLES = [
+    "payment",
+    "fee_assignment",
+    "fee_type",
     "login_attempt",
     "user_lifecycle_event",
     "user_identifier",

@@ -34,9 +34,9 @@ class FeesService:
             result = self._fee_type_repo.create(session, ctx, dto)
             session.commit()
             if self._audit:
-                self._audit.emit("fee_type_created", ctx.client_id, ctx.institution_id,
-                                 ctx.user_id or "system",
-                                 {"fee_type_id": str(result.id), "name": result.name,
+                self._audit.emit(action="fee_type_created", client_id=ctx.client_id, institution_id=ctx.institution_id,
+                                 actor=ctx.user_id or "system",
+                                 payload={"fee_type_id": str(result.id), "name": result.name,
                                   "amount": str(result.default_amount)})
             return result
 
@@ -53,9 +53,9 @@ class FeesService:
             result = self._fee_type_repo.update(session, ctx, fee_type_id, dto)
             session.commit()
             if self._audit:
-                self._audit.emit("fee_type_updated", ctx.client_id, ctx.institution_id,
-                                 ctx.user_id or "system",
-                                 {"fee_type_id": str(result.id)})
+                self._audit.emit(action="fee_type_updated", client_id=ctx.client_id, institution_id=ctx.institution_id,
+                                 actor=ctx.user_id or "system",
+                                 payload={"fee_type_id": str(result.id)})
             return result
 
     def deactivate_fee_type(self, ctx: TenantContext, fee_type_id: uuid.UUID) -> None:
@@ -94,9 +94,9 @@ class FeesService:
 
             if self._audit:
                 for r in results:
-                    self._audit.emit("fee_assigned", ctx.client_id, ctx.institution_id,
-                                     ctx.user_id or "system",
-                                     {"assignment_id": str(r.id), "user_id": str(r.user_id),
+                    self._audit.emit(action="fee_assigned", client_id=ctx.client_id, institution_id=ctx.institution_id,
+                                     actor=ctx.user_id or "system",
+                                     payload={"assignment_id": str(r.id), "user_id": str(r.user_id),
                                       "amount": str(r.amount), "due_date": str(r.due_date)})
             return results
 
@@ -122,9 +122,9 @@ class FeesService:
             result = self._fee_assignment_repo.waive(session, ctx, assignment_id)
             session.commit()
             if self._audit:
-                self._audit.emit("fee_waived", ctx.client_id, ctx.institution_id,
-                                 ctx.user_id or "system",
-                                 {"assignment_id": str(result.id), "user_id": str(result.user_id),
+                self._audit.emit(action="fee_waived", client_id=ctx.client_id, institution_id=ctx.institution_id,
+                                 actor=ctx.user_id or "system",
+                                 payload={"assignment_id": str(result.id), "user_id": str(result.user_id),
                                   "reason": reason})
             return result
 
@@ -152,9 +152,9 @@ class FeesService:
             session.commit()
 
             if self._audit:
-                self._audit.emit("payment_recorded", ctx.client_id, ctx.institution_id,
-                                 ctx.user_id or "system",
-                                 {"payment_id": str(result.id),
+                self._audit.emit(action="payment_recorded", client_id=ctx.client_id, institution_id=ctx.institution_id,
+                                 actor=ctx.user_id or "system",
+                                 payload={"payment_id": str(result.id),
                                   "assignment_id": str(dto.fee_assignment_id),
                                   "amount": str(dto.amount), "method": dto.payment_method,
                                   "receipt_number": receipt})

@@ -21,7 +21,9 @@ from business.fees.services.dtos import (
 
 
 class FeeTypeRepository(TenantAwareRepositoryBase[FeeType]):
-    _model = FeeType
+
+    def __init__(self):
+        super().__init__(FeeType)
 
     def _to_dto(self, obj: FeeType) -> FeeTypeDTO:
         return FeeTypeDTO(
@@ -60,7 +62,9 @@ class FeeTypeRepository(TenantAwareRepositoryBase[FeeType]):
 
 
 class FeeAssignmentRepository(TenantAwareRepositoryBase[FeeAssignment]):
-    _model = FeeAssignment
+
+    def __init__(self):
+        super().__init__(FeeAssignment)
 
     def _to_dto(self, obj: FeeAssignment) -> FeeAssignmentDTO:
         return FeeAssignmentDTO(
@@ -136,7 +140,9 @@ class FeeAssignmentRepository(TenantAwareRepositoryBase[FeeAssignment]):
 
 
 class PaymentRepository(TenantAwareRepositoryBase[Payment]):
-    _model = Payment
+
+    def __init__(self):
+        super().__init__(Payment)
 
     def _to_dto(self, obj: Payment) -> PaymentDTO:
         return PaymentDTO(

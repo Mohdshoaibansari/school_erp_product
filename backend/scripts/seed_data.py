@@ -86,6 +86,7 @@ async def main():
         "admin": ("admin@test-school.com", "Admin@123", "Admin"),
         "teacher": ("teacher@test-school.com", "Teacher@123", "Teacher"),
         "student": ("student@test-school.com", "Student@123", "Student"),
+        "platform_owner": ("platform@test-school.com", "Platform@123", "platform_owner"),
     }
 
     user_ids = {}
@@ -94,9 +95,11 @@ async def main():
         role_ids = {r[0]: r[1] for r in s.execute(text("SELECT name, id FROM role")).fetchall()}
         learner_cat = cat_ids.get("Learner", list(cat_ids.values())[0])
         staff_cat = cat_ids.get("Academic Staff", list(cat_ids.values())[0])
+        exec_cat = cat_ids.get("Executive Leadership", staff_cat)
         admin_role = role_ids.get("Admin", list(role_ids.values())[0])
         teacher_role = role_ids.get("Teacher", list(role_ids.values())[0])
         student_role = role_ids.get("Student", list(role_ids.values())[0])
+        po_role = role_ids.get("platform_owner", list(role_ids.values())[0])
 
         for role_key, (email, password, role_name) in roles.items():
             uid = uuid.uuid4()
@@ -110,10 +113,12 @@ async def main():
             """), {"id": uid, "cid": client_id, "iid": inst_id, "email": email, "name": f"Test {role_name}", "cat": cat})
 
             # Assign role
+            role_map = {"Admin": admin_role, "Teacher": teacher_role, "Student": student_role, "platform_owner": po_role}
+            is_po = role_name == "platform_owner"
             s.execute(text("""
                 INSERT INTO role_assignment (id, client_id, user_id, role_id, scope)
-                VALUES (gen_random_uuid(), :cid, :uid, :rid, 'Test School')
-            """), {"cid": client_id, "uid": uid, "rid": {"Admin": admin_role, "Teacher": teacher_role, "Student": student_role}[role_name]})
+                VALUES (gen_random_uuid(), :cid, :uid, :rid, :scope)
+            """), {"cid": client_id, "uid": uid, "rid": role_map[role_name], "scope": "Platform" if is_po else "Test School"})
 
             # Create Supabase Auth user
             await create_supabase_user(str(uid), email, password)

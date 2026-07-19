@@ -9,7 +9,11 @@ export default defineConfig({
       '/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
-        headers: { Host: 'test-school.localhost' },
+        configure: (proxy: any) => {
+          proxy.on('proxyReq', (proxyReq: any, req: any) => {
+            proxyReq.setHeader('Host', 'test-school.localhost');
+          });
+        },
       },
     },
   },

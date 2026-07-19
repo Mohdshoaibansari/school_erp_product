@@ -63,7 +63,7 @@ This creates:
 
 ```bash
 cd backend
-uv run uvicorn kernel.app_factory:create_app --factory --host 127.0.0.1 --port 8000
+uv run uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
 Verify it's running:

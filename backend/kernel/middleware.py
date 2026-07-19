@@ -16,6 +16,7 @@ import re
 from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
+from jose import jwk
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -32,6 +33,44 @@ _PLATFORM_PREFIX = "/api/v1/platform/"
 
 # Reserved subdomain labels that map to "platform" (no specific client)
 _PLATFORM_HOSTS = frozenset({"localhost", "127.0.0.1", "platform", "api", "admin", ""})
+
+
+_SUPABASE_JWKS_URL = os.environ.get("SUPABASE_URL", "") + "/auth/v1/.well-known/jwks.json" if os.environ.get("SUPABASE_URL") else None
+_jwks_cache: dict | None = None
+
+
+def _verify_jwt(token: str) -> dict:
+    """Verify a Supabase JWT — handles HS256 (local) and ES256 (cloud)."""
+    global _jwks_cache
+    try:
+        return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except JWTError:
+        pass
+    if _SUPABASE_JWKS_URL:
+        if _jwks_cache is None:
+            try:
+                from urllib.request import urlopen
+                import json
+                resp = urlopen(_SUPABASE_JWKS_URL)
+                _jwks_cache = json.loads(resp.read())
+            except Exception:
+                pass
+        if _jwks_cache:
+            try:
+                header = jwt.get_unverified_header(token)
+                kid = header.get("kid")
+                alg = header.get("alg", "RS256")
+                key_data = None
+                for k in _jwks_cache.get("keys", []):
+                    if k.get("kid") == kid:
+                        key_data = k
+                        break
+                if key_data:
+                    public_key = jwk.construct(key_data)
+                    return jwt.decode(token, public_key, algorithms=[alg], audience="authenticated")
+            except Exception:
+                pass
+    raise JWTError("Could not verify JWT")
 
 
 def mint_test_jwt(
@@ -161,16 +200,14 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
                         # Don't set user_id from invite JWT
                         pass
                     else:
-                        # Not an invite JWT — decode as Supabase JWT
-                        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+                        payload = _verify_jwt(token)
                         user_id = payload.get("sub")
                         jwt_client_id = payload.get("client_id")
                         jwt_institution_id = payload.get("institution_id")
                         is_platform_owner = payload.get("is_platform_owner", False)
                         roles = payload.get("roles", [])
                 except JWTError:
-                    # Invite JWT decode failed — try as Supabase JWT
-                    payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+                    payload = _verify_jwt(token)
                     user_id = payload.get("sub")
                     jwt_client_id = payload.get("client_id")
                     jwt_institution_id = payload.get("institution_id")
@@ -217,6 +254,26 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
             # Auth route without JWT — set subdomain-only context
             # client_id is already resolved from subdomain above
             pass
+
+        # If roles are empty but we have a user_id, look up roles from DB (D7)
+        if user_id and not roles and client_id:
+            try:
+                from sqlalchemy import create_engine, text as sa_text
+                db_url = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:54322/postgres")
+                engine = create_engine(db_url)
+                with engine.connect() as conn:
+                    conn.execute(sa_text("SET LOCAL app.is_platform_owner = 'true'"))
+                    result = conn.execute(sa_text(
+                        "SELECT r.name FROM role r "
+                        "JOIN role_assignment ra ON r.id = ra.role_id "
+                        "WHERE ra.user_id = :uid"
+                    ), {"uid": user_id}).fetchall()
+                    roles = [row[0] for row in result]
+                    if "platform_owner" in roles:
+                        is_platform_owner = True
+                engine.dispose()
+            except Exception:
+                pass
 
         ctx = TenantContext(
             client_id=client_id,

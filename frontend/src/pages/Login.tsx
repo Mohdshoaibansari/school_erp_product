@@ -14,7 +14,7 @@ export default function Login() {
   const handleLogin = async () => {
     setLoading(true); setError('');
     try {
-      const res = await api.post('/v1/auth/login', { email, password });
+      const res = await api.post('/auth/login', { email, password });
       localStorage.setItem('access_token', res.data.access_token);
       localStorage.setItem('refresh_token', res.data.refresh_token);
       notifications.show({ title: 'Logged in', message: 'Welcome!', color: 'green' });

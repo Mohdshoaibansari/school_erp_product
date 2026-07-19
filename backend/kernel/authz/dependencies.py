@@ -8,10 +8,13 @@ authorization checks.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Any
 
 from fastapi import Depends, HTTPException, Request
+
+logger = logging.getLogger(__name__)
 
 from kernel.tenant_context import TenantContext, get_tenant_context
 
@@ -66,15 +69,18 @@ def require_permission(
         enforcer: Any = Depends(get_enforcer),
     ):
         if enforcer is None:
+            logger.error("[AUTHZ] Enforcer not available")
             raise HTTPException(status_code=500, detail="Authorization service not available")
 
         roles = ctx.roles or []
 
         # Platform owner bypass (D28) — check BEFORE role validation
         if ctx.is_platform_owner or "platform_owner" in roles:
+            logger.debug("[AUTHZ] Platform owner bypass: resource=%s action=%s", resource, action)
             return
 
         if not roles:
+            logger.warning("[AUTHZ] No roles assigned: user=%s resource=%s action=%s", ctx.user_id, resource, action)
             raise HTTPException(status_code=403, detail="Permission denied — no roles assigned")
 
         # Build Casbin subject from TenantContext
@@ -95,7 +101,12 @@ def require_permission(
 
         # Step 1: Casbin role+scope check (D12)
         if not enforcer.enforce(sub, obj, action):
+            logger.warning("[AUTHZ] Permission denied: user=%s roles=%s resource=%s action=%s",
+                           ctx.user_id, roles, resource, action)
             raise HTTPException(status_code=403, detail="Permission denied")
+
+        logger.debug("[AUTHZ] Permission granted: user=%s roles=%s resource=%s action=%s",
+                     ctx.user_id, roles, resource, action)
 
         # Step 2: Ownership check (D22)
         if owner_id is not None and ctx.user_id and str(ctx.user_id) != str(owner_id):

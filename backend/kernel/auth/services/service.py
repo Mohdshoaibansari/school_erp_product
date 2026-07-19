@@ -6,10 +6,13 @@ All auth endpoints delegate to this service.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Any
 
 from sqlalchemy.orm import Session, sessionmaker
+
+logger = logging.getLogger(__name__)
 
 from kernel.tenant_context import TenantContext
 from kernel.user.repos.user_repo import UserRepository
@@ -67,10 +70,13 @@ class AuthService:
         checks lifecycle is active (D18), checks app_user.client_id == ctx.client_id (cross-tenant),
         records login_success/login_failure, returns tokens or raises AuthError.
         """
+        logger.info("[AUTH] Login attempt: email=%s client_id=%s ip=%s", email, ctx.client_id, ip_address)
         try:
             result = await self._supabase.sign_in_with_password(email, password)
+            logger.info("[AUTH] Supabase login success: email=%s", email)
         except SupabaseAuthError as e:
             # Supabase auth failed — record failure and look up user by email (D33)
+            logger.warning("[AUTH] Login failed: email=%s error=%s", email, str(e)[:100])
             self._record_login_attempt(
                 ctx, email, "login_failure",
                 ip_address=ip_address, user_agent=user_agent,
@@ -81,6 +87,7 @@ class AuthService:
         supabase_user = result.get("user", {})
         user_id_str = supabase_user.get("id")
         if not user_id_str:
+            logger.warning("[AUTH] Login failed: no user_id in Supabase response for email=%s", email)
             self._record_login_attempt(
                 ctx, email, "login_failure",
                 ip_address=ip_address, user_agent=user_agent,
@@ -88,12 +95,14 @@ class AuthService:
             raise AuthError("User record missing. Contact administrator.", status_code=403)
 
         user_id = uuid.UUID(user_id_str)
+        logger.info("[AUTH] Supabase user found: user_id=%s email=%s", user_id, email)
 
         with self._session_factory() as session:
             # Look up app_user by UUID
             user_dto = self._user_repo.get(session, ctx, user_id)
             if not user_dto:
                 # Supabase user exists but no app_user row (D19 failure 2)
+                logger.warning("[AUTH] Login failed: no app_user found for user_id=%s", user_id)
                 self._record_login_attempt(
                     ctx, email, "login_failure",
                     ip_address=ip_address, user_agent=user_agent,
@@ -102,6 +111,7 @@ class AuthService:
 
             # Check lifecycle is active (D18)
             if user_dto.lifecycle_status != "active":
+                logger.warning("[AUTH] Login failed: user_id=%s lifecycle=%s", user_id, user_dto.lifecycle_status)
                 self._record_login_attempt(
                     ctx, email, "login_failure",
                     user_id=user_id, ip_address=ip_address, user_agent=user_agent,
@@ -113,6 +123,8 @@ class AuthService:
 
             # Check cross-tenant (D19 failure 3)
             if ctx.client_id and user_dto.client_id != ctx.client_id:
+                logger.warning("[AUTH] Cross-tenant login blocked: user_id=%s user_client=%s ctx_client=%s",
+                               user_id, user_dto.client_id, ctx.client_id)
                 self._record_login_attempt(
                     ctx, email, "login_failure",
                     user_id=user_id, ip_address=ip_address, user_agent=user_agent,
@@ -125,6 +137,7 @@ class AuthService:
                 user_id=user_id, ip_address=ip_address, user_agent=user_agent,
             )
 
+            logger.info("[AUTH] Login success: user_id=%s email=%s", user_id, email)
             return {
                 "access_token": result["access_token"],
                 "refresh_token": result["refresh_token"],
@@ -144,9 +157,12 @@ class AuthService:
 
         Calls Supabase refresh_token, returns new pair, records token_refresh.
         """
+        logger.info("[AUTH] Token refresh attempt: user=%s ip=%s", ctx.user_id, ip_address)
         try:
             result = await self._supabase.refresh_token(refresh_token)
+            logger.info("[AUTH] Token refresh success: user=%s", ctx.user_id)
         except SupabaseAuthError as e:
+            logger.warning("[AUTH] Token refresh failed: user=%s error=%s", ctx.user_id, str(e)[:100])
             raise AuthError("Invalid or expired refresh token", status_code=401) from e
 
         # Record token refresh
@@ -174,9 +190,12 @@ class AuthService:
 
         Calls Supabase revoke_refresh_token, records logout.
         """
+        logger.info("[AUTH] Logout attempt: user=%s ip=%s", ctx.user_id, ip_address)
         try:
             await self._supabase.revoke_refresh_token(refresh_token)
+            logger.info("[AUTH] Logout success: user=%s", ctx.user_id)
         except SupabaseAuthError as e:
+            logger.warning("[AUTH] Logout failed: user=%s error=%s", ctx.user_id, str(e)[:100])
             raise AuthError("Failed to revoke refresh token", status_code=400) from e
 
         # Record logout
@@ -197,10 +216,13 @@ class AuthService:
         update_user(uid, password, email_confirm=true), transitions app_user
         from invited to active.
         """
+        logger.info("[AUTH] Activate attempt: invite_token=%s...", invite_token[:20])
         # Verify invite token
         try:
             token_data = verify_invite_token(invite_token)
+            logger.info("[AUTH] Invite token verified: user_id=%s email=%s", token_data["user_id"], token_data["email"])
         except InvalidInviteTokenError as e:
+            logger.warning("[AUTH] Activate failed: invalid invite token: %s", str(e)[:100])
             raise AuthError(f"Invalid invite token: {e}", status_code=400) from e
 
         user_id = token_data["user_id"]
@@ -223,7 +245,9 @@ class AuthService:
                     password=password,
                     email_confirm=True,
                 )
+                logger.info("[AUTH] Supabase user updated: user_id=%s", user_id)
             except SupabaseAuthError as e:
+                logger.error("[AUTH] Supabase update failed: user_id=%s error=%s", user_id, str(e)[:100])
                 raise AuthError(f"Failed to activate user: {e}", status_code=502) from e
 
             # Transition app_user from invited to active (D29)
@@ -231,6 +255,8 @@ class AuthService:
             update_dto = UserUpdateDTO(lifecycle_status="active")
             result = self._user_repo.update(session, ctx, user_id, update_dto)
             session.commit()
+
+            logger.info("[AUTH] User activated: user_id=%s lifecycle=%s", user_id, result.lifecycle_status)
 
             # Emit audit event
             self._audit.emit(
@@ -255,9 +281,12 @@ class AuthService:
 
         Calls Supabase sign_in_with_otp.
         """
+        logger.info("[AUTH] OTP request: email=%s ip=%s", email, ip_address)
         try:
             await self._supabase.sign_in_with_otp(email)
+            logger.info("[AUTH] OTP sent: email=%s", email)
         except SupabaseAuthError as e:
+            logger.error("[AUTH] OTP request failed: email=%s error=%s", email, str(e)[:100])
             raise AuthError(f"Failed to send OTP: {e}", status_code=502) from e
 
         return {"message": "OTP sent successfully"}
@@ -276,9 +305,12 @@ class AuthService:
         Calls Supabase verify_otp, same lifecycle + client checks as login,
         returns tokens, records login_success/login_failure.
         """
+        logger.info("[AUTH] OTP verify: email=%s ip=%s", email, ip_address)
         try:
             result = await self._supabase.verify_otp(email, token, type="email")
+            logger.info("[AUTH] OTP verify success: email=%s", email)
         except SupabaseAuthError as e:
+            logger.warning("[AUTH] OTP verify failed: email=%s error=%s", email, str(e)[:100])
             # OTP verification failed — record failure
             self._record_login_attempt(
                 ctx, email, "login_failure",
@@ -349,12 +381,15 @@ class AuthService:
 
         Calls Supabase reset_password_for_email.
         """
+        logger.info("[AUTH] Password reset request: email=%s", email)
         # Build redirect URL for frontend
         redirect_to = "http://localhost:3000/reset-password"  # TODO: make configurable
 
         try:
             await self._supabase.reset_password_for_email(email, redirect_to)
+            logger.info("[AUTH] Password reset email sent: email=%s", email)
         except SupabaseAuthError as e:
+            logger.error("[AUTH] Password reset failed: email=%s error=%s", email, str(e)[:100])
             raise AuthError(f"Failed to send password reset email: {e}", status_code=502) from e
 
         return {"message": "Password reset email sent"}
@@ -395,10 +430,13 @@ class AuthService:
 
         user_id = uuid.UUID(ctx.user_id)
 
+        logger.info("[AUTH] Password change attempt: user=%s", user_id)
+
         with self._session_factory() as session:
             # Look up app_user to get email
             user_dto = self._user_repo.get(session, ctx, user_id)
             if not user_dto:
+                logger.warning("[AUTH] Password change failed: user not found: %s", user_id)
                 raise AuthError("User not found", status_code=404)
 
             email = user_dto.email
@@ -406,7 +444,9 @@ class AuthService:
         # Re-login with current password to verify (D16b)
         try:
             await self._supabase.sign_in_with_password(email, current_password)
+            logger.info("[AUTH] Password change: current password verified for user=%s", user_id)
         except SupabaseAuthError as e:
+            logger.warning("[AUTH] Password change failed: wrong current password for user=%s", user_id)
             # Record the re-login attempt
             self._record_login_attempt(
                 ctx, email, "login_failure",

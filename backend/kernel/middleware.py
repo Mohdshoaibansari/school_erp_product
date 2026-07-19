@@ -11,6 +11,7 @@ contextvar directly (A6 invariant).
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from datetime import datetime, timedelta, timezone
@@ -22,6 +23,8 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from kernel.tenant_context import TenantContext, set_tenant_context
+
+logger = logging.getLogger(__name__)
 
 # Test JWT secret — in production this is the Supabase project's JWT secret.
 # C-01 CONSUMES JWTs; it does not issue them (tech-stack ADR §3).
@@ -167,6 +170,9 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
         is_platform_path = path.startswith(_PLATFORM_PREFIX)
         is_auth_path = path.startswith("/api/auth/")
 
+        logger.debug("[MW] %s %s | host=%s subdomain=%s platform=%s auth=%s",
+                      request.method, path, host, subdomain, is_platform_path, is_auth_path)
+
         # Extract JWT from Authorization header
         auth_header = request.headers.get("authorization", "")
         token = None
@@ -198,6 +204,7 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
                     if invite_payload.get("iss") == INVITE_JWT_ISSUER:
                         # This is an invite JWT — set subdomain-only context (D25)
                         # Don't set user_id from invite JWT
+                        logger.debug("[MW] Invite JWT detected (iss=%s) — subdomain-only context", invite_payload.get('iss'))
                         pass
                     else:
                         payload = _verify_jwt(token)
@@ -206,6 +213,7 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
                         jwt_institution_id = payload.get("institution_id")
                         is_platform_owner = payload.get("is_platform_owner", False)
                         roles = payload.get("roles", [])
+                        logger.debug("[MW] Supabase JWT decoded: user_id=%s roles=%s", user_id, roles)
                 except JWTError:
                     payload = _verify_jwt(token)
                     user_id = payload.get("sub")
@@ -213,6 +221,7 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
                     jwt_institution_id = payload.get("institution_id")
                     is_platform_owner = payload.get("is_platform_owner", False)
                     roles = payload.get("roles", [])
+                    logger.debug("[MW] Supabase JWT decoded (fallback): user_id=%s roles=%s", user_id, roles)
             except JWTError:
                 # For auth routes, tolerate invalid JWT — set subdomain-only context (D25)
                 # For non-auth routes, reject with 401
@@ -235,14 +244,18 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
         client_id = None
         if is_platform_path:
             is_platform_owner = True
+            logger.debug("[MW] Platform path detected — is_platform_owner=True")
         elif subdomain:
             resolved = _resolve_client_from_subdomain(subdomain)
             if resolved:
                 client_id = resolved
+                logger.debug("[MW] Subdomain '%s' resolved to client_id=%s", subdomain, client_id)
             elif jwt_client_id:
                 client_id = uuid.UUID(jwt_client_id) if jwt_client_id else None
+                logger.debug("[MW] Subdomain not resolved — using JWT client_id=%s", client_id)
         elif jwt_client_id:
             client_id = uuid.UUID(jwt_client_id) if jwt_client_id else None
+            logger.debug("[MW] No subdomain — using JWT client_id=%s", client_id)
 
         institution_id = None
         if jwt_institution_id:
@@ -271,8 +284,10 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
                     roles = [row[0] for row in result]
                     if "platform_owner" in roles:
                         is_platform_owner = True
+                    logger.debug("[MW] Role lookup from DB: user_id=%s roles=%s is_platform_owner=%s", user_id, roles, is_platform_owner)
                 engine.dispose()
-            except Exception:
+            except Exception as e:
+                logger.warning("[MW] Role lookup failed: %s", e)
                 pass
 
         ctx = TenantContext(
@@ -283,5 +298,8 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
             roles=roles,
         )
         set_tenant_context(ctx)
+
+        logger.info("[MW] Request: %s %s | user=%s client=%s inst=%s roles=%s is_po=%s",
+                     request.method, path, user_id, client_id, institution_id, roles, is_platform_owner)
 
         return await call_next(request)

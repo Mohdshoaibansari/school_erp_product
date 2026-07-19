@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import date
 from decimal import Decimal
@@ -17,6 +18,8 @@ from business.fees.services.dtos import (
     PaymentCreateDTO, PaymentDTO, WaiveDTO,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class FeesService:
     def __init__(self, session_factory: sessionmaker[Session] | None = None,
@@ -30,9 +33,11 @@ class FeesService:
     # ---- FeeType CRUD ----
 
     def create_fee_type(self, ctx: TenantContext, dto: FeeTypeCreateDTO) -> FeeTypeDTO:
+        logger.info("[FEES] Create fee type: name=%s amount=%s", dto.name, dto.default_amount)
         with self._session_factory() as session:
             result = self._fee_type_repo.create(session, ctx, dto)
             session.commit()
+            logger.info("[FEES] Fee type created: id=%s name=%s", result.id, result.name)
             if self._audit:
                 self._audit.emit(action="fee_type_created", client_id=ctx.client_id, institution_id=ctx.institution_id,
                                  actor=ctx.user_id or "system",
@@ -41,17 +46,21 @@ class FeesService:
             return result
 
     def list_fee_types(self, ctx: TenantContext, institution_id: uuid.UUID | None = None) -> list[FeeTypeDTO]:
+        logger.debug("[FEES] List fee types: institution=%s", institution_id)
         with self._session_factory() as session:
             return self._fee_type_repo.list_active(session, ctx, institution_id)
 
     def get_fee_type(self, ctx: TenantContext, fee_type_id: uuid.UUID) -> FeeTypeDTO | None:
+        logger.debug("[FEES] Get fee type: id=%s", fee_type_id)
         with self._session_factory() as session:
             return self._fee_type_repo.get(session, ctx, fee_type_id)
 
     def update_fee_type(self, ctx: TenantContext, fee_type_id: uuid.UUID, dto: FeeTypeUpdateDTO) -> FeeTypeDTO:
+        logger.info("[FEES] Update fee type: id=%s", fee_type_id)
         with self._session_factory() as session:
             result = self._fee_type_repo.update(session, ctx, fee_type_id, dto)
             session.commit()
+            logger.info("[FEES] Fee type updated: id=%s", result.id)
             if self._audit:
                 self._audit.emit(action="fee_type_updated", client_id=ctx.client_id, institution_id=ctx.institution_id,
                                  actor=ctx.user_id or "system",
@@ -66,6 +75,7 @@ class FeesService:
     # ---- FeeAssignment ----
 
     def create_fee_assignments(self, ctx: TenantContext, dto: FeeAssignmentCreateDTO) -> list[FeeAssignmentDTO]:
+        logger.info("[FEES] Create fee assignments: fee_type=%s count=%s amount=%s", dto.fee_type_id, len(dto.user_ids), dto.amount)
         with self._session_factory() as session:
             session.execute(__import__("sqlalchemy").text(
                 "SELECT 1 FROM app_user WHERE id = ANY(:ids) AND user_category_id NOT IN "
@@ -131,6 +141,7 @@ class FeesService:
     # ---- Payment ----
 
     def record_payment(self, ctx: TenantContext, dto: PaymentCreateDTO) -> PaymentDTO:
+        logger.info("[FEES] Record payment: assignment=%s amount=%s method=%s", dto.fee_assignment_id, dto.amount, dto.payment_method)
         with self._session_factory() as session:
             # Get assignment to find institution_id and update status
             assignment = self._fee_assignment_repo.get(session, ctx, dto.fee_assignment_id)

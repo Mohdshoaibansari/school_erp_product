@@ -6,9 +6,12 @@ Production impl wraps the Supabase SDK. Fake impl is in-memory for testing.
 
 from __future__ import annotations
 
+import logging
 import os
 import uuid
 from typing import Protocol, runtime_checkable
+
+logger = logging.getLogger(__name__)
 
 
 @runtime_checkable
@@ -164,6 +167,7 @@ class SupabaseAuthClientImpl:
         return self._client
 
     async def create_user(self, user_id: uuid.UUID, email: str) -> dict:
+        logger.info("[SUPABASE] Create user: id=%s email=%s", user_id, email)
         client = self._get_client()
         try:
             response = client.auth.admin.create_user({
@@ -171,23 +175,28 @@ class SupabaseAuthClientImpl:
                 "email": email,
                 "email_confirm": False,
             })
+            logger.info("[SUPABASE] User created: id=%s email=%s", user_id, email)
             return {"user": response.user.model_dump() if response.user else None}
         except Exception as e:
+            logger.error("[SUPABASE] Create user failed: id=%s email=%s error=%s", user_id, email, str(e)[:100])
             raise SupabaseAuthError(f"Failed to create user: {e}") from e
 
     async def sign_in_with_password(self, email: str, password: str) -> dict:
+        logger.info("[SUPABASE] Sign in with password: email=%s", email)
         client = self._get_client()
         try:
             response = client.auth.sign_in_with_password({
                 "email": email,
                 "password": password,
             })
+            logger.info("[SUPABASE] Sign in success: email=%s", email)
             return {
                 "access_token": response.session.access_token,
                 "refresh_token": response.session.refresh_token,
                 "user": response.user.model_dump() if response.user else None,
             }
         except Exception as e:
+            logger.warning("[SUPABASE] Sign in failed: email=%s error=%s", email, str(e)[:100])
             raise SupabaseAuthError(f"Invalid credentials: {e}") from e
 
     async def sign_in_with_otp(self, email: str) -> dict:
@@ -236,6 +245,7 @@ class SupabaseAuthClientImpl:
         email: str | None = None,
         email_confirm: bool | None = None,
     ) -> dict:
+        logger.info("[SUPABASE] Update user: id=%s password=%s email=%s", user_id, "***" if password else None, email)
         client = self._get_client()
         try:
             update_data: dict = {}
@@ -246,25 +256,34 @@ class SupabaseAuthClientImpl:
             if email_confirm is not None:
                 update_data["email_confirm"] = email_confirm
             response = client.auth.admin.update_user_by_id(str(user_id), update_data)
+            logger.info("[SUPABASE] User updated: id=%s", user_id)
             return {"user": response.user.model_dump() if response.user else None}
         except Exception as e:
+            logger.error("[SUPABASE] Update user failed: id=%s error=%s", user_id, str(e)[:100])
             raise SupabaseAuthError(f"Failed to update user: {e}") from e
 
     async def sign_out(self, user_id: uuid.UUID, scope: str = "global") -> None:
+        logger.info("[SUPABASE] Sign out: id=%s scope=%s", user_id, scope)
         client = self._get_client()
         try:
             client.auth.admin.sign_out(str(user_id), scope=scope)
+            logger.info("[SUPABASE] Sign out success: id=%s", user_id)
         except Exception as e:
+            logger.warning("[SUPABASE] Sign out failed: id=%s error=%s", user_id, str(e)[:100])
             raise SupabaseAuthError(f"Failed to sign out: {e}") from e
 
     async def delete_user(self, user_id: uuid.UUID) -> None:
+        logger.info("[SUPABASE] Delete user: id=%s", user_id)
         client = self._get_client()
         try:
             client.auth.admin.delete_user(str(user_id))
+            logger.info("[SUPABASE] User deleted: id=%s", user_id)
         except Exception as e:
+            logger.error("[SUPABASE] Delete user failed: id=%s error=%s", user_id, str(e)[:100])
             raise SupabaseAuthError(f"Failed to delete user: {e}") from e
 
     async def refresh_token(self, refresh_token: str) -> dict:
+        logger.info("[SUPABASE] Refresh token")
         client = self._get_client()
         try:
             response = client.auth.refresh_session({"refresh_token": refresh_token})

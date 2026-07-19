@@ -1,5 +1,18 @@
 """Application entry point — creates FastAPI app with all modules registered."""
 
+import os
+from pathlib import Path
+
+# Load .env file
+env_path = Path(__file__).parent / ".env"
+if env_path.exists():
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, val = line.split("=", 1)
+                os.environ.setdefault(key, val)
+
 from kernel.app_factory import create_app
 
 from business.tenant_institution.manifest import manifest as c01_manifest

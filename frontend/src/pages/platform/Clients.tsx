@@ -11,6 +11,7 @@ export default function Clients() {
   const [legalName, setLegalName] = useState('');
   const [slug, setSlug] = useState('');
   const [email, setEmail] = useState('');
+  const [legalEntityType] = useState('81e77718-098b-45a0-a1ee-931441804ff8'); // Pvt Ltd default
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ['clients'],
@@ -25,7 +26,9 @@ export default function Clients() {
       notifications.show({ message: 'Client created!', color: 'green' });
     },
     onError: (err: any) => {
-      notifications.show({ message: err.response?.data?.detail || 'Failed', color: 'red' });
+      const detail = err.response?.data?.detail;
+      const message = typeof detail === 'object' ? JSON.stringify(detail) : detail || 'Failed';
+      notifications.show({ message, color: 'red' });
     },
   });
 
@@ -43,6 +46,7 @@ export default function Clients() {
       legal_name: legalName,
       slug,
       primary_contact_email: email,
+      legal_entity_type_id: legalEntityType,
     });
   };
 

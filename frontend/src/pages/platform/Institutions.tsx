@@ -17,7 +17,7 @@ export default function Institutions() {
 
   const { data: instTypes } = useQuery({
     queryKey: ['institution-types'],
-    queryFn: () => api.get('/v1/institution-types').then(r => r.data),
+    queryFn: () => api.get('/v1/platform/institution-types').then(r => r.data),
   });
 
   const createMut = useMutation({

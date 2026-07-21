@@ -41,7 +41,7 @@ curl -X POST $BASE_URL/api/auth/login \
 
 **Save the token:**
 ```bash
-export PLATFORM_TOKEN="<paste access_token here>"
+export PLATFORM_TOKEN="eyJhbGciOiJFUzI1NiIsImtpZCI6IjQyZjhkOWQxLWMwZGEtNDliNi04ODBlLTE4MjhkZTFlMDA2NyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3JpcHNjbXF2emtpcHNxdG1mZHJ5LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI2ZDVjMGU3OC1mNDRmLTQxNDUtODczMS01MGQyOTM5YWM4ZGIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzg0NjEyODYwLCJpYXQiOjE3ODQ2MDkyNjAsImVtYWlsIjoicGxhdGZvcm1AdGVzdC1zY2hvb2wuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3ODQ2MDkyNjB9XSwic2Vzc2lvbl9pZCI6IjRhM2EzOGMzLWU5M2ItNGNiZC1hYTZhLTY4MTc1ZjliOTYzZCIsImlzX2Fub255bW91cyI6ZmFsc2V9.J7gKjMEBghTV2RLO5b27QwD1q_zfoM-0OG3vQycQhqZ1Fn-8VJZTRt_BlNT5yohiF1k9MZLo6UPaQ5dHeYU6bQ"
 ```
 
 ### 1.2 List All Clients
@@ -70,14 +70,68 @@ curl -X POST "$BASE_URL/api/v1/platform/clients" \
   }'
 ```
 
-**Expected:** `201 Created` with new client object
+**Expected:** `201 Created` with `current_lifecycle_status: "prospective"`
 
 **Save the new client ID:**
 ```bash
 export CLIENT_B_ID="<paste client id here>"
 ```
 
----
+### 1.4 Transition Client from Prospective → Active
+
+New clients start as `"prospective"`. They need to be activated before they appear in lists:
+
+```bash
+curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_B_ID/transition" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "new_state": "active",
+    "reason": "Approved for onboarding"
+  }'
+```
+
+**Expected:** `200 OK` with `current_lifecycle_status: "active"`
+
+### 1.5 Client Lifecycle States
+
+| State | Meaning | Transitions |
+|---|---|---|
+| `prospective` | Newly created | → `active` |
+| `active` | Fully operational | → `suspended`, `archived` |
+| `suspended` | Temporarily disabled | → `active`, `archived` |
+| `archived` | Permanently closed (terminal) | — |
+
+```bash
+# Suspend
+curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_B_ID/transition" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{"new_state": "suspended", "reason": "Payment overdue"}'
+
+# Reactivate
+curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_B_ID/transition" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{"new_state": "active", "reason": "Payment received"}'
+
+# Archive (terminal)
+curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_B_ID/transition" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{"new_state": "archived", "reason": "Business closed"}'
+```
+
+### 1.6 List All Clients (Should Show Active + Prospective)
+
+```bash
+curl -X GET "$BASE_URL/api/v1/platform/clients" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Host: $HOST"
+```
+
+**Expected:** Both `test-school` and `school-b` clients
 
 ## Flow 2: Create Institutions Under Different Clients
 

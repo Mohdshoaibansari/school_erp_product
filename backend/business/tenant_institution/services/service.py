@@ -76,7 +76,9 @@ class TenantInstitutionService:
 
     def create_client(self, ctx: TenantContext, dto: ClientCreateDTO) -> ClientDTO:
         with self._session_factory() as session:
-            return self._client_repo.create(session, ctx, dto)
+            result = self._client_repo.create(session, ctx, dto)
+            session.commit()
+            return result
 
     def get_client(self, ctx: TenantContext, client_id: uuid.UUID) -> ClientDTO | None:
         with self._session_factory() as session:
@@ -90,16 +92,20 @@ class TenantInstitutionService:
         self, ctx: TenantContext, client_id: uuid.UUID, dto: ClientUpdateDTO,
     ) -> ClientDTO:
         with self._session_factory() as session:
-            return self._client_repo.update_identity(session, ctx, client_id, dto)
+            result = self._client_repo.update_identity(session, ctx, client_id, dto)
+            session.commit()
+            return result
 
     def transition_client_lifecycle(
         self, ctx: TenantContext, client_id: uuid.UUID,
         new_state: str, reason: str | None,
     ) -> ClientDTO:
         with self._session_factory() as session:
-            return self._client_repo.transition_lifecycle(
+            result = self._client_repo.transition_lifecycle(
                 session, ctx, client_id, new_state, reason, ctx.user_id or "unknown",
             )
+            session.commit()
+            return result
 
     # ---- Institution ----
 

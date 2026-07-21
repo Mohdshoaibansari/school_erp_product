@@ -74,7 +74,7 @@ curl -X POST "$BASE_URL/api/v1/platform/clients" \
 
 **Save the new client ID:**
 ```bash
-export CLIENT_B_ID="<paste client id here>"
+export CLIENT_B_ID="bfc27e99-c191-48a4-812a-6899a3a8a01c"
 ```
 
 ### 1.4 Transition Client from Prospective → Active

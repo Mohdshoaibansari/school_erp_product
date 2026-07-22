@@ -74,7 +74,7 @@ curl -X POST "$BASE_URL/api/v1/platform/clients" \
 
 **Save the new client ID:**
 ```bash
-export CLIENT_D_ID="0d887940-f627-47dc-845e-9e7bb3f2073a"
+export CLIENT_D_ID="465fda3e-241b-45ac-95c2-9264e760e33b"
 ```
 
 ### 1.4 Transition Client from Prospective → Active
@@ -144,7 +144,7 @@ curl -X POST "$BASE_URL/api/v1/institutions" \
   -H "Content-Type: application/json" \
   -d '{
     "display_name": "School D Main Campus",
-    "institution_type_id": "<paste institution_type_id>"
+    "institution_type_id": "8159019c-7f56-44f7-a2cf-e323403cee21"
   }'
 ```
 
@@ -160,7 +160,7 @@ curl -X GET "$BASE_URL/api/v1/platform/institution-types" \
 
 **Save the institution ID:**
 ```bash
-export INST_B_ID="<paste institution id here>"
+export INST_B_ID="1afd34dd-3b73-48de-9026-edb0320f1df1"
 ```
 
 ### 2.2 List Institutions (should see only those in current client context)

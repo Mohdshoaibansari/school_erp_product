@@ -54,7 +54,7 @@ curl -X GET "$BASE_URL/api/v1/platform/clients" \
 
 **Expected:** `200 OK` with array of clients (should include `test-school`)
 
-### 1.3 Create a New Client (School C)
+### 1.3 Create a New Client (School D)
 
 ```bash
 curl -X POST "$BASE_URL/api/v1/platform/clients" \
@@ -62,10 +62,10 @@ curl -X POST "$BASE_URL/api/v1/platform/clients" \
   -H "Host: $HOST" \
   -H "Content-Type: application/json" \
   -d '{
-    "display_name": "School C Academy",
-    "legal_name": "School C Academy Pvt Ltd",
-    "slug": "school-c",
-    "primary_contact_email": "admin@school-c.com",
+    "display_name": "School D Academy",
+    "legal_name": "School D Academy Pvt Ltd",
+    "slug": "school-d",
+    "primary_contact_email": "admin@school-d.com",
     "legal_entity_type_id": "81e77718-098b-45a0-a1ee-931441804ff8"
   }'
 ```
@@ -74,7 +74,7 @@ curl -X POST "$BASE_URL/api/v1/platform/clients" \
 
 **Save the new client ID:**
 ```bash
-export CLIENT_C_ID="0d11bff2-3e63-4347-b22e-51ce26624ce9"
+export CLIENT_D_ID="0d887940-f627-47dc-845e-9e7bb3f2073a"
 ```
 
 ### 1.4 Transition Client from Prospective → Active
@@ -82,7 +82,7 @@ export CLIENT_C_ID="0d11bff2-3e63-4347-b22e-51ce26624ce9"
 New clients start as `"prospective"`. They need to be activated before they appear in lists:
 
 ```bash
-curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_C_ID/transition" \
+curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_D_ID/transition" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" \
   -H "Host: $HOST" \
   -H "Content-Type: application/json" \
@@ -105,19 +105,19 @@ curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_C_ID/transition" \
 
 ```bash
 # Suspend
-curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_C_ID/transition" \
+curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_D_ID/transition" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" -H "Host: $HOST" \
   -H "Content-Type: application/json" \
   -d '{"new_state": "suspended", "reason": "Payment overdue"}'
 
 # Reactivate
-curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_C_ID/transition" \
+curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_D_ID/transition" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" -H "Host: $HOST" \
   -H "Content-Type: application/json" \
   -d '{"new_state": "active", "reason": "Payment received"}'
 
 # Archive (terminal)
-curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_C_ID/transition" \
+curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_D_ID/transition" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" -H "Host: $HOST" \
   -H "Content-Type: application/json" \
   -d '{"new_state": "archived", "reason": "Business closed"}'
@@ -131,19 +131,19 @@ curl -X GET "$BASE_URL/api/v1/platform/clients" \
   -H "Host: $HOST"
 ```
 
-**Expected:** Both `test-school` and `school-c` clients
+**Expected:** Both `test-school` and `school-d` clients
 
 ## Flow 2: Create Institutions Under Different Clients
 
-### 2.1 Create Institution Under School C
+### 2.1 Create Institution Under School D
 
 ```bash
 curl -X POST "$BASE_URL/api/v1/institutions" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-c.localhost" \
+  -H "Host: school-d.localhost" \
   -H "Content-Type: application/json" \
   -d '{
-    "display_name": "School C Main Campus",
+    "display_name": "School D Main Campus",
     "institution_type_id": "<paste institution_type_id>"
   }'
 ```
@@ -166,28 +166,28 @@ export INST_B_ID="<paste institution id here>"
 ### 2.2 List Institutions (should see only those in current client context)
 
 ```bash
-# As platform owner at school-c context
+# As platform owner at school-d context
 curl -X GET "$BASE_URL/api/v1/institutions" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-c.localhost"
+  -H "Host: school-d.localhost"
 ```
 
-**Expected:** Only School C's institutions
+**Expected:** Only School D's institutions
 
 ---
 
 ## Flow 3: Create Users at Different Institutions
 
-### 3.1 Create Admin User at School C
+### 3.1 Create Admin User at School D
 
 ```bash
 curl -X POST "$BASE_URL/api/v1/users" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-c.localhost" \
+  -H "Host: school-d.localhost" \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "admin@school-c.com",
-    "name": "School C Admin",
+    "email": "admin@school-d.com",
+    "name": "School D Admin",
     "user_category_id": "<paste Academic Staff category id>",
     "institution_id": "'"$INST_B_ID"'"
   }'
@@ -206,7 +206,7 @@ curl -X GET "$BASE_URL/api/v1/lookups/user-categories" \
 export ADMIN_B_USER_ID="<paste user id here>"
 ```
 
-### 3.2 Assign Admin Role to School C User
+### 3.2 Assign Admin Role to School D User
 
 ```bash
 # Get role IDs first
@@ -217,7 +217,7 @@ curl -X GET "$BASE_URL/api/v1/lookups/roles" \
 # Assign Admin role
 curl -X POST "$BASE_URL/api/v1/users/$ADMIN_B_USER_ID/roles" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-c.localhost" \
+  -H "Host: school-d.localhost" \
   -H "Content-Type: application/json" \
   -d '{
     "role_id": "<paste Admin role id>"
@@ -232,7 +232,7 @@ The user was created with `lifecycle_status=invited`. They need to activate via 
 
 ```bash
 PGPASSWORD="Infosys!657627sh" psql "postgresql://postgres@db.ripscmqvzkipsqtmfdry.supabase.co:5432/postgres" -c "
-  UPDATE app_user SET lifecycle_status = 'active' WHERE email = 'admin@school-c.com';
+  UPDATE app_user SET lifecycle_status = 'active' WHERE email = 'admin@school-d.com';
 "
 ```
 
@@ -246,14 +246,14 @@ For testing purposes, Option A (direct DB update) is simpler.
 
 ## Flow 4: Test Tenant Isolation
 
-### 4.1 Login as School C Admin
+### 4.1 Login as School D Admin
 
 ```bash
 curl -X POST "$BASE_URL/api/auth/login" \
   -H "Content-Type: application/json" \
-  -H "Host: school-c.localhost" \
+  -H "Host: school-d.localhost" \
   -d '{
-    "email": "admin@school-c.com",
+    "email": "admin@school-d.com",
     "password": "<password set during activation>"
   }'
 ```
@@ -263,20 +263,20 @@ curl -X POST "$BASE_URL/api/auth/login" \
 export ADMIN_B_TOKEN="<paste access_token here>"
 ```
 
-### 4.2 School C Admin Lists Institutions (Should See Only School C)
+### 4.2 School D Admin Lists Institutions (Should See Only School D)
 
 ```bash
 curl -X GET "$BASE_URL/api/v1/institutions" \
   -H "Authorization: Bearer $ADMIN_B_TOKEN" \
-  -H "Host: school-c.localhost"
+  -H "Host: school-d.localhost"
 ```
 
-**Expected:** Only School C's institutions
+**Expected:** Only School D's institutions
 
-### 4.3 School C Admin Tries to Access School A's Data (Should Fail)
+### 4.3 School D Admin Tries to Access School A's Data (Should Fail)
 
 ```bash
-# Try to access test-school context with School C token
+# Try to access test-school context with School D token
 curl -X GET "$BASE_URL/api/v1/institutions" \
   -H "Authorization: Bearer $ADMIN_B_TOKEN" \
   -H "Host: test-school.localhost"
@@ -284,22 +284,22 @@ curl -X GET "$BASE_URL/api/v1/institutions" \
 
 **Expected:** `401 Unauthorized` or `403 Forbidden` — cross-tenant access blocked
 
-**Why it fails:** The middleware validates the JWT and resolves the user. The user's `client_id` (School C) doesn't match the Host header's client (School A). Cross-tenant check fails.
+**Why it fails:** The middleware validates the JWT and resolves the user. The user's `client_id` (School D) doesn't match the Host header's client (School A). Cross-tenant check fails.
 
 ---
 
-## Flow 5: Create Fee Type at School C (Isolation Test)
+## Flow 5: Create Fee Type at School D (Isolation Test)
 
-### 5.1 School C Admin Creates Fee Type
+### 5.1 School D Admin Creates Fee Type
 
 ```bash
 curl -X POST "$BASE_URL/api/v1/fee-types" \
   -H "Authorization: Bearer $ADMIN_B_TOKEN" \
-  -H "Host: school-c.localhost" \
+  -H "Host: school-d.localhost" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "School C Tuition",
-    "description": "Annual tuition for School C",
+    "name": "School D Tuition",
+    "description": "Annual tuition for School D",
     "default_amount": 8000.00,
     "institution_id": "'"$INST_B_ID"'"
   }'
@@ -307,7 +307,7 @@ curl -X POST "$BASE_URL/api/v1/fee-types" \
 
 **Expected:** `201 Created`
 
-### 5.2 Platform Owner Lists Fee Types at School A (Should NOT See School C's)
+### 5.2 Platform Owner Lists Fee Types at School A (Should NOT See School D's)
 
 ```bash
 curl -X GET "$BASE_URL/api/v1/fee-types" \
@@ -315,17 +315,17 @@ curl -X GET "$BASE_URL/api/v1/fee-types" \
   -H "Host: test-school.localhost"
 ```
 
-**Expected:** Only School A's fee types (not School C's "School C Tuition")
+**Expected:** Only School A's fee types (not School D's "School D Tuition")
 
-### 5.3 Platform Owner Lists Fee Types at School C (Should See School C's)
+### 5.3 Platform Owner Lists Fee Types at School D (Should See School D's)
 
 ```bash
 curl -X GET "$BASE_URL/api/v1/fee-types" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-c.localhost"
+  -H "Host: school-d.localhost"
 ```
 
-**Expected:** Only School C's fee types
+**Expected:** Only School D's fee types
 
 ---
 
@@ -336,7 +336,7 @@ curl -X GET "$BASE_URL/api/v1/fee-types" \
 ```bash
 curl -X POST "$BASE_URL/api/v1/users/$ADMIN_B_USER_ID/transition" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-c.localhost" \
+  -H "Host: school-d.localhost" \
   -H "Content-Type: application/json" \
   -d '{
     "new_state": "suspended",
@@ -351,9 +351,9 @@ curl -X POST "$BASE_URL/api/v1/users/$ADMIN_B_USER_ID/transition" \
 ```bash
 curl -X POST "$BASE_URL/api/auth/login" \
   -H "Content-Type: application/json" \
-  -H "Host: school-c.localhost" \
+  -H "Host: school-d.localhost" \
   -d '{
-    "email": "admin@school-c.com",
+    "email": "admin@school-d.com",
     "password": "<password>"
   }'
 ```
@@ -365,7 +365,7 @@ curl -X POST "$BASE_URL/api/auth/login" \
 ```bash
 curl -X POST "$BASE_URL/api/v1/users/$ADMIN_B_USER_ID/transition" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-c.localhost" \
+  -H "Host: school-d.localhost" \
   -H "Content-Type: application/json" \
   -d '{
     "new_state": "active",
@@ -477,15 +477,15 @@ curl -X GET "$BASE_URL/api/v1/homeworks" \
 
 **Expected:** Sees homeworks for their grade_level + section
 
-### 8.3 Student at School C Lists Homework (Should NOT See School A's)
+### 8.3 Student at School D Lists Homework (Should NOT See School A's)
 
 ```bash
 curl -X GET "$BASE_URL/api/v1/homeworks" \
   -H "Authorization: Bearer $STUDENT_B_TOKEN" \
-  -H "Host: school-c.localhost"
+  -H "Host: school-d.localhost"
 ```
 
-**Expected:** Empty or only School C's homeworks — School A's homework NOT visible
+**Expected:** Empty or only School D's homeworks — School A's homework NOT visible
 
 ---
 
@@ -495,13 +495,13 @@ curl -X GET "$BASE_URL/api/v1/homeworks" \
 |---|---|
 | Platform owner sees all clients | ✅ |
 | School A admin sees only School A institutions | ✅ |
-| School C admin sees only School C institutions | ✅ |
-| School C token at School A host → blocked | ✅ 401/403 |
-| School A fee types NOT visible at School C | ✅ Isolated |
+| School D admin sees only School D institutions | ✅ |
+| School D token at School A host → blocked | ✅ 401/403 |
+| School A fee types NOT visible at School D | ✅ Isolated |
 | Suspended user can't log in | ✅ 403 |
 | Teacher can't create fee types | ✅ 403 |
 | Teacher can list fee types | ✅ 200 |
-| School A homework NOT visible at School C | ✅ Isolated |
+| School A homework NOT visible at School D | ✅ Isolated |
 
 ---
 
@@ -514,7 +514,7 @@ curl -X GET "$BASE_URL/api/v1/homeworks" \
 | Teacher (School A) | `teacher@test-school.com` | `Teacher@123` | `test-school.localhost` |
 | Student (School A) | `student@test-school.com` | `Student@123` | `test-school.localhost` |
 
-**Note:** For School C users, you need to create them first (Flow 3) and set their password via Supabase Auth or direct DB update.
+**Note:** For School D users, you need to create them first (Flow 3) and set their password via Supabase Auth or direct DB update.
 
 ---
 

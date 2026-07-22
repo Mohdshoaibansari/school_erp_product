@@ -41,7 +41,7 @@ curl -X POST $BASE_URL/api/auth/login \
 
 **Save the token:**
 ```bash
-export PLATFORM_TOKEN="eyJhbGciOiJFUzI1NiIsImtpZCI6IjQyZjhkOWQxLWMwZGEtNDliNi04ODBlLTE4MjhkZTFlMDA2NyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3JpcHNjbXF2emtpcHNxdG1mZHJ5LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI2ZDVjMGU3OC1mNDRmLTQxNDUtODczMS01MGQyOTM5YWM4ZGIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzg0NjkwODA1LCJpYXQiOjE3ODQ2ODcyMDUsImVtYWlsIjoicGxhdGZvcm1AdGVzdC1zY2hvb2wuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3ODQ2ODcyMDV9XSwic2Vzc2lvbl9pZCI6IjZhMjBlYWNhLTIyOTUtNGE4Zi1iYWRjLTczYjA0OWMyNmE5NiIsImlzX2Fub255bW91cyI6ZmFsc2V9.RyTq0KQBAT7LPfIblwdSIB_i6SgrZMqOIbuiAHOwNzDycxFCsgZvRZurYMenO4AN5y6vCbZRd6wyXQAB1bv5KA"
+export PLATFORM_TOKEN="eyJhbGciOiJFUzI1NiIsImtpZCI6IjQyZjhkOWQxLWMwZGEtNDliNi04ODBlLTE4MjhkZTFlMDA2NyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3JpcHNjbXF2emtpcHNxdG1mZHJ5LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI2ZDVjMGU3OC1mNDRmLTQxNDUtODczMS01MGQyOTM5YWM4ZGIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzg0Njk1MDc2LCJpYXQiOjE3ODQ2OTE0NzYsImVtYWlsIjoicGxhdGZvcm1AdGVzdC1zY2hvb2wuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3ODQ2OTE0NzZ9XSwic2Vzc2lvbl9pZCI6ImNmOTc2NDFhLTk5ZGItNGJiMi1hN2Q2LTY2MjM2ZTE4MTVjNSIsImlzX2Fub255bW91cyI6ZmFsc2V9.F3QvyYRBpKaEs0LrAXLBAuB2R0_vGHepeZYEYCIVM0MmejPonghnu_VqItk9Zg90sL-39CYX4IJ5W7QIYTLVGA"
 ```
 
 ### 1.2 List All Clients
@@ -154,7 +154,7 @@ curl -X POST "$BASE_URL/api/v1/institutions" \
   -H "Content-Type: application/json" \
   -d '{
     "display_name": "School D Main Campus",
-    "institution_type_id": "<paste School type id here>"
+    "institution_type_id": "8159019c-7f56-44f7-a2cf-e323403cee21"
   }'
 ```
 
@@ -162,7 +162,7 @@ curl -X POST "$BASE_URL/api/v1/institutions" \
 
 **Save the institution ID:**
 ```bash
-export INST_D_ID="<paste institution id here>"
+export INST_D_ID="1afd34dd-3b73-48de-9026-edb0320f1df1"
 ```
 
 ### 2.3 Institution Lifecycle States
@@ -170,12 +170,12 @@ export INST_D_ID="<paste institution id here>"
 | State | Meaning | Transitions |
 |---|---|---|
 | `onboarding` | Newly created, setting up | → `active`, `archived` |
-| `active` | Fully operational | → `suspended`, `archived` |
-| `suspended` | Temporarily disabled | → `active`, `archived` |
-| `archived` | Permanently closed (terminal) | — |
+| `active` | Fully operational | → `inactive`, `archived` |
+| `inactive` | Temporarily disabled | → `active`, `archived` |
+| `archived` | Permanently closed | → `active` (can be reactivated) |
 
 ```
-onboarding → active → suspended → archived
+onboarding → active → inactive → archived
     ↑           ↑         |
     └───────────┘─────────┘
 ```
@@ -197,7 +197,7 @@ curl -X POST "$BASE_URL/api/v1/institutions/$INST_D_ID/transition" \
 
 **Expected:** `200 OK` with `current_lifecycle_status: "active"`
 
-### 2.5 Suspend Institution
+### 2.5 Deactivate Institution (active → inactive)
 
 ```bash
 curl -X POST "$BASE_URL/api/v1/institutions/$INST_D_ID/transition" \
@@ -205,12 +205,12 @@ curl -X POST "$BASE_URL/api/v1/institutions/$INST_D_ID/transition" \
   -H "Host: school-d.localhost" \
   -H "Content-Type: application/json" \
   -d '{
-    "new_state": "suspended",
+    "new_state": "inactive",
     "reason": "Compliance issue"
   }'
 ```
 
-### 2.6 Reactivate Institution
+### 2.6 Reactivate Institution (inactive → active)
 
 ```bash
 curl -X POST "$BASE_URL/api/v1/institutions/$INST_D_ID/transition" \
@@ -223,7 +223,7 @@ curl -X POST "$BASE_URL/api/v1/institutions/$INST_D_ID/transition" \
   }'
 ```
 
-### 2.7 Archive Institution (terminal)
+### 2.7 Archive Institution (active/inactive → archived)
 
 ```bash
 curl -X POST "$BASE_URL/api/v1/institutions/$INST_D_ID/transition" \
@@ -235,6 +235,8 @@ curl -X POST "$BASE_URL/api/v1/institutions/$INST_D_ID/transition" \
     "reason": "School closed"
   }'
 ```
+
+**Note:** Archived institutions CAN be reactivated (archived → active). This is different from Client lifecycle where archived is terminal.
 
 ### 2.8 List Institutions
 

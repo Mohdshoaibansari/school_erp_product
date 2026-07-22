@@ -230,6 +230,9 @@ class InstitutionRepository(TenantAwareRepositoryBase[Institution]):
         validate_institution_transition(old_state, new_state)
 
         obj.current_lifecycle_status = new_state
+        if new_state == "archived":
+            from datetime import datetime, timezone
+            obj.archived_at = datetime.now(timezone.utc)
         session.flush()
 
         # Record lifecycle event (D9, task 8.5) — one row per transition

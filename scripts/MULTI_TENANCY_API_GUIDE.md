@@ -135,7 +135,17 @@ curl -X GET "$BASE_URL/api/v1/platform/clients" \
 
 ## Flow 2: Create Institutions Under Different Clients
 
-### 2.1 Create Institution Under School D
+### 2.1 Get Institution Types (needed for creating institutions)
+
+```bash
+curl -X GET "$BASE_URL/api/v1/platform/institution-types" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Host: $HOST"
+```
+
+**Expected:** Array of institution types. Copy the `id` of "School" type.
+
+### 2.2 Create Institution Under School D
 
 ```bash
 curl -X POST "$BASE_URL/api/v1/institutions" \
@@ -144,35 +154,97 @@ curl -X POST "$BASE_URL/api/v1/institutions" \
   -H "Content-Type: application/json" \
   -d '{
     "display_name": "School D Main Campus",
-    "institution_type_id": "8159019c-7f56-44f7-a2cf-e323403cee21"
+    "institution_type_id": "<paste School type id here>"
   }'
 ```
 
-**Note:** You need an `institution_type_id`. Get it first:
-
-```bash
-curl -X GET "$BASE_URL/api/v1/platform/institution-types" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: $HOST"
-```
-
-**Expected:** `201 Created` with new institution
+**Expected:** `201 Created` with `current_lifecycle_status: "onboarding"`
 
 **Save the institution ID:**
 ```bash
-export INST_B_ID="1afd34dd-3b73-48de-9026-edb0320f1df1"
+export INST_D_ID="<paste institution id here>"
 ```
 
-### 2.2 List Institutions (should see only those in current client context)
+### 2.3 Institution Lifecycle States
+
+| State | Meaning | Transitions |
+|---|---|---|
+| `onboarding` | Newly created, setting up | → `active`, `archived` |
+| `active` | Fully operational | → `suspended`, `archived` |
+| `suspended` | Temporarily disabled | → `active`, `archived` |
+| `archived` | Permanently closed (terminal) | — |
+
+```
+onboarding → active → suspended → archived
+    ↑           ↑         |
+    └───────────┘─────────┘
+```
+
+### 2.4 Go Live (onboarding → active)
+
+Institutions start as `"onboarding"`. They need to be activated:
 
 ```bash
-# As platform owner at school-d context
+curl -X POST "$BASE_URL/api/v1/institutions/$INST_D_ID/transition" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Host: school-d.localhost" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "new_state": "active",
+    "reason": "Setup complete, ready for operations"
+  }'
+```
+
+**Expected:** `200 OK` with `current_lifecycle_status: "active"`
+
+### 2.5 Suspend Institution
+
+```bash
+curl -X POST "$BASE_URL/api/v1/institutions/$INST_D_ID/transition" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Host: school-d.localhost" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "new_state": "suspended",
+    "reason": "Compliance issue"
+  }'
+```
+
+### 2.6 Reactivate Institution
+
+```bash
+curl -X POST "$BASE_URL/api/v1/institutions/$INST_D_ID/transition" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Host: school-d.localhost" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "new_state": "active",
+    "reason": "Compliance resolved"
+  }'
+```
+
+### 2.7 Archive Institution (terminal)
+
+```bash
+curl -X POST "$BASE_URL/api/v1/institutions/$INST_D_ID/transition" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Host: school-d.localhost" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "new_state": "archived",
+    "reason": "School closed"
+  }'
+```
+
+### 2.8 List Institutions
+
+```bash
 curl -X GET "$BASE_URL/api/v1/institutions" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" \
   -H "Host: school-d.localhost"
 ```
 
-**Expected:** Only School D's institutions
+**Expected:** Only School D's institutions (tenant isolation)
 
 ---
 

@@ -122,7 +122,8 @@ class AuthService:
                 )
 
             # Check cross-tenant (D19 failure 3)
-            if ctx.client_id and user_dto.client_id != ctx.client_id:
+            # Platform owners can log in from any subdomain
+            if ctx.client_id and user_dto.client_id != ctx.client_id and "platform_owner" not in (ctx.roles or []):
                 logger.warning("[AUTH] Cross-tenant login blocked: user_id=%s user_client=%s ctx_client=%s",
                                user_id, user_dto.client_id, ctx.client_id)
                 self._record_login_attempt(

@@ -41,7 +41,10 @@ from business.fees.manifest import manifest as fees_manifest
 from business.homework.manifest import manifest as homework_manifest
 
 # Initialize Supabase Auth client and inject into C-02 and C-03
-supabase_client = SupabaseAuthClientImpl()
+supabase_client = SupabaseAuthClientImpl(
+    supabase_url=os.environ["SUPABASE_URL"],
+    service_role_key=os.environ["SUPABASE_SERVICE_ROLE_KEY"],
+)
 set_supabase_auth_client(supabase_client)
 set_c02_supabase(supabase_client)
 

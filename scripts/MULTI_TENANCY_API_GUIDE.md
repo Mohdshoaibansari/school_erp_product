@@ -334,8 +334,10 @@ First, get the user ID from the database:
 
 ```bash
 # Get user ID
-export ADMIN_D_USER_ID=$(PGPASSWORD='Infosys!657627sh' psql 'postgresql://postgres@db.ripscmqvzkipsqtmfdry.supabase.co:5432/postgres' -t -c "SELECT id FROM app_user WHERE email = 'admin@school-d.com';" | tr -d '[:space:]')
-echo "User ID: $ADMIN_D_USER_ID"
+export SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpcHNjbXF2emtpcHNxdG1mZHJ5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MzIzODI0MywiZXhwIjoyMDk4ODE0MjQzfQ.ugz-v6WHEX-oKonbjlw5QJmPe-3BFLw3w4UnlMKAC5U
+curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?email=eq.admin@school-d.com&select=id" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python -m json.tool
 ```
 
 ### 3.3.2 Set Password in Supabase Auth
@@ -343,7 +345,7 @@ echo "User ID: $ADMIN_D_USER_ID"
 Use the Supabase Auth Admin API to set a password:
 
 ```bash
-curl -X PUT "https://ripscmqvzkipsqtmfdry.supabase.co/auth/v1/admin/users/$ADMIN_D_USER_ID" \
+curl -X PUT "https://ripscmqvzkipsqtmfdry.supabase.co/auth/v1/admin/users/45284df0-94a2-439b-aeb0-4feae22fc068" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
   -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Content-Type: application/json" \

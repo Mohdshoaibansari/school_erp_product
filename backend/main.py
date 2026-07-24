@@ -30,12 +30,20 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 from kernel.app_factory import create_app
 
+from kernel.auth.dependencies import set_supabase_auth_client
+from kernel.auth.supabase_client import SupabaseAuthClientImpl
+from kernel.user.dependencies import set_supabase_client as set_c02_supabase
 from business.tenant_institution.manifest import manifest as c01_manifest
 from kernel.user.manifest import manifest as c02_manifest
 from kernel.auth.manifest import manifest as c03_manifest
 from kernel.authz.manifest import manifest as c04_manifest
 from business.fees.manifest import manifest as fees_manifest
 from business.homework.manifest import manifest as homework_manifest
+
+# Initialize Supabase Auth client and inject into C-02 and C-03
+supabase_client = SupabaseAuthClientImpl()
+set_supabase_auth_client(supabase_client)
+set_c02_supabase(supabase_client)
 
 app = create_app([
     c01_manifest,

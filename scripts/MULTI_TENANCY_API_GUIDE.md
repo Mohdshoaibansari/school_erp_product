@@ -261,7 +261,7 @@ curl -X POST "$BASE_URL/api/v1/users" \
   -d '{
     "email": "admin@school-d.com",
     "name": "School D Admin",
-    "user_category_id": "3c843f2b-b1bd-4a46-ab7e-11457ddd509c",
+    "user_category_id": "6f09f3d6-7563-4977-a457-fa77ce600f67",
     "institution_id": "'"$INST_D_ID"'"
   }'
 
@@ -285,6 +285,11 @@ curl -X GET "$BASE_URL/api/v1/users" \
      -H "Authorization: Bearer $PLATFORM_TOKEN" \
     #  -H "Host: school-d.localhost" | python -m json.tool
      -H "Host: test-school.localhost" | python -m json.tool
+
+  export USER_ID=45284df0-94a2-439b-aeb0-4feae22fc068
+   curl -X DELETE "$BASE_URL/api/v1/users/$USER_ID" \
+     -H "Authorization: Bearer $PLATFORM_TOKEN" \
+     -H "Host: school-d.localhost"
  ```
 
 **Note:** Get `user_category_id` first:
@@ -314,7 +319,7 @@ curl -X POST "$BASE_URL/api/v1/users/$ADMIN_B_USER_ID/roles" \
   -H "Host: school-d.localhost" \
   -H "Content-Type: application/json" \
   -d '{
-    "role_id": "<paste Admin role id>"
+    "role_id": "70343690-695e-46a0-992c-c6eed7fb0c57"
   }'
 
 
@@ -345,7 +350,7 @@ curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?email=eq.
 Use the Supabase Auth Admin API to set a password:
 
 ```bash
-curl -X PUT "https://ripscmqvzkipsqtmfdry.supabase.co/auth/v1/admin/users/45284df0-94a2-439b-aeb0-4feae22fc068" \
+curl -X PUT "https://ripscmqvzkipsqtmfdry.supabase.co/auth/v1/admin/users/$ADMIN_D_USER_ID" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
   -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Content-Type: application/json" \

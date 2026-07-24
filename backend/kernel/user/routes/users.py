@@ -90,7 +90,7 @@ async def update_user(
 # ============================================================
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(
+async def delete_user(
     user_id: uuid.UUID,
     _authz: None = Depends(require_permission("user", "delete")),
     ctx: TenantContext = Depends(get_tenant_context),
@@ -98,7 +98,7 @@ def delete_user(
 ) -> None:
     """Delete a User and all related data (role_assignments, identifiers, Supabase Auth user)."""
     try:
-        svc.delete_user(ctx, user_id)
+        await svc.delete_user(ctx, user_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="User not found")
 

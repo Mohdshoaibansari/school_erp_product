@@ -18,7 +18,7 @@
 bash
 # Set these in your terminal for easier copy-paste
 export BASE_URL="http://127.0.0.1:8000"
-export HOST="test-school.localhost"  # Resolves to client slug "test-school"
+export HOST="school-d.localhost"  # Resolves to client slug "test-school"
 
 
 ---
@@ -261,10 +261,31 @@ curl -X POST "$BASE_URL/api/v1/users" \
   -d '{
     "email": "admin@school-d.com",
     "name": "School D Admin",
-    "user_category_id": "<paste Academic Staff category id>",
-    "institution_id": "'"$INST_B_ID"'"
+    "user_category_id": "3c843f2b-b1bd-4a46-ab7e-11457ddd509c",
+    "institution_id": "'"$INST_D_ID"'"
   }'
 
+### 3.1.1 List Users
+ ```bash
+curl -X GET "$BASE_URL/api/v1/users" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Host: $HOST" | python -m json.tool
+ ```
+
+ With filters:
+
+ ```bash
+   # Filter by institution
+   curl -X GET "$BASE_URL/api/v1/users?institution_id=$INST_D_ID" \
+     -H "Authorization: Bearer $PLATFORM_TOKEN" \
+     -H "Host: school-d.localhost" | python -m json.tool
+
+   # Filter by lifecycle status
+   curl -X GET "$BASE_URL/api/v1/users?lifecycle_status=active" \
+     -H "Authorization: Bearer $PLATFORM_TOKEN" \
+    #  -H "Host: school-d.localhost" | python -m json.tool
+     -H "Host: test-school.localhost" | python -m json.tool
+ ```
 
 **Note:** Get `user_category_id` first:
 
@@ -299,21 +320,95 @@ curl -X POST "$BASE_URL/api/v1/users/$ADMIN_B_USER_ID/roles" \
 
 ### 3.3 Activate the User (Set Password)
 
-The user was created with `lifecycle_status=invited`. They need to activate via invite token.
+When a user is created via the API, two things happen:
+1. **`app_user` row** is created with `lifecycle_status = 'invited'`
+2. **Supabase Auth user** is created with `email_confirm = false` and **no password**
 
-**Option A: Direct DB update (for testing only)**
+To activate the user, you need to:
+1. Set a password in Supabase Auth
+2. Set `lifecycle_status = 'active'` in our database
 
-bash
-PGPASSWORD="Infosys!657627sh" psql "postgresql://postgres@db.ripscmqvzkipsqtmfdry.supabase.co:5432/postgres" -c "
+### 3.3.1 Get the User ID
+
+First, get the user ID from the database:
+
+```bash
+# Get user ID
+export ADMIN_D_USER_ID=$(PGPASSWORD='Infosys!657627sh' psql 'postgresql://postgres@db.ripscmqvzkipsqtmfdry.supabase.co:5432/postgres' -t -c "SELECT id FROM app_user WHERE email = 'admin@school-d.com';" | tr -d '[:space:]')
+echo "User ID: $ADMIN_D_USER_ID"
+```
+
+### 3.3.2 Set Password in Supabase Auth
+
+Use the Supabase Auth Admin API to set a password:
+
+```bash
+curl -X PUT "https://ripscmqvzkipsqtmfdry.supabase.co/auth/v1/admin/users/$ADMIN_D_USER_ID" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "password": "Admin@123",
+    "email_confirm": true
+  }' | python -m json.tool
+```
+
+**Expected:** `200 OK` with user object
+
+### 3.3.3 Activate User in Our Database
+
+Set the lifecycle status to `active`:
+
+```bash
+PGPASSWORD='Infosys!657627sh' psql 'postgresql://postgres@db.ripscmqvzkipsqtmfdry.supabase.co:5432/postgres' -c "
   UPDATE app_user SET lifecycle_status = 'active' WHERE email = 'admin@school-d.com';
 "
+```
 
+### 3.3.4 Verify User is Active
 
-**Option B: Create Supabase Auth user + activate via API (proper flow)**
+```bash
+curl -X GET "$BASE_URL/api/v1/users/$ADMIN_D_USER_ID" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Host: school-d.localhost" | python -m json.tool
+```
 
-First, create the Supabase Auth user (the seed script does this, but for new users you need to do it manually or via the admin create flow).
+**Expected:** `lifecycle_status: "active"`
 
-For testing purposes, Option A (direct DB update) is simpler.
+### 3.3.5 Login with New Password
+
+```bash
+curl -X POST "$BASE_URL/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -H "Host: school-d.localhost" \
+  -d '{
+    "email": "admin@school-d.com",
+    "password": "Admin@123"
+  }' | python -m json.tool
+```
+
+**Expected:** `200 OK` with access token
+
+### 3.3.6 Quick Reference: User Creation Flow
+
+```
+1. POST /api/v1/users
+   → Creates app_user (invited) + Supabase Auth user (no password)
+
+2. Supabase Auth Admin API: set password
+   → User can now authenticate
+
+3. UPDATE app_user SET lifecycle_status = 'active'
+   → User can now pass lifecycle check at login
+
+4. POST /api/auth/login
+   → Returns access + refresh tokens
+```
+
+**Note:** In production, the invite flow (D4) handles steps 2-3 automatically:
+- Admin creates user → invite email sent
+- User clicks link → sets password via `/auth/activate`
+- User is now active and can log in
 
 ---
 
@@ -321,14 +416,15 @@ For testing purposes, Option A (direct DB update) is simpler.
 
 ### 4.1 Login as School D Admin
 
-bash
+```bash
 curl -X POST "$BASE_URL/api/auth/login" \
   -H "Content-Type: application/json" \
   -H "Host: school-d.localhost" \
   -d '{
     "email": "admin@school-d.com",
-    "password": "<password set during activation>"
-  }'
+    "password": "Admin@123"
+  }' | python -m json.tool
+```
 
 
 **Save the token:**
@@ -372,7 +468,7 @@ curl -X POST "$BASE_URL/api/v1/fee-types" \
     "name": "School D Tuition",
     "description": "Annual tuition for School D",
     "default_amount": 8000.00,
-    "institution_id": "'"$INST_B_ID"'"
+    "institution_id": "'"$INST_D_ID"'"
   }'
 
 

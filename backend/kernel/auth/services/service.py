@@ -98,8 +98,11 @@ class AuthService:
         logger.info("[AUTH] Supabase user found: user_id=%s email=%s", user_id, email)
 
         with self._session_factory() as session:
-            # Look up app_user by UUID
-            user_dto = self._user_repo.get(session, ctx, user_id)
+            # Look up app_user by UUID — bypass tenant filter since login
+            # happens before the client context is fully resolved (D25)
+            from kernel.user.models.user import User
+            user_obj = session.get(User, user_id)
+            user_dto = self._user_repo._to_dto(user_obj) if user_obj else None
             if not user_dto:
                 # Supabase user exists but no app_user row (D19 failure 2)
                 logger.warning("[AUTH] Login failed: no app_user found for user_id=%s", user_id)
@@ -231,7 +234,10 @@ class AuthService:
 
         with self._session_factory() as session:
             # Look up app_user
-            user_dto = self._user_repo.get(session, ctx, user_id)
+            # Look up app_user by UUID — bypass tenant filter for auth operations
+            from kernel.user.models.user import User
+            user_obj = session.get(User, user_id)
+            user_dto = self._user_repo._to_dto(user_obj) if user_obj else None
             if not user_dto:
                 raise AuthError("User not found", status_code=404)
 
@@ -333,7 +339,10 @@ class AuthService:
 
         with self._session_factory() as session:
             # Look up app_user by UUID
-            user_dto = self._user_repo.get(session, ctx, user_id)
+            # Look up app_user by UUID — bypass tenant filter for auth operations
+            from kernel.user.models.user import User
+            user_obj = session.get(User, user_id)
+            user_dto = self._user_repo._to_dto(user_obj) if user_obj else None
             if not user_dto:
                 self._record_login_attempt(
                     ctx, email, "login_failure",
@@ -435,7 +444,10 @@ class AuthService:
 
         with self._session_factory() as session:
             # Look up app_user to get email
-            user_dto = self._user_repo.get(session, ctx, user_id)
+            # Look up app_user by UUID — bypass tenant filter for auth operations
+            from kernel.user.models.user import User
+            user_obj = session.get(User, user_id)
+            user_dto = self._user_repo._to_dto(user_obj) if user_obj else None
             if not user_dto:
                 logger.warning("[AUTH] Password change failed: user not found: %s", user_id)
                 raise AuthError("User not found", status_code=404)

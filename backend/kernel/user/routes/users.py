@@ -89,6 +89,24 @@ async def update_user(
 # 9.2 — User lifecycle endpoints
 # ============================================================
 
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(
+    user_id: uuid.UUID,
+    _authz: None = Depends(require_permission("user", "delete")),
+    ctx: TenantContext = Depends(get_tenant_context),
+    svc: IdentityUserService = Depends(get_identity_user_service),
+) -> None:
+    """Delete a User and all related data (role_assignments, identifiers, Supabase Auth user)."""
+    try:
+        svc.delete_user(ctx, user_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="User not found")
+
+
+# ============================================================
+# 9.2 — User lifecycle endpoints
+# ============================================================
+
 @router.post("/{user_id}/transition", response_model=UserDTO)
 async def transition_user_lifecycle(
     user_id: uuid.UUID,

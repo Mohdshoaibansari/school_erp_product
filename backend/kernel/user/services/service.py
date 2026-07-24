@@ -16,6 +16,7 @@ When injected, create_user/transition_lifecycle/update_user propagate to Supabas
 
 from __future__ import annotations
 
+import logging
 import uuid
 
 from sqlalchemy.orm import Session, sessionmaker
@@ -27,6 +28,8 @@ from kernel.user.repos.role_assignment_repo import RoleAssignmentRepository
 from kernel.user.repos.user_identifier_repo import UserIdentifierRepository
 from kernel.audit import AuditEmitter, DefaultAuditEmitter
 from kernel.auth.supabase_client import SupabaseAuthClient, SupabaseAuthError
+
+logger = logging.getLogger(__name__)
 from kernel.user.services.dtos import (
     UserCreateDTO,
     UserDTO,
@@ -116,6 +119,49 @@ class IdentityUserService:
         """List Users, tenant-filtered."""
         with self._session_factory() as session:
             return self._user_repo.list(session, ctx, **filters)
+
+    async def delete_user(
+        self, ctx: TenantContext, user_id: uuid.UUID
+    ) -> None:
+        """Delete a user and all related data (D20b cascade).
+
+        1. Delete role_assignments
+        2. Delete user_identifiers
+        3. Delete user_profile
+        4. Delete user_lifecycle_events
+        5. Delete Supabase Auth user
+        6. Delete app_user
+        """
+        from sqlalchemy import text as sa_text
+
+        logger.info("[C02] Deleting user: id=%s", user_id)
+
+        with self._session_factory() as session:
+            # Verify user exists and belongs to this tenant
+            user_dto = self._user_repo.get(session, ctx, user_id)
+            if not user_dto:
+                raise ValueError("User not found")
+
+            # Delete related records (cascade)
+            session.execute(sa_text("DELETE FROM role_assignment WHERE user_id = :uid"), {"uid": user_id})
+            session.execute(sa_text("DELETE FROM user_identifier WHERE user_id = :uid"), {"uid": user_id})
+            session.execute(sa_text("DELETE FROM user_profile WHERE user_id = :uid"), {"uid": user_id})
+            session.execute(sa_text("DELETE FROM user_lifecycle_event WHERE user_id = :uid"), {"uid": user_id})
+
+            # Delete Supabase Auth user
+            if self._supabase:
+                try:
+                    await self._supabase.delete_user(user_id)
+                    logger.info("[C02] Supabase Auth user deleted: id=%s", user_id)
+                except Exception as e:
+                    logger.warning("[C02] Failed to delete Supabase Auth user: id=%s error=%s", user_id, str(e)[:100])
+                    # Continue with app_user deletion even if Supabase fails
+
+            # Delete app_user
+            session.execute(sa_text("DELETE FROM app_user WHERE id = :uid"), {"uid": user_id})
+            session.commit()
+
+            logger.info("[C02] User deleted: id=%s", user_id)
 
     async def update_user(
         self, ctx: TenantContext, user_id: uuid.UUID, dto: UserUpdateDTO,

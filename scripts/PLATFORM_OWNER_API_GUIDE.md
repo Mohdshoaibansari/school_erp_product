@@ -128,12 +128,17 @@ curl -X POST $BASE_URL/api/v1/platform/clients/$CLIENT_ID/transition -H "Authori
 ## 6. Manage Institution Types
 
 ```bash
-# List
+# List existing types
 curl -X GET $BASE_URL/api/v1/platform/institution-types -H "Authorization: Bearer $PLATFORM_TOKEN" | python -m json.tool
-
-# Create
-curl -X POST $BASE_URL/api/v1/platform/institution-types -H "Authorization: Bearer $PLATFORM_TOKEN" -H "Content-Type: application/json" -d '{"name":"College","code":"COLLEGE"}' | python -m json.tool
 ```
+
+> Creating new types requires a `name_id` FK to `institution_type_name` table.
+> Use Supabase REST API to add new types if needed:
+> ```bash
+> NAME_ID=$(uv run python -c "import uuid; print(uuid.uuid4())")
+> curl -X POST "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/institution_type_name" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d "{\"id\":\"$NAME_ID\",\"name\":\"College\"}"
+> curl -X POST "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/institution_type" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d "{\"id\":\"$(uv run python -c 'import uuid; print(uuid.uuid4())')\",\"name_id\":\"$NAME_ID\",\"code\":\"COLLEGE\"}"
+> ```
 
 ---
 

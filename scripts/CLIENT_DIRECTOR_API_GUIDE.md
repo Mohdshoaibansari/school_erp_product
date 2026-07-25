@@ -3,6 +3,7 @@
 > **Role:** Manages a single client (tenant). Creates institutions, users, and
 > manages day-to-day operations. Cannot create or manage other clients.
 > **Host header required:** `Host: <slug>.localhost` (resolves client context).
+> **Prerequisite:** Client must be created by Platform Owner first.
 
 ---
 
@@ -10,10 +11,7 @@
 
 ```bash
 export BASE_URL="http://127.0.0.1:8000"
-
-# Set your client slug (assigned by platform owner)
-export CLIENT_SLUG="my-school"
-export HOST="$CLIENT_SLUG.localhost"
+export HOST="my-school.localhost"  # Change to your client's slug
 ```
 
 ---
@@ -21,10 +19,7 @@ export HOST="$CLIENT_SLUG.localhost"
 ## 1. Login
 
 ```bash
-curl -X POST $BASE_URL/api/auth/login \
-  -H "Content-Type: application/json" \
-  -H "Host: $HOST" \
-  -d '{"email":"admin@myschool.com","password":"Admin@123"}' | python -m json.tool
+curl -X POST $BASE_URL/api/auth/login -H "Content-Type: application/json" -H "Host: $HOST" -d '{"email":"admin@myschool.com","password":"Admin@123"}' | python -m json.tool
 ```
 
 **Save token:**
@@ -60,14 +55,7 @@ curl -X GET $BASE_URL/api/v1/lookups/institution-types \
 ### 3.1 Create Institution
 
 ```bash
-curl -X POST $BASE_URL/api/v1/institutions \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Host: $HOST" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "display_name": "Main Campus",
-    "institution_type_id": "<paste institution_type_id>"
-  }' | python -m json.tool
+curl -X POST $BASE_URL/api/v1/institutions -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"display_name":"Main Campus","institution_type_id":"<paste institution_type_id>"}' | python -m json.tool
 ```
 
 **Save institution ID:**
@@ -75,14 +63,10 @@ curl -X POST $BASE_URL/api/v1/institutions \
 export INST_ID="<paste id from response>"
 ```
 
-### 3.2 Activate Institution (onboarding → active)
+### 3.2 Activate Institution
 
 ```bash
-curl -X POST $BASE_URL/api/v1/institutions/$INST_ID/transition \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Host: $HOST" \
-  -H "Content-Type: application/json" \
-  -d '{"new_state":"active","reason":"Setup complete"}' | python -m json.tool
+curl -X POST $BASE_URL/api/v1/institutions/$INST_ID/transition -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"new_state":"active","reason":"Setup complete"}' | python -m json.tool
 ```
 
 ### 3.3 Institution Lifecycle
@@ -129,19 +113,10 @@ curl -X GET $BASE_URL/api/v1/institutions \
 
 ## 4. Users
 
-### 4.1 Create User (Inside an Institution)
+### 4.1 Create User
 
 ```bash
-curl -X POST $BASE_URL/api/v1/users \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Host: $HOST" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email":"teacher@myschool.com",
-    "name":"Jane Teacher",
-    "user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24",
-    "institution_id":"'$INST_ID'"
-  }' | python -m json.tool
+curl -X POST $BASE_URL/api/v1/users -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"email":"teacher@myschool.com","name":"Jane Teacher","user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24","institution_id":"'$INST_ID'"}' | python -m json.tool
 ```
 
 **Save user ID:**
@@ -171,14 +146,10 @@ curl -X GET "$BASE_URL/api/v1/users?lifecycle_status=active" \
   -H "Host: $HOST" | python -m json.tool
 ```
 
-### 4.3 Assign Role to User
+### 4.3 Assign Role
 
 ```bash
-curl -X POST $BASE_URL/api/v1/users/$USER_ID/roles \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Host: $HOST" \
-  -H "Content-Type: application/json" \
-  -d '{"role_id":"5d1efdc6-b15d-403f-8dac-bbacbcb5ff3c"}'  # Teacher
+curl -X POST $BASE_URL/api/v1/users/$USER_ID/roles -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"role_id":"5d1efdc6-b15d-403f-8dac-bbacbcb5ff3c"}'  # Teacher role
 ```
 
 ### 4.4 Activate User (Set Password + Lifecycle)

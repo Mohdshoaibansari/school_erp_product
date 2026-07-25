@@ -33,20 +33,14 @@ export TOKEN="<paste access_token>"
 
 ```bash
 # User categories
-curl -X GET $BASE_URL/api/v1/lookups/user-categories \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Host: $HOST" | python -m json.tool
+curl -X GET $BASE_URL/api/v1/lookups/user-categories -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" | python -m json.tool
 
 # Roles
-curl -X GET $BASE_URL/api/v1/lookups/roles \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Host: $HOST" | python -m json.tool
-
-# Institution types
-curl -X GET $BASE_URL/api/v1/lookups/institution-types \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Host: $HOST" | python -m json.tool
+curl -X GET $BASE_URL/api/v1/lookups/roles -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" | python -m json.tool
 ```
+
+> **Institution types** are managed by the platform owner. Ask your platform
+> admin for the ID, or check `PLATFORM_OWNER_API_GUIDE.md` section 6.
 
 ---
 

@@ -182,7 +182,7 @@ curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/user_category?sele
 export LEGAL_ENTITY_TYPE_ID="a3b63601-71b4-4863-9ce5-8915d116ec60"
 
 # Institution type: check the response from the fixed query above
-export INST_TYPE_ID="<paste institution_type id from response>"
+export INST_TYPE_ID="8159019c-7f56-44f7-a2cf-e323403cee21"
 
 # Admin role → 70343690-695e-46a0-992c-c6eed7fb0c57
 export ADMIN_ROLE_ID="70343690-695e-46a0-992c-c6eed7fb0c57"
@@ -195,7 +195,7 @@ export ACADEMIC_STAFF_ID="20a3b37b-56be-4573-a7ee-b2c5b016fc24"
 
 ```bash
 # Generate a UUID for the new user
-ADMIN_USER_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
+ADMIN_USER_ID=$(uv run python -c "import uuid; print(uuid.uuid4())")
 export ADMIN_USER_ID
 
 # Step 1: Create in Supabase Auth

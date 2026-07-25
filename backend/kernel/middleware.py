@@ -266,7 +266,9 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
         if is_auth_path and not user_id and not is_platform_owner:
             pass
 
-        # D5/D18: Platform owner without client_id blocked from non-whitelisted paths
+        # D5/D18: Platform owner without client_id blocked from non-whitelisted paths.
+        # If client_id is resolved (via Host header), platform owner can act as
+        # super-admin for that client (e.g., bootstrap users, institutions).
         if is_platform_owner and client_id is None and not is_platform_path:
             logger.warning("[MW] Platform owner blocked from non-platform path: %s", path)
             return JSONResponse(

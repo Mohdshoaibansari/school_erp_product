@@ -26,7 +26,7 @@ class User(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     client_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("client.id"), nullable=False)
-    institution_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("institution.id"), nullable=False)
+    institution_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("institution.id"), nullable=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     user_category_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_category.id"), nullable=False)

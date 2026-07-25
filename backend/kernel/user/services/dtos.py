@@ -48,7 +48,7 @@ class UserCreateDTO(BaseModel):
     email: str = Field(..., min_length=1, max_length=255)
     name: str = Field(..., min_length=1, max_length=255)
     user_category_id: uuid.UUID
-    institution_id: uuid.UUID
+    institution_id: uuid.UUID | None = None  # Optional — client-level users have no institution
 
 
 class UserUpdateDTO(BaseModel):
@@ -66,7 +66,7 @@ class UserDTO(BaseModel):
 
     id: uuid.UUID
     client_id: uuid.UUID
-    institution_id: uuid.UUID
+    institution_id: uuid.UUID | None = None  # Nullable for client-level users
     email: str
     name: str
     user_category_id: uuid.UUID

@@ -35,14 +35,14 @@ export HOST="school-e.localhost"  # Slug of the new client we're creating
 # NOTE: No Host header! Platform owner is tenant-independent.
 curl -X POST http://127.0.0.1:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@school-erp.com","password":"Platform@2026!"}' | python -m json.tool
+  -d '{"email":"admin@school-erp.com","password":"Shoby@123"}' | python -m json.tool
 ```
 
 **Expected:** `200 OK` with `{"access_token": "...", "is_platform_owner": true}`
 
 **Save the token:**
 ```bash
-export PLATFORM_TOKEN="<paste access_token from login>"
+export PLATFORM_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhNDk3OTExYy1iZmM1LTQ5ZGItYTI0NC1iY2FmOTJjMzkxNDEiLCJpc19wbGF0Zm9ybV9vd25lciI6dHJ1ZSwiaWF0IjoxNzg0OTU0MjE3LCJleHAiOjE3ODQ5NTc4MTd9.mMoyjQJMqSmcEEFe1BKjQS4l3dazBh8leQLojkzi1eY"
 ```
 
 ### 1.2 List All Clients
@@ -68,7 +68,7 @@ curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/legal_entity_type?
 
 **Save the ID:**
 ```bash
-export LEGAL_ENTITY_TYPE_ID="<paste id from response>"
+export LEGAL_ENTITY_TYPE_ID="e53252b5-e968-46c7-80a5-545ef35b5b71"
 ```
 
 Now create the client:
@@ -90,7 +90,7 @@ curl -X POST "$BASE_URL/api/v1/platform/clients" \
 
 **Save the new client ID:**
 bash
-export CLIENT_E_ID="<paste client id from response>"
+export CLIENT_E_ID="c036e9d0-3726-49c4-a46b-65df71d38a25"
 
 
 ### 1.4 Transition Client from Prospective → Active
@@ -160,8 +160,8 @@ curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/legal_entity_type?
   -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python -m json.tool
 
-# Get institution_type_id
-curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/institution_type?select=id,name" \
+# Get institution_type (uses name_id FK)
+curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/institution_type?select=id,name_id,institution_type_name:name_id(id,name)" \
   -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python -m json.tool
 
@@ -176,11 +176,19 @@ curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/user_category?sele
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python -m json.tool
 ```
 
-**Save the IDs:**
+**Save the IDs (from your API responses above):**
 ```bash
-export INST_TYPE_ID="<paste institution_type id>"
-export ADMIN_ROLE_ID="<paste Admin role id>"
-export ACADEMIC_STAFF_ID="<paste Academic Staff category id>"
+# Legal entity type: "Company" → a3b63601-71b4-4863-9ce5-8915d116ec60
+export LEGAL_ENTITY_TYPE_ID="a3b63601-71b4-4863-9ce5-8915d116ec60"
+
+# Institution type: check the response from the fixed query above
+export INST_TYPE_ID="<paste institution_type id from response>"
+
+# Admin role → 70343690-695e-46a0-992c-c6eed7fb0c57
+export ADMIN_ROLE_ID="70343690-695e-46a0-992c-c6eed7fb0c57"
+
+# Academic Staff category → 20a3b37b-56be-4573-a7ee-b2c5b016fc24
+export ACADEMIC_STAFF_ID="20a3b37b-56be-4573-a7ee-b2c5b016fc24"
 ```
 
 ### 2.2 Create Admin User in Supabase Auth + app_user

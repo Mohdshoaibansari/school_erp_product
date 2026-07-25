@@ -127,7 +127,7 @@ curl -X POST $BASE_URL/api/v1/institutions/<institution_id>/transition -H "Autho
 ### 4.1 Create User
 
 ```bash
-curl -X POST $BASE_URL/api/v1/users -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"email":"teacher@meerutpublic.com","name":"Rahul Sharma","user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24","institution_id":"'$INST_ID'"}' | python -m json.tool
+curl -X POST $BASE_URL/api/v1/users -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"email":"teacher@myschool.com","name":"Jane Teacher","user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24","institution_id":"'$INST_ID'"}' | python -m json.tool
 ```
 
 **Save user ID:**
@@ -138,7 +138,7 @@ export TEACHER_ID="<paste id from response>"
 ### 4.1.2 Create Institute Admin
 
 ```bash
-curl -X POST $BASE_URL/api/v1/users -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"email":"admin@meerutpublic.com","name":"Vikram Singh","user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24","institution_id":"'$INST_ID'"}' | python -m json.tool
+curl -X POST $BASE_URL/api/v1/users -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"email":"admin@myschool.com","name":"Institute Admin","user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24","institution_id":"'$INST_ID'"}' | python -m json.tool
 ```
 
 **Save admin ID:**
@@ -185,7 +185,7 @@ curl -X POST $BASE_URL/api/v1/users/$TEACHER_ID/roles -H "Authorization: Bearer 
 
 ```bash
 # Get user ID (if not already saved)
-curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?email=eq.teacher@meerutpublic.com&select=id" \
+curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?email=eq.teacher@myschool.com&select=id" \
   -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python -m json.tool
 

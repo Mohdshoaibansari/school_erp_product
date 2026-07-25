@@ -37,10 +37,13 @@ curl -X GET $BASE_URL/api/v1/lookups/user-categories -H "Authorization: Bearer $
 
 # Roles
 curl -X GET $BASE_URL/api/v1/lookups/roles -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" | python -m json.tool
+
+# Institution types (available for all authenticated users)
+curl -X GET $BASE_URL/api/v1/lookups/institution-types -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" | python -m json.tool
 ```
 
-> **Institution types** are managed by the platform owner. Ask your platform
-> admin for the ID, or check `PLATFORM_OWNER_API_GUIDE.md` section 6.
+> **Institution types** are managed by the platform owner, but any
+> authenticated user can list them for institution creation.
 
 ---
 

@@ -1,6 +1,6 @@
-"""C-02 UserCategory and Role lookup routes (task 9.6).
+"""C-02 UserCategory, Role, and InstitutionType lookup routes (task 9.6).
 
-Endpoints for listing user categories and roles.
+Endpoints for listing user categories, roles, and institution types.
 """
 
 from __future__ import annotations
@@ -12,10 +12,19 @@ from kernel.authz.dependencies import require_permission
 from kernel.user.models.user_category import UserCategory
 from kernel.user.models.role import Role
 from kernel.user.services.dtos import UserCategoryDTO, RoleDTO
-from sqlalchemy import select
+from pydantic import BaseModel
+from sqlalchemy import select, text
 from kernel.user.dependencies import get_db_session_factory
 
 router = APIRouter(prefix="/api/v1/lookups", tags=["lookups"])
+
+
+class InstitutionTypeLookupDTO(BaseModel):
+    """Minimal DTO for institution type dropdown."""
+    id: str
+    code: str | None = None
+
+    model_config = {"from_attributes": True}
 
 
 @router.get("/user-categories", response_model=list[UserCategoryDTO])
@@ -40,3 +49,22 @@ def list_roles(
     with session_factory() as session:
         result = session.execute(select(Role)).scalars().all()
         return [RoleDTO.model_validate(obj) for obj in result]
+
+
+@router.get("/institution-types", response_model=list[InstitutionTypeLookupDTO])
+def list_institution_types(
+    _authz: None = Depends(require_permission("institution", "read")),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> list[InstitutionTypeLookupDTO]:
+    """List all InstitutionType values available for institution creation.
+
+    Accessible to any authenticated user — needed for institution creation UI.
+    Uses raw SQL to avoid kernel→business import.
+    """
+    session_factory = get_db_session_factory()
+    with session_factory() as session:
+        result = session.execute(text("SELECT id, code FROM institution_type"))
+        return [
+            InstitutionTypeLookupDTO(id=str(row[0]), code=row[1])
+            for row in result.fetchall()
+        ]

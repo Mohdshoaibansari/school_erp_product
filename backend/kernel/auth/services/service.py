@@ -106,9 +106,23 @@ class AuthService:
             # Don't record login_attempt for platform owner — they have no
             # app_user row, and login_attempt.user_id has FK to app_user.
             logger.info("[AUTH] Platform owner login success: user_id=%s email=%s", user_id, email)
+
+            # D3: Mint our own JWT with is_platform_owner claim.
+            # Supabase's JWT doesn't carry this claim, so we issue our own.
+            from datetime import datetime, timedelta, timezone
+            from jose import jwt
+            jwt_secret = os.environ.get("SUPABASE_JWT_SECRET", "test-secret-for-c01")
+            now = datetime.now(timezone.utc)
+            platform_jwt = jwt.encode({
+                "sub": str(user_id),
+                "is_platform_owner": True,
+                "iat": now,
+                "exp": now + timedelta(seconds=3600),
+            }, jwt_secret, algorithm="HS256")
+
             return {
-                "access_token": result["access_token"],
-                "refresh_token": result["refresh_token"],
+                "access_token": platform_jwt,
+                "refresh_token": "",  # Platform owner doesn't use refresh
                 "token_type": "bearer",
                 "expires_in": 3600,
                 "is_platform_owner": True,

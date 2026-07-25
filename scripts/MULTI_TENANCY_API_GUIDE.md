@@ -28,20 +28,16 @@ export HOST="school-d.localhost"  # Resolves to client slug "test-school"
 ### 1.1 Login as Platform Owner
 
 bash
-curl -X POST $BASE_URL/api/auth/login \
-  -H "Content-Type: application/json" \
-  -H "Host: $HOST" \
-  -d '{
-    "email": "platform@test-school.com",
-    "password": "Platform@123"
-  }'
+curl -X POST http://127.0.0.1:8000/api/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"admin@school-erp.com","password":"Shoby@123"}'
 
 
 **Expected:** `200 OK` with `{ "access_token": "...", "refresh_token": "...", ... }`
 
 **Save the token:**
 bash
-export PLATFORM_TOKEN="skjdc"
+export PLATFORM_TOKEN="eyJhbGciOiJFUzI1NiIsImtpZCI6IjQyZjhkOWQxLWMwZGEtNDliNi04ODBlLTE4MjhkZTFlMDA2NyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3JpcHNjbXF2emtpcHNxdG1mZHJ5LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJhNDk3OTExYy1iZmM1LTQ5ZGItYTI0NC1iY2FmOTJjMzkxNDEiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzg0OTU1OTQ0LCJpYXQiOjE3ODQ5NTIzNDQsImVtYWlsIjoiYWRtaW5Ac2Nob29sLWVycC5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJpc19wbGF0Zm9ybV9vd25lciI6dHJ1ZX0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3ODQ5NTIzNDR9XSwic2Vzc2lvbl9pZCI6IjA3NTZiNzgwLWU4NzItNGVlMy05MjFmLWRiZjg0NWQ0ZmQxMSIsImlzX2Fub255bW91cyI6ZmFsc2V9.UZZynOg8cB6iJ2A0p37gZ0fD7MGl0kdcgj7ijGyXTR3oOh43BCOD1RxUh49QZwa2FpRUmVWI67fVyi5UTQasvg"
 
 
 ### 1.2 List All Clients

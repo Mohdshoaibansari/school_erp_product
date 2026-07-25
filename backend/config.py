@@ -8,6 +8,7 @@ Centralized constants for middleware, auth, and platform operations.
 # Update this list when adding new platform-level endpoints.
 PLATFORM_PATHS = [
     "/api/v1/platform/",
+    "/api/v1/lookups/",
     "/api/auth/",
     "/health",
     "/docs",

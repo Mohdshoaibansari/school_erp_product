@@ -168,15 +168,25 @@ class SupabaseAuthClientImpl:
 
     async def create_user(self, user_id: uuid.UUID, email: str) -> dict:
         logger.info("[SUPABASE] Create user: id=%s email=%s", user_id, email)
-        client = self._get_client()
         try:
-            response = client.auth.admin.create_user({
-                "id": str(user_id),
-                "email": email,
-                "email_confirm": False,
-            })
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self._url}/auth/v1/admin/users",
+                    headers={
+                        "apikey": self._key,
+                        "Authorization": f"Bearer {self._key}",
+                    },
+                    json={
+                        "id": str(user_id),
+                        "email": email,
+                        "email_confirm": False,
+                    },
+                )
+                if response.status_code not in (200, 201):
+                    raise Exception(f"{response.status_code}: {response.text[:200]}")
             logger.info("[SUPABASE] User created: id=%s email=%s", user_id, email)
-            return {"user": response.user.model_dump() if response.user else None}
+            return {"user": response.json()}
         except Exception as e:
             logger.error("[SUPABASE] Create user failed: id=%s email=%s error=%s", user_id, email, str(e)[:100])
             raise SupabaseAuthError(f"Failed to create user: {e}") from e

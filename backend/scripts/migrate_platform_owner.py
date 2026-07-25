@@ -71,23 +71,12 @@ async def main():
             user_id = result[0]
             print(f"  Found platform owner: id={user_id}")
 
-            # Delete role_assignments first
-            ra_count = s.execute(
-                sa_text("DELETE FROM role_assignment WHERE user_id = :uid"),
-                {"uid": user_id},
-            )
-            s.execute(
-                sa_text("DELETE FROM user_identifier WHERE user_id = :uid"),
-                {"uid": user_id},
-            )
-            s.execute(
-                sa_text("DELETE FROM user_profile WHERE user_id = :uid"),
-                {"uid": user_id},
-            )
-            s.execute(
-                sa_text("DELETE FROM user_lifecycle_event WHERE user_id = :uid"),
-                {"uid": user_id},
-            )
+            # Delete related records (cascade order — FKs first)
+            s.execute(sa_text("DELETE FROM login_attempt WHERE user_id = :uid"), {"uid": user_id})
+            s.execute(sa_text("DELETE FROM role_assignment WHERE user_id = :uid"), {"uid": user_id})
+            s.execute(sa_text("DELETE FROM user_identifier WHERE user_id = :uid"), {"uid": user_id})
+            s.execute(sa_text("DELETE FROM user_profile WHERE user_id = :uid"), {"uid": user_id})
+            s.execute(sa_text("DELETE FROM user_lifecycle_event WHERE user_id = :uid"), {"uid": user_id})
             s.execute(
                 sa_text("DELETE FROM app_user WHERE id = :uid"),
                 {"uid": user_id},

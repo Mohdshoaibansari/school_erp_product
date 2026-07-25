@@ -142,7 +142,8 @@ class IdentityUserService:
             if not user_dto:
                 raise ValueError("User not found")
 
-            # Delete related records (cascade)
+            # Delete related records (cascade order — FKs first)
+            session.execute(sa_text("DELETE FROM login_attempt WHERE user_id = :uid"), {"uid": user_id})
             session.execute(sa_text("DELETE FROM role_assignment WHERE user_id = :uid"), {"uid": user_id})
             session.execute(sa_text("DELETE FROM user_identifier WHERE user_id = :uid"), {"uid": user_id})
             session.execute(sa_text("DELETE FROM user_profile WHERE user_id = :uid"), {"uid": user_id})

@@ -90,7 +90,7 @@ curl -X POST "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user" -H "api
 > The `role_assignment` row needs its own UUID primary key (`id`). This is NOT the role reference — the role reference is the hardcoded `role_id`.
 
 ```bash
-curl -X POST "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/role_assignment" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d "{\"id\":\"$(uv run python -c 'import uuid; print(uuid.uuid4())')\",\"client_id\":\"$CLIENT_ID\",\"user_id\":\"$DIRECTOR_ID\",\"role_id\":\"70343690-695e-46a0-992c-c6eed7fb0c57\",\"scope\":\"client\"}"
+curl -X POST "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/role_assignment" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d "{\"id\":\"$(uv run python -c 'import uuid; print(uuid.uuid4())')\",\"client_id\":\"$CLIENT_ID\",\"user_id\":\"$DIRECTOR_ID\",\"role_id\":\"0b542f1d-4fa3-4771-8526-af7febba2aa0\",\"scope\":\"client\"}"
 ```
 
 ### 4.4 Verify — Login as Client Director
@@ -166,6 +166,6 @@ curl -X POST "$BASE_URL/api/v1/platform/ownership-transfers/<approval_id>/approv
 | Legal Entity: Pvt Ltd | `81e77718-098b-45a0-a1ee-931441804ff8` |
 | User Category: Academic Staff | `20a3b37b-56be-4573-a7ee-b2c5b016fc24` |
 | User Category: Learner | `024ffc86-e4d4-4901-9449-fd6546843909` |
-| Role: Admin | `70343690-695e-46a0-992c-c6eed7fb0c57` |
+| Role: Admin | `0b542f1d-4fa3-4771-8526-af7febba2aa0` |
 | Role: Teacher | `5d1efdc6-b15d-403f-8dac-bbacbcb5ff3c` |
 | Role: Student | `03bd67b4-8c4e-4e3b-861e-e7548ba930e8` |

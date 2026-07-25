@@ -61,7 +61,7 @@ curl -X POST $BASE_URL/api/v1/institutions -H "Authorization: Bearer $TOKEN" -H 
 
 **Save institution ID:**
 ```bash
-export INST_ID="566b3c0e-ac58-4a67-a6f3-12b5d0310a4e"
+export INST_ID="<paste id from response>"
 ```
 
 ### 3.2 Activate Institution
@@ -122,23 +122,7 @@ curl -X POST $BASE_URL/api/v1/users -H "Authorization: Bearer $TOKEN" -H "Host: 
 
 **Save user ID:**
 ```bash
-export TEACHER_ID="<paste id from response>"
-```
-
-### 4.1.2 Create Institute Admin
-
-```bash
-curl -X POST $BASE_URL/api/v1/users -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"email":"admin@myschool.com","name":"Institute Admin","user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24","institution_id":"'$INST_ID'"}' | python -m json.tool
-```
-
-**Save admin ID:**
-```bash
-export ADMIN_ID="<paste id from response>"
-```
-
-Assign Admin role (institution-scoped):
-```bash
-curl -X POST $BASE_URL/api/v1/users/$ADMIN_ID/roles -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"role_id":"70343690-695e-46a0-992c-c6eed7fb0c57"}'
+export USER_ID="<paste id from response>"
 ```
 
 > **Note:** New users are created with `lifecycle_status: invited`. They need
@@ -163,12 +147,10 @@ curl -X GET "$BASE_URL/api/v1/users?lifecycle_status=active" \
   -H "Host: $HOST" | python -m json.tool
 ```
 
-### 4.3 Assign Teacher Role
-
-> The institute admin role was already assigned in 4.1.2. Now assign role to teacher.
+### 4.3 Assign Role
 
 ```bash
-curl -X POST $BASE_URL/api/v1/users/$TEACHER_ID/roles -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"role_id":"5d1efdc6-b15d-403f-8dac-bbacbcb5ff3c"}'
+curl -X POST $BASE_URL/api/v1/users/$USER_ID/roles -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"role_id":"5d1efdc6-b15d-403f-8dac-bbacbcb5ff3c"}'  # Teacher role
 ```
 
 ### 4.4 Activate User (Set Password + Lifecycle)
@@ -180,14 +162,14 @@ curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?email=eq.
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python -m json.tool
 
 # Set password in Supabase Auth
-curl -X PUT "https://ripscmqvzkipsqtmfdry.supabase.co/auth/v1/admin/users/$TEACHER_ID" \
+curl -X PUT "https://ripscmqvzkipsqtmfdry.supabase.co/auth/v1/admin/users/$USER_ID" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
   -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Content-Type: application/json" \
   -d '{"password":"Teacher@123","email_confirm":true}'
 
 # Activate lifecycle
-curl -X PATCH "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?id=eq.$TEACHER_ID" \
+curl -X PATCH "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?id=eq.$USER_ID" \
   -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Content-Type: application/json" \
@@ -205,14 +187,14 @@ curl -X PATCH "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?id=eq.$
 
 ```bash
 # Suspend user
-curl -X POST $BASE_URL/api/v1/users/$TEACHER_ID/transition \
+curl -X POST $BASE_URL/api/v1/users/$USER_ID/transition \
   -H "Authorization: Bearer $TOKEN" \
   -H "Host: $HOST" \
   -H "Content-Type: application/json" \
   -d '{"new_state":"suspended","reason":"Policy violation"}'
 
 # Reactivate
-curl -X POST $BASE_URL/api/v1/users/$TEACHER_ID/transition \
+curl -X POST $BASE_URL/api/v1/users/$USER_ID/transition \
   -H "Authorization: Bearer $TOKEN" \
   -H "Host: $HOST" \
   -H "Content-Type: application/json" \
@@ -222,7 +204,7 @@ curl -X POST $BASE_URL/api/v1/users/$TEACHER_ID/transition \
 ### 4.6 Delete User
 
 ```bash
-curl -X DELETE $BASE_URL/api/v1/users/$TEACHER_ID \
+curl -X DELETE $BASE_URL/api/v1/users/$USER_ID \
   -H "Authorization: Bearer $TOKEN" \
   -H "Host: $HOST"
 ```

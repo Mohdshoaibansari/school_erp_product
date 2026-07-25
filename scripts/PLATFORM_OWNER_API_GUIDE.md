@@ -141,13 +141,13 @@ curl -X POST "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user" \
   -H "Content-Type: application/json" \
   -d "{\"id\":\"$DIRECTOR_ID\",\"client_id\":\"$CLIENT_ID\",\"email\":\"admin@myschool.com\",\"name\":\"Client Director\",\"user_category_id\":\"20a3b37b-56be-4573-a7ee-b2c5b016fc24\",\"lifecycle_status\":\"active\"}"
 
-# Step 3: Assign Admin role (client-scoped)
-ROLE_ID=$(uv run python -c "import uuid; print(uuid.uuid4())")
+# Step 3: Assign Admin role (role_assignment needs its own PK UUID)
+ASSIGN_ID=$(uv run python -c "import uuid; print(uuid.uuid4())")
 curl -X POST "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/role_assignment" \
   -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Content-Type: application/json" \
-  -d "{\"id\":\"$ROLE_ID\",\"user_id\":\"$DIRECTOR_ID\",\"role_id\":\"70343690-695e-46a0-992c-c6eed7fb0c57\",\"scope_type\":\"client\",\"scope_id\":\"$CLIENT_ID\"}"
+  -d "{\"id\":\"$ASSIGN_ID\",\"user_id\":\"$DIRECTOR_ID\",\"role_id\":\"70343690-695e-46a0-992c-c6eed7fb0c57\",\"scope_type\":\"client\",\"scope_id\":\"$CLIENT_ID\"}"
 
 echo "Client Director created! Email: admin@myschool.com | Password: Admin@123"
 ```

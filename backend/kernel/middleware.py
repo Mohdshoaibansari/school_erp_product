@@ -242,6 +242,9 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
             if not subdomain:
                 logger.debug("[MW] No subdomain — platform owner, no client context")
 
+        import uuid
+        client_id = None
+
         # Resolve client from subdomain if available
         if subdomain:
             resolved = _resolve_client_from_subdomain(subdomain)

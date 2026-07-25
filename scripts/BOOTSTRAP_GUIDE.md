@@ -31,7 +31,7 @@ cd backend
 uv run alembic upgrade head
 ```
 
-This applies all 6 migrations (C-01 through Homework module).
+This applies all 8 migrations (C-01 through platform-owner RLS + nullable institution_id).
 
 ### Seed test data
 
@@ -53,6 +53,7 @@ This creates:
 
 | Role | Email | Password | Capabilities |
 |---|---|---|---|
+| **Platform Owner** | `admin@school-erp.com` | `Shoby@123` | Manage all clients (no Host header needed). See `scripts/PLATFORM_OWNER_API_GUIDE.md` |
 | **Admin** | `admin@test-school.com` | `Admin@123` | Full access: create fee types, assign fees, record payments, waive fees |
 | **Teacher** | `teacher@test-school.com` | `Teacher@123` | Create homework, close homework, grade submissions, view fees |
 | **Student** | `student@test-school.com` | `Student@123` | Submit homework, view own fees, view own grades |
@@ -185,11 +186,22 @@ Opens at **http://localhost:5173**
 
 ## 6. API Testing (curl / Postman)
 
-### Get access token:
+### Platform Owner Login (no Host header)
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/v1/auth/login \
+curl -X POST http://127.0.0.1:8000/api/auth/login \
   -H "Content-Type: application/json" \
+  -d '{"email":"admin@school-erp.com","password":"Shoby@123"}'
+```
+
+See `scripts/PLATFORM_OWNER_API_GUIDE.md` for full platform operations.
+
+### Client User Login (Host header required)
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -H "Host: test-school.localhost" \
   -d '{"email": "admin@test-school.com", "password": "Admin@123"}'
 ```
 

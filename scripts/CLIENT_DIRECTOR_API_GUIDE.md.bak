@@ -19,12 +19,12 @@ export HOST="my-school.localhost"  # Change to your client's slug
 ## 1. Login
 
 ```bash
-curl -X POST $BASE_URL/api/auth/login -H "Content-Type: application/json" -H "Host: $HOST" -d '{"email":"shoby.ansari586@gmail.com","password":"Admin@123"}' | python -m json.tool
+curl -X POST $BASE_URL/api/auth/login -H "Content-Type: application/json" -H "Host: $HOST" -d '{"email":"admin@myschool.com","password":"Admin@123"}' | python -m json.tool
 ```
 
 **Save token:**
 ```bash
-export TOKEN="eyJhbGciOiJFUzI1NiIsImtpZCI6IjQyZjhkOWQxLWMwZGEtNDliNi04ODBlLTE4MjhkZTFlMDA2NyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3JpcHNjbXF2emtpcHNxdG1mZHJ5LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJlZGUxNDhhMi03NmQ3LTRkYTctOGIzMi01MDYyMGJiNjc4N2EiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzg0OTgyMzQ0LCJpYXQiOjE3ODQ5Nzg3NDQsImVtYWlsIjoic2hvYnkuYW5zYXJpNTg2QGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWxfdmVyaWZpZWQiOnRydWV9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzg0OTc4NzQ0fV0sInNlc3Npb25faWQiOiJmMjFhNDU2NC1lZDhmLTQzMTItYTcwYS1hZDIzMTA1ZWI4MjAiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.R8og7z9bNfVngBMwlxpVgE41JuIzCg307NwYh0LlQ7zqsj8d4Bcw0OFnpYAJ-iep83QfxnPcxIqFwBtuUi46vA"
+export TOKEN="<paste access_token>"
 ```
 
 ---
@@ -56,7 +56,7 @@ curl -X GET $BASE_URL/api/v1/lookups/institution-types -H "Authorization: Bearer
 ### 3.1 Create Institution
 
 ```bash
-curl -X POST $BASE_URL/api/v1/institutions -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"display_name":"Main Campus","institution_type_id":"8159019c-7f56-44f7-a2cf-e323403cee21"}' | python -m json.tool
+curl -X POST $BASE_URL/api/v1/institutions -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"display_name":"Main Campus","institution_type_id":"<paste institution_type_id>"}' | python -m json.tool
 ```
 
 **Save institution ID:**

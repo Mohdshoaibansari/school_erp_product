@@ -25,7 +25,7 @@ curl -X POST $BASE_URL/api/auth/login -H "Content-Type: application/json" -H "Ho
 
 **Save token:**
 ```bash
-export TOKEN="eyJhbGciOiJFUzI1NiIsImtpZCI6IjQyZjhkOWQxLWMwZGEtNDliNi04ODBlLTE4MjhkZTFlMDA2NyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3JpcHNjbXF2emtpcHNxdG1mZHJ5LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiIyYzIwNTRkZC0wODMwLTRlNjAtYWMyNC0zNGVlMTQxZGNkYWMiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzg0OTk5NDExLCJpYXQiOjE3ODQ5OTU4MTEsImVtYWlsIjoic2hvYnkuYW5zYXJpNTg2QGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWxfdmVyaWZpZWQiOnRydWV9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzg0OTk1ODExfV0sInNlc3Npb25faWQiOiIxMmM0YmEwNC01YTc1LTRkM2ItYjRmMy03OWVlOWQxMmJhNzIiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.cdiKI8cR7ccAZHzQhF1eLcfAZgk2FgrEShE816m4zNOfnRPiV5NQzA4riERqE_YkqovcTrC_y4S03vUxHf7SWA"
+export TOKEN="<paste access_token from response>"
 ```
 
 ---
@@ -144,7 +144,7 @@ curl -X POST $BASE_URL/api/v1/users -H "Authorization: Bearer $TOKEN" -H "Host: 
 
 **Save admin ID:**
 ```bash
-export ADMIN_ID="<paste id from response>"
+export ADMIN_ID="15a5c462-fc79-4038-aa30-d3165498e645"
 ```
 
 Assign Admin role (institution-scoped):
@@ -153,7 +153,7 @@ curl -X POST $BASE_URL/api/v1/users/$ADMIN_ID/roles -H "Authorization: Bearer $T
 ```
 
 > **Note:** New users are created with `lifecycle_status: invited`. They need
-> password + activation before they can login (see section 4.4).
+> password + activation before they can login (see sections 4.4 and 4.5).
 
 ### 4.2 List Users
 
@@ -182,18 +182,36 @@ curl -X GET "$BASE_URL/api/v1/users?lifecycle_status=active" \
 curl -X POST $BASE_URL/api/v1/users/$TEACHER_ID/roles -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"role_id":"5d1efdc6-b15d-403f-8dac-bbacbcb5ff3c"}'
 ```
 
-### 4.4 Activate User (Set Password + Lifecycle)
+### 4.4 Activate Institute Admin (Set Password + Lifecycle)
 
 ```bash
-# Get user ID (if not already saved)
-curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?email=eq.teacher@meerutpublic.com&select=id" \
-  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python -m json.tool
-
 # Set password in Supabase Auth
-curl -X PUT "https://ripscmqvzkipsqtmfdry.supabase.co/auth/v1/admin/users/$TEACHER_ID" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+curl -X PUT "https://ripscmqvzkipsqtmfdry.supabase.co/auth/v1/admin/users/$ADMIN_ID" --http1.1 \
   -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"password":"Admin@123","email_confirm":true}'
+
+# Activate lifecycle
+curl -X PATCH "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?id=eq.$ADMIN_ID" --http1.1 \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"lifecycle_status":"active"}'
+```
+
+Admin login:
+```bash
+curl -X POST $BASE_URL/api/auth/login -H "Content-Type: application/json" -H "Host: $HOST" -d '{"email":"admin@meerutpublic.com","password":"Admin@123"}' | python -m json.tool
+```
+
+### 4.5 Activate Teacher (Set Password + Lifecycle)
+
+```bash
+# Set password in Supabase Auth
+curl -X PUT "https://ripscmqvzkipsqtmfdry.supabase.co/auth/v1/admin/users/$TEACHER_ID" --http1.1 \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Content-Type: application/json" \
   -d '{"password":"Teacher@123","email_confirm":true}'
 
@@ -205,7 +223,7 @@ curl -X PATCH "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?id=eq.$
   -d '{"lifecycle_status":"active"}'
 ```
 
-### 4.5 User Lifecycle
+### 4.6 User Lifecycle
 
 | State | Meaning |
 |---|---|
@@ -230,7 +248,7 @@ curl -X POST $BASE_URL/api/v1/users/$TEACHER_ID/transition \
   -d '{"new_state":"active","reason":"Issue resolved"}'
 ```
 
-### 4.6 Delete User
+### 4.7 Delete User
 
 ```bash
 curl -X DELETE $BASE_URL/api/v1/users/$TEACHER_ID \

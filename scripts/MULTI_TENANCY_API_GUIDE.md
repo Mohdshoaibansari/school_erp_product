@@ -15,47 +15,51 @@
 
 ## Environment Variables (for convenience)
 
-bash
+```bash
 # Set these in your terminal for easier copy-paste
 export BASE_URL="http://127.0.0.1:8000"
 export HOST="school-d.localhost"  # Resolves to client slug "test-school"
-
+```
 
 ---
 
 ## Flow 1: Platform Owner — View All Clients
 
+> **Changes (D1-D36):** Platform owner exists only in Supabase Auth (no `app_user` row).
+> Login returns a custom HS256 JWT with `is_platform_owner: true` claim.
+> No Host header required for platform endpoints.
+
 ### 1.1 Login as Platform Owner
 
-bash
+```bash
+# NOTE: No Host header! Platform owner is tenant-independent.
 curl -X POST http://127.0.0.1:8000/api/auth/login \
-     -H "Content-Type: application/json" \
-     -d '{"email":"admin@school-erp.com","password":"Shoby@123"}'
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@school-erp.com","password":"Platform@2026!"}' | python -m json.tool
+```
 
-
-**Expected:** `200 OK` with `{ "access_token": "...", "refresh_token": "...", ... }`
+**Expected:** `200 OK` with `{"access_token": "...", "is_platform_owner": true}`
 
 **Save the token:**
-bash
-export PLATFORM_TOKEN="eyJhbGciOiJFUzI1NiIsImtpZCI6IjQyZjhkOWQxLWMwZGEtNDliNi04ODBlLTE4MjhkZTFlMDA2NyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3JpcHNjbXF2emtpcHNxdG1mZHJ5LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJhNDk3OTExYy1iZmM1LTQ5ZGItYTI0NC1iY2FmOTJjMzkxNDEiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzg0OTU1OTQ0LCJpYXQiOjE3ODQ5NTIzNDQsImVtYWlsIjoiYWRtaW5Ac2Nob29sLWVycC5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJpc19wbGF0Zm9ybV9vd25lciI6dHJ1ZX0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3ODQ5NTIzNDR9XSwic2Vzc2lvbl9pZCI6IjA3NTZiNzgwLWU4NzItNGVlMy05MjFmLWRiZjg0NWQ0ZmQxMSIsImlzX2Fub255bW91cyI6ZmFsc2V9.UZZynOg8cB6iJ2A0p37gZ0fD7MGl0kdcgj7ijGyXTR3oOh43BCOD1RxUh49QZwa2FpRUmVWI67fVyi5UTQasvg"
-
+```bash
+export PLATFORM_TOKEN="<paste access_token here>"
+```
 
 ### 1.2 List All Clients
 
-bash
+```bash
+# No Host header needed for platform endpoints
 curl -X GET "$BASE_URL/api/v1/platform/clients" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: $HOST" | python -m json.tool
+  -H "Authorization: Bearer $PLATFORM_TOKEN" | python -m json.tool
+```
 
-
-**Expected:** `200 OK` with array of clients (should include `test-school`)
+**Expected:** `200 OK` with array of clients
 
 ### 1.3 Create a New Client (School D)
 
 bash
 curl -X POST "$BASE_URL/api/v1/platform/clients" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: $HOST" \
   -H "Content-Type: application/json" \
   -d '{
     "display_name": "School D Academy",
@@ -80,7 +84,6 @@ New clients start as `"prospective"`. They need to be activated before they appe
 bash
 curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_D_ID/transition" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: $HOST" \
   -H "Content-Type: application/json" \
   -d '{
     "new_state": "active",
@@ -102,19 +105,19 @@ curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_D_ID/transition" \
 bash
 # Suspend
 curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_D_ID/transition" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" -H "Host: $HOST" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"new_state": "suspended", "reason": "Payment overdue"}'
 
 # Reactivate
 curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_D_ID/transition" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" -H "Host: $HOST" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"new_state": "active", "reason": "Payment received"}'
 
 # Archive (terminal)
 curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_D_ID/transition" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" -H "Host: $HOST" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"new_state": "archived", "reason": "Business closed"}'
 
@@ -123,8 +126,7 @@ curl -X POST "$BASE_URL/api/v1/platform/clients/$CLIENT_D_ID/transition" \
 
 bash
 curl -X GET "$BASE_URL/api/v1/platform/clients" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: $HOST" | python -m json.tool
+  -H "Authorization: Bearer $PLATFORM_TOKEN" | python -m json.tool
 
 
 **Expected:** Both `test-school` and `school-d` clients
@@ -135,8 +137,7 @@ curl -X GET "$BASE_URL/api/v1/platform/clients" \
 
 bash
 curl -X GET "$BASE_URL/api/v1/platform/institution-types" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: $HOST" | python -m json.tool
+  -H "Authorization: Bearer $PLATFORM_TOKEN" | python -m json.tool
 
 
 **Expected:** Array of institution types. Copy the `id` of "School" type.

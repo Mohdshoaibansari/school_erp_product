@@ -276,6 +276,25 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
                 content={"detail": "Platform owner access restricted to platform endpoints"},
             )
 
+        # Role lookup for normal users (not platform owner)
+        if user_id and not roles and client_id and not is_platform_owner:
+            try:
+                from sqlalchemy import create_engine, text as sa_text
+                db_url = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:54322/postgres")
+                engine = create_engine(db_url)
+                with engine.connect() as conn:
+                    conn.execute(sa_text("SET LOCAL app.is_platform_owner = 'true'"))
+                    result = conn.execute(sa_text(
+                        "SELECT r.name FROM role r "
+                        "JOIN role_assignment ra ON r.id = ra.role_id "
+                        "WHERE ra.user_id = :uid"
+                    ), {"uid": user_id}).fetchall()
+                    roles = [row[0] for row in result]
+                    logger.debug("[MW] Role lookup from DB: user_id=%s roles=%s", user_id, roles)
+                engine.dispose()
+            except Exception as e:
+                logger.warning("[MW] Role lookup failed: %s", e)
+
         ctx = TenantContext(
             client_id=client_id,
             institution_id=institution_id,

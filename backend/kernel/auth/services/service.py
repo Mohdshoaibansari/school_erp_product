@@ -103,10 +103,8 @@ class AuthService:
 
         # Platform owner — skip app_user lookup (D2, D16, D26)
         if is_platform_owner:
-            self._record_login_attempt(
-                ctx, email, "login_success",
-                user_id=user_id, ip_address=ip_address, user_agent=user_agent,
-            )
+            # Don't record login_attempt for platform owner — they have no
+            # app_user row, and login_attempt.user_id has FK to app_user.
             logger.info("[AUTH] Platform owner login success: user_id=%s email=%s", user_id, email)
             return {
                 "access_token": result["access_token"],

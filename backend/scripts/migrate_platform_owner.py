@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+from pathlib import Path
 
 import httpx
 from sqlalchemy import create_engine, text as sa_text
@@ -23,6 +24,16 @@ from sqlalchemy.orm import sessionmaker
 import logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
+
+# Load .env file
+ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+if ENV_PATH.exists():
+    with open(ENV_PATH) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, _, value = line.partition("=")
+                os.environ.setdefault(key.strip(), value.strip())
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",

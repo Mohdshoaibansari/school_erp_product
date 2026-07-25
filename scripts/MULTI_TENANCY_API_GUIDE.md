@@ -57,7 +57,24 @@ curl -X GET "$BASE_URL/api/v1/platform/clients" \
 
 ### 1.3 Create a New Client (School E)
 
-bash
+#### 1.3.0 Get Prerequisite IDs
+
+First, get the `legal_entity_type_id`:
+
+```bash
+# List legal entity types
+curl -X GET "$BASE_URL/api/v1/lookups/legal-entity-types" \
+  -H "Authorization: Bearer $PLATFORM_TOKEN" | python -m json.tool
+```
+
+**Save the ID:**
+```bash
+export LEGAL_ENTITY_TYPE_ID="<paste id from response>"
+```
+
+#### 1.3.1 Create Client
+
+```bash
 curl -X POST "$BASE_URL/api/v1/platform/clients" \
   -H "Authorization: Bearer $PLATFORM_TOKEN" \
   -H "Content-Type: application/json" \
@@ -66,7 +83,7 @@ curl -X POST "$BASE_URL/api/v1/platform/clients" \
     "legal_name": "School E Academy Pvt Ltd",
     "slug": "school-e",
     "primary_contact_email": "admin@school-e.com",
-    "legal_entity_type_id": "<get from: GET /api/v1/platform/institution-types or /api/v1/lookups/legal-entity-types>"
+    "legal_entity_type_id": "'"$LEGAL_ENTITY_TYPE_ID"'"
   }'
 
 
@@ -258,7 +275,7 @@ curl -X POST "$BASE_URL/api/v1/users" \
   -d '{
     "email": "admin@school-e.com",
     "name": "School E Admin",
-    "user_category_id": "<get from: GET /api/v1/lookups/user-categories>",
+    "user_category_id": "'"$USER_CATEGORY_ID"'",
     "institution_id": "'"$INST_E_ID"'"
   }'
 
@@ -291,10 +308,15 @@ curl -X GET "$BASE_URL/api/v1/users" \
 
 **Note:** Get `user_category_id` first:
 
-bash
+```bash
 curl -X GET "$BASE_URL/api/v1/lookups/user-categories" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: $HOST" | python -m json.tool
+  -H "Authorization: Bearer $PLATFORM_TOKEN" | python -m json.tool
+```
+
+**Save the category ID:**
+```bash
+export USER_CATEGORY_ID="<paste id from response, e.g., Academic Staff>"
+```
 
 
 **Save the user ID:**

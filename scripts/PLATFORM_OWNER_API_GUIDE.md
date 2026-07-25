@@ -127,8 +127,12 @@ curl -X POST $BASE_URL/api/v1/platform/clients/$CLIENT_ID/transition -H "Authori
 
 ## 6. Manage Institution Types
 
+> **Platform owner defines what kinds of institutions can exist** (School, College,
+> Coaching Center, etc.). The Client Director picks from these types when creating
+> their own institutions.
+
 ```bash
-# List existing types
+# List existing types (already seeded)
 curl -X GET $BASE_URL/api/v1/platform/institution-types -H "Authorization: Bearer $PLATFORM_TOKEN" | python -m json.tool
 ```
 

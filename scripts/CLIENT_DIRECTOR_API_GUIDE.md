@@ -52,6 +52,10 @@ curl -X GET $BASE_URL/api/v1/lookups/institution-types \
 
 ## 3. Institutions
 
+> **The platform owner defines what institution types are available** (School, College,
+> etc.). You pick from those types when creating your institutions.
+> Run `GET /api/v1/platform/institution-types` as platform owner first to see available types.
+
 ### 3.1 Create Institution
 
 ```bash

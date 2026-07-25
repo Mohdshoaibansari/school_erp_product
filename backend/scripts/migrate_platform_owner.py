@@ -44,7 +44,7 @@ SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
 # New platform owner credentials (D27, D28)
 PLATFORM_EMAIL = "admin@school-erp.com"
-PLATFORM_PASSWORD = "Platform@2026!"
+PLATFORM_PASSWORD = "Shoby@123"
 
 
 async def main():

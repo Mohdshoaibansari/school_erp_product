@@ -13,7 +13,7 @@ Separate platform owner from tenant-scoped `app_user` table. Platform owner exis
 | D1 | Platform owner only in Supabase Auth (`user_metadata.is_platform_owner = true`), NOT in `app_user` |
 | D7 | Delete existing platform owner from `app_user` + `role_assignment`, create fresh in Supabase Auth |
 | D27 | New email `admin@school-erp.com` for platform owner. Deprecate `platform@test-school.com` |
-| D28 | Password `Platform@2026!` hardcoded in migration script |
+| D28 | Password `Shoby@123` hardcoded in migration script |
 | D6 | Platform owner created manually via Supabase Dashboard (documented steps) |
 | D15 | One-time migration script for transition |
 

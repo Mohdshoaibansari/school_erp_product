@@ -7,7 +7,9 @@ All auth endpoints delegate to this service.
 from __future__ import annotations
 
 import logging
+import os
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy.orm import Session, sessionmaker
@@ -109,7 +111,6 @@ class AuthService:
 
             # D3: Mint our own JWT with is_platform_owner claim.
             # Supabase's JWT doesn't carry this claim, so we issue our own.
-            from datetime import datetime, timedelta, timezone
             from jose import jwt
             jwt_secret = os.environ.get("SUPABASE_JWT_SECRET", "test-secret-for-c01")
             now = datetime.now(timezone.utc)

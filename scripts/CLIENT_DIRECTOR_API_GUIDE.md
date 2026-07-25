@@ -1,0 +1,364 @@
+# Client Director API Guide
+
+> **Role:** Manages a single client (tenant). Creates institutions, users, and
+> manages day-to-day operations. Cannot create or manage other clients.
+> **Host header required:** `Host: <slug>.localhost` (resolves client context).
+
+---
+
+## Environment
+
+```bash
+export BASE_URL="http://127.0.0.1:8000"
+
+# Set your client slug (assigned by platform owner)
+export CLIENT_SLUG="my-school"
+export HOST="$CLIENT_SLUG.localhost"
+```
+
+---
+
+## 1. Login
+
+```bash
+curl -X POST $BASE_URL/api/auth/login \
+  -H "Content-Type: application/json" \
+  -H "Host: $HOST" \
+  -d '{"email":"admin@myschool.com","password":"Admin@123"}' | python -m json.tool
+```
+
+**Save token:**
+```bash
+export TOKEN="<paste access_token>"
+```
+
+---
+
+## 2. Lookup Tables (Reference Data)
+
+```bash
+# User categories
+curl -X GET $BASE_URL/api/v1/lookups/user-categories \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" | python -m json.tool
+
+# Roles
+curl -X GET $BASE_URL/api/v1/lookups/roles \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" | python -m json.tool
+
+# Institution types
+curl -X GET $BASE_URL/api/v1/lookups/institution-types \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" | python -m json.tool
+```
+
+---
+
+## 3. Institutions
+
+### 3.1 Create Institution
+
+```bash
+curl -X POST $BASE_URL/api/v1/institutions \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "display_name": "Main Campus",
+    "institution_type_id": "<paste institution_type_id>"
+  }' | python -m json.tool
+```
+
+**Save institution ID:**
+```bash
+export INST_ID="<paste id from response>"
+```
+
+### 3.2 Activate Institution (onboarding → active)
+
+```bash
+curl -X POST $BASE_URL/api/v1/institutions/$INST_ID/transition \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{"new_state":"active","reason":"Setup complete"}' | python -m json.tool
+```
+
+### 3.3 Institution Lifecycle
+
+| State | Meaning | Transitions |
+|---|---|---|
+| `onboarding` | New, being set up | → `active`, `archived` |
+| `active` | Fully operational | → `inactive`, `archived` |
+| `inactive` | Temporarily disabled | → `active`, `archived` |
+| `archived` | Closed (reactivatable) | → `active` |
+
+```bash
+# Deactivate
+curl -X POST $BASE_URL/api/v1/institutions/$INST_ID/transition \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{"new_state":"inactive","reason":"Term break"}'
+
+# Reactivate
+curl -X POST $BASE_URL/api/v1/institutions/$INST_ID/transition \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{"new_state":"active","reason":"Term resumed"}'
+
+# Archive
+curl -X POST $BASE_URL/api/v1/institutions/$INST_ID/transition \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{"new_state":"archived","reason":"Permanent closure"}'
+```
+
+### 3.4 List Institutions
+
+```bash
+curl -X GET $BASE_URL/api/v1/institutions \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" | python -m json.tool
+```
+
+---
+
+## 4. Users
+
+### 4.1 Create User (Inside an Institution)
+
+```bash
+curl -X POST $BASE_URL/api/v1/users \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email":"teacher@myschool.com",
+    "name":"Jane Teacher",
+    "user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24",
+    "institution_id":"'$INST_ID'"
+  }' | python -m json.tool
+```
+
+**Save user ID:**
+```bash
+export USER_ID="<paste id from response>"
+```
+
+> **Note:** New users are created with `lifecycle_status: invited`. They need
+> password + activation before they can login (see section 4.4).
+
+### 4.2 List Users
+
+```bash
+# All users in this client
+curl -X GET $BASE_URL/api/v1/users \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" | python -m json.tool
+
+# Filter by institution
+curl -X GET "$BASE_URL/api/v1/users?institution_id=$INST_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" | python -m json.tool
+
+# Filter by lifecycle
+curl -X GET "$BASE_URL/api/v1/users?lifecycle_status=active" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" | python -m json.tool
+```
+
+### 4.3 Assign Role to User
+
+```bash
+curl -X POST $BASE_URL/api/v1/users/$USER_ID/roles \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{"role_id":"5d1efdc6-b15d-403f-8dac-bbacbcb5ff3c"}'  # Teacher
+```
+
+### 4.4 Activate User (Set Password + Lifecycle)
+
+```bash
+# Get user ID (if not already saved)
+curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?email=eq.teacher@myschool.com&select=id" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python -m json.tool
+
+# Set password in Supabase Auth
+curl -X PUT "https://ripscmqvzkipsqtmfdry.supabase.co/auth/v1/admin/users/$USER_ID" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"password":"Teacher@123","email_confirm":true}'
+
+# Activate lifecycle
+curl -X PATCH "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?id=eq.$USER_ID" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"lifecycle_status":"active"}'
+```
+
+### 4.5 User Lifecycle
+
+| State | Meaning |
+|---|---|
+| `invited` | Created, not yet activated |
+| `active` | Can login and use system |
+| `suspended` | Temporarily blocked |
+| `archived` | Permanently deactivated (terminal) |
+
+```bash
+# Suspend user
+curl -X POST $BASE_URL/api/v1/users/$USER_ID/transition \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{"new_state":"suspended","reason":"Policy violation"}'
+
+# Reactivate
+curl -X POST $BASE_URL/api/v1/users/$USER_ID/transition \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{"new_state":"active","reason":"Issue resolved"}'
+```
+
+### 4.6 Delete User
+
+```bash
+curl -X DELETE $BASE_URL/api/v1/users/$USER_ID \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST"
+```
+
+---
+
+## 5. Fees Management
+
+### 5.1 Fee Types
+
+```bash
+# Create fee type (institution-scoped)
+curl -X POST $BASE_URL/api/v1/fee-types \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name":"Tuition Fee",
+    "amount":5000.00,
+    "institution_id":"'$INST_ID'",
+    "academic_term":"2026-27"
+  }' | python -m json.tool
+
+# List fee types
+curl -X GET $BASE_URL/api/v1/fee-types \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" | python -m json.tool
+```
+
+### 5.2 Assign Fee to Student
+
+```bash
+curl -X POST $BASE_URL/api/v1/fee-assignments \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fee_type_id":"<fee type id>",
+    "user_id":"<student id>",
+    "due_date":"2026-08-01"
+  }' | python -m json.tool
+```
+
+### 5.3 Record Payment
+
+```bash
+curl -X POST $BASE_URL/api/v1/payments \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fee_assignment_id":"<assignment id>",
+    "amount":5000.00,
+    "payment_method":"Online Transfer"
+  }' | python -m json.tool
+```
+
+---
+
+## 6. Homework Management
+
+### 6.1 Create Homework
+
+```bash
+curl -X POST $BASE_URL/api/v1/homeworks \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title":"Math Worksheet",
+    "description":"Complete pages 10-15",
+    "institution_id":"'$INST_ID'",
+    "assigned_by":"<teacher user id>",
+    "due_date":"2026-07-30"
+  }' | python -m json.tool
+```
+
+### 6.2 Submit Homework (Student)
+
+```bash
+curl -X POST $BASE_URL/api/v1/submissions \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "homework_id":"<homework id>",
+    "student_id":"<student id>",
+    "content":"Completed all problems"
+  }' | python -m json.tool
+```
+
+### 6.3 Grade Submission
+
+```bash
+curl -X POST $BASE_URL/api/v1/grades \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: $HOST" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "submission_id":"<submission id>",
+    "score":85,
+    "feedback":"Good work!"
+  }' | python -m json.tool
+```
+
+---
+
+## 7. Tenant Isolation Verification
+
+```bash
+# Try accessing another client's data (should return empty or 403)
+curl -X GET $BASE_URL/api/v1/users \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Host: test-school.localhost" | python -m json.tool
+
+# Expected: empty list or 403 (cross-tenant blocked)
+```
+
+---
+
+## Reference IDs
+
+| Entity | ID |
+|---|---|
+| User Category: Academic Staff | `20a3b37b-56be-4573-a7ee-b2c5b016fc24` |
+| User Category: Learner | `024ffc86-e4d4-4901-9449-fd6546843909` |
+| Role: Admin | `70343690-695e-46a0-992c-c6eed7fb0c57` |
+| Role: Teacher | `5d1efdc6-b15d-403f-8dac-bbacbcb5ff3c` |
+| Role: Student | `03bd67b4-8c4e-4e3b-861e-e7548ba930e8` |

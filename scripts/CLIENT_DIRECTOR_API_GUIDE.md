@@ -56,7 +56,7 @@ curl -X GET $BASE_URL/api/v1/lookups/institution-types -H "Authorization: Bearer
 ### 3.1 Create Institution
 
 ```bash
-curl -X POST $BASE_URL/api/v1/institutions -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"display_name":"Main Campus","institution_type_id":"8159019c-7f56-44f7-a2cf-e323403cee21"}' | python -m json.tool
+curl -X POST $BASE_URL/api/v1/institutions -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"display_name":"Meerut Public School","institution_type_id":"8159019c-7f56-44f7-a2cf-e323403cee21","legal_name":"Meerut Public School Society","code":"MPS","primary_contact_email":"info@meerutpublicschool.com","primary_contact_phone":"+91-121-2400000","established_year":1995,"affiliation_number":"CBSE/2130456","affiliation_board":"CBSE"}' | python -m json.tool
 ```
 
 **Save institution ID:**
@@ -105,9 +105,19 @@ curl -X POST $BASE_URL/api/v1/institutions/$INST_ID/transition \
 ### 3.4 List Institutions
 
 ```bash
-curl -X GET $BASE_URL/api/v1/institutions \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Host: $HOST" | python -m json.tool
+curl -X GET $BASE_URL/api/v1/institutions -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" | python -m json.tool
+```
+
+### 3.5 Remove an Institution
+
+> No hard delete — archive it instead.
+
+```bash
+# List first to get the institution ID
+curl -X GET $BASE_URL/api/v1/institutions -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" | python -m json.tool
+
+# Archive it
+curl -X POST $BASE_URL/api/v1/institutions/<institution_id>/transition -H "Authorization: Bearer $TOKEN" -H "Host: $HOST" -H "Content-Type: application/json" -d '{"new_state":"archived","reason":"No longer needed"}'
 ```
 
 ---

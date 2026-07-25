@@ -147,7 +147,7 @@ curl -X POST "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/role_assignment" 
   -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Content-Type: application/json" \
-  -d "{\"id\":\"$ASSIGN_ID\",\"user_id\":\"$DIRECTOR_ID\",\"role_id\":\"70343690-695e-46a0-992c-c6eed7fb0c57\",\"scope_type\":\"client\",\"scope_id\":\"$CLIENT_ID\"}"
+  -d "{\"id\":\"$ASSIGN_ID\",\"client_id\":\"$CLIENT_ID\",\"user_id\":\"$DIRECTOR_ID\",\"role_id\":\"70343690-695e-46a0-992c-c6eed7fb0c57\",\"scope\":\"client\"}"
 
 echo "Client Director created! Email: admin@myschool.com | Password: Admin@123"
 ```

@@ -23,6 +23,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from kernel.tenant_context import TenantContext, set_tenant_context
+from config import PLATFORM_PATHS
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +31,6 @@ logger = logging.getLogger(__name__)
 # C-01 CONSUMES JWTs; it does not issue them (tech-stack ADR §3).
 JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET", "test-secret-for-c01")
 JWT_ALGORITHM = "HS256"
-
-# Paths that are platform-scoped (Platform-Owner-only per D11)
-_PLATFORM_PREFIX = "/api/v1/platform/"
 
 # Reserved subdomain labels that map to "platform" (no specific client)
 _PLATFORM_HOSTS = frozenset({"localhost", "127.0.0.1", "platform", "api", "admin", ""})
@@ -94,13 +92,15 @@ def mint_test_jwt(
         "sub": user_id,
         "exp": datetime.now(timezone.utc) + timedelta(minutes=expires_minutes),
         "iat": datetime.now(timezone.utc),
+        "is_platform_owner": is_platform_owner,
     }
-    if client_id:
-        payload["client_id"] = client_id
-    if institution_id:
-        payload["institution_id"] = institution_id
-    payload["is_platform_owner"] = is_platform_owner
-    payload["roles"] = roles or []
+    # Normal user: include tenant-scoped fields
+    if not is_platform_owner:
+        if client_id:
+            payload["client_id"] = client_id
+        if institution_id:
+            payload["institution_id"] = institution_id
+        payload["roles"] = roles or []
     return jwt.encode(payload, secret, algorithm=JWT_ALGORITHM)
 
 
@@ -167,8 +167,10 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
 
         host = request.headers.get("host", "")
         subdomain = _extract_subdomain(host)
-        is_platform_path = path.startswith(_PLATFORM_PREFIX)
         is_auth_path = path.startswith("/api/auth/")
+
+        # Check if path is in platform whitelist (no client_id required)
+        is_platform_path = any(path.startswith(p) for p in PLATFORM_PATHS)
 
         logger.debug("[MW] %s %s | host=%s subdomain=%s platform=%s auth=%s",
                       request.method, path, host, subdomain, is_platform_path, is_auth_path)
@@ -213,7 +215,7 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
                         jwt_institution_id = payload.get("institution_id")
                         is_platform_owner = payload.get("is_platform_owner", False)
                         roles = payload.get("roles", [])
-                        logger.debug("[MW] Supabase JWT decoded: user_id=%s roles=%s", user_id, roles)
+                        logger.debug("[MW] Supabase JWT decoded: user_id=%s roles=%s is_po=%s", user_id, roles, is_platform_owner)
                 except JWTError:
                     payload = _verify_jwt(token)
                     user_id = payload.get("sub")
@@ -221,12 +223,11 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
                     jwt_institution_id = payload.get("institution_id")
                     is_platform_owner = payload.get("is_platform_owner", False)
                     roles = payload.get("roles", [])
-                    logger.debug("[MW] Supabase JWT decoded (fallback): user_id=%s roles=%s", user_id, roles)
+                    logger.debug("[MW] Supabase JWT decoded (fallback): user_id=%s roles=%s is_po=%s", user_id, roles, is_platform_owner)
             except JWTError:
                 # For auth routes, tolerate invalid JWT — set subdomain-only context (D25)
                 # For non-auth routes, reject with 401
                 if is_auth_path:
-                    # Auth route with invalid JWT — continue with subdomain-only context
                     pass
                 else:
                     return JSONResponse(
@@ -234,17 +235,14 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
                         content={"detail": "Invalid or expired JWT"},
                     )
 
-        # Determine client_id:
-        # - Platform-scoped path → Platform Owner (no specific client)
-        # - Subdomain-resolved → resolve Client from subdomain (D3)
-        # - JWT carries client_id as fallback
-        # - Auth routes without JWT → subdomain-only context (D25)
+        # D9: Platform owner detected ONLY from JWT claim
+        # If is_platform_owner=true in JWT, skip subdomain and set no client_id
         import uuid
 
         client_id = None
-        if is_platform_path:
-            is_platform_owner = True
-            logger.debug("[MW] Platform path detected — is_platform_owner=True")
+        if is_platform_owner:
+            # Platform owner from JWT — skip subdomain resolution (D8)
+            logger.debug("[MW] Platform owner detected from JWT — skipping subdomain resolution")
         elif subdomain:
             resolved = _resolve_client_from_subdomain(subdomain)
             if resolved:
@@ -262,33 +260,16 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
             institution_id = uuid.UUID(jwt_institution_id)
 
         # For auth routes without JWT, set subdomain-only context (D25)
-        # This allows auth endpoints to read client_id from TenantContext
-        if is_auth_path and not user_id and not is_platform_path:
-            # Auth route without JWT — set subdomain-only context
-            # client_id is already resolved from subdomain above
+        if is_auth_path and not user_id and not is_platform_owner:
             pass
 
-        # If roles are empty but we have a user_id, look up roles from DB (D7)
-        if user_id and not roles and client_id:
-            try:
-                from sqlalchemy import create_engine, text as sa_text
-                db_url = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:54322/postgres")
-                engine = create_engine(db_url)
-                with engine.connect() as conn:
-                    conn.execute(sa_text("SET LOCAL app.is_platform_owner = 'true'"))
-                    result = conn.execute(sa_text(
-                        "SELECT r.name FROM role r "
-                        "JOIN role_assignment ra ON r.id = ra.role_id "
-                        "WHERE ra.user_id = :uid"
-                    ), {"uid": user_id}).fetchall()
-                    roles = [row[0] for row in result]
-                    if "platform_owner" in roles:
-                        is_platform_owner = True
-                    logger.debug("[MW] Role lookup from DB: user_id=%s roles=%s is_platform_owner=%s", user_id, roles, is_platform_owner)
-                engine.dispose()
-            except Exception as e:
-                logger.warning("[MW] Role lookup failed: %s", e)
-                pass
+        # D5/D18: Platform owner without client_id blocked from non-whitelisted paths
+        if is_platform_owner and client_id is None and not is_platform_path:
+            logger.warning("[MW] Platform owner blocked from non-platform path: %s", path)
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Platform owner access restricted to platform endpoints"},
+            )
 
         ctx = TenantContext(
             client_id=client_id,

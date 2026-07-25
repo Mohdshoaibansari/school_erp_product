@@ -63,11 +63,67 @@ def get_tenant_context(request: Request) -> TenantContext:
     return ctx
 
 
-def require_platform_owner(ctx: TenantContext = Depends(get_tenant_context)) -> TenantContext:
-    """Dependency guard: Platform-Owner-only (D11). Use on platform-scoped routes."""
+def require_platform_owner(
+    ctx: TenantContext = Depends(get_tenant_context),
+    request: Request = None,
+) -> TenantContext:
+    """Dependency guard: Platform-Owner-only (D11, D24).
+
+    Checks BOTH TenantContext AND validates JWT claim directly from
+    Authorization header for defense-in-depth (D24).
+    """
+    # Double-check via TenantContext
     if not ctx.is_platform_owner:
         raise HTTPException(
             status_code=403,
             detail="Platform Owner privileges required",
         )
+
+    # D24: Also validate JWT claim directly (defense-in-depth)
+    if request is not None:
+        import os
+        from jose import JWTError, jwt
+        from jose import jwk
+
+        auth_header = request.headers.get("authorization", "")
+        token = None
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+        if token:
+            try:
+                # Verify JWT (same logic as middleware)
+                jwt_secret = os.environ.get("SUPABASE_JWT_SECRET", "test-secret-for-c01")
+                payload = None
+                try:
+                    payload = jwt.decode(token, jwt_secret, algorithms=["HS256"])
+                except JWTError:
+                    supabase_url = os.environ.get("SUPABASE_URL", "")
+                    jwks_url = supabase_url + "/auth/v1/.well-known/jwks.json" if supabase_url else None
+                    if jwks_url:
+                        from urllib.request import urlopen
+                        import json
+                        resp = urlopen(jwks_url)
+                        jwks_data = json.loads(resp.read())
+                        header = jwt.get_unverified_header(token)
+                        kid = header.get("kid")
+                        alg = header.get("alg", "RS256")
+                        for k in jwks_data.get("keys", []):
+                            if k.get("kid") == kid:
+                                public_key = jwk.construct(k)
+                                payload = jwt.decode(token, public_key, algorithms=[alg], audience="authenticated")
+                                break
+                    if payload is None:
+                        raise JWTError("Could not verify JWT")
+
+                if not payload.get("is_platform_owner"):
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Platform Owner privileges required — JWT claim missing",
+                    )
+            except JWTError:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid or expired JWT",
+                )
+
     return ctx

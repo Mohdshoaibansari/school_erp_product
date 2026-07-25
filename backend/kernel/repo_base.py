@@ -65,6 +65,12 @@ class TenantAwareRepositoryBase(Generic[ModelT]):
     def _apply_tenant_filter(self, stmt, ctx: TenantContext, *, cross_institution: bool = False):
         """Inject ``client_id`` (always) + ``institution_id`` (default business filter).
 
+        D36: Platform owner bypasses tenant filter entirely."""
+        # D36: Platform owner sees all records
+        if ctx.is_platform_owner:
+            return stmt
+
+        """
         ``cross_institution=True`` omits the ``institution_id`` default filter
         for authorized cross-institution roles (D11 — Client Director etc.).
         """

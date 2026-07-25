@@ -83,7 +83,7 @@ class AuthService:
             )
             raise AuthError("Invalid email or password", status_code=401) from e
 
-        # Supabase auth succeeded — look up app_user by UUID (sub)
+        # Supabase auth succeeded — check for platform owner first (D2)
         supabase_user = result.get("user", {})
         user_id_str = supabase_user.get("id")
         if not user_id_str:
@@ -95,8 +95,28 @@ class AuthService:
             raise AuthError("User record missing. Contact administrator.", status_code=403)
 
         user_id = uuid.UUID(user_id_str)
-        logger.info("[AUTH] Supabase user found: user_id=%s email=%s", user_id, email)
+        user_metadata = supabase_user.get("user_metadata") or {}
+        is_platform_owner = user_metadata.get("is_platform_owner", False)
 
+        logger.info("[AUTH] Supabase user found: user_id=%s email=%s is_platform_owner=%s",
+                     user_id, email, is_platform_owner)
+
+        # Platform owner — skip app_user lookup (D2, D16, D26)
+        if is_platform_owner:
+            self._record_login_attempt(
+                ctx, email, "login_success",
+                user_id=user_id, ip_address=ip_address, user_agent=user_agent,
+            )
+            logger.info("[AUTH] Platform owner login success: user_id=%s email=%s", user_id, email)
+            return {
+                "access_token": result["access_token"],
+                "refresh_token": result["refresh_token"],
+                "token_type": "bearer",
+                "expires_in": 3600,
+                "is_platform_owner": True,
+            }
+
+        # Normal user — look up app_user by UUID
         with self._session_factory() as session:
             # Look up app_user by UUID — bypass tenant filter since login
             # happens before the client context is fully resolved (D25)

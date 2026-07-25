@@ -102,16 +102,17 @@ def test_subdomain_resolves_client_and_populates_contextvar(app, db_session, tes
 
 
 def test_platform_path_sets_platform_owner(app, db_session, test_jwt):
-    """7.1 evidence: platform-scoped path sets is_platform_owner=True (D11)."""
-    # A non-platform-owner JWT hitting a platform path should still work
-    # because the middleware sets is_platform_owner for platform paths
-    token = test_jwt(is_platform_owner=False, roles=["client_director"])
+    """7.1 evidence: platform owner JWT sets is_platform_owner=True (D9).
+
+    D9: Platform owner detected ONLY from JWT claim is_platform_owner=true.
+    Path prefix no longer triggers is_platform_owner."""
+    # Platform owner JWT with is_platform_owner=True in claims
+    token = test_jwt(is_platform_owner=True)
     tc = TestClient(app, headers={
         "Authorization": f"Bearer {token}",
-        "Host": "localhost",
     })
 
-    # Platform path -- middleware should set is_platform_owner=True
+    # Platform path with platform owner JWT should work
     response = tc.get("/api/v1/platform/clients")
     assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
 

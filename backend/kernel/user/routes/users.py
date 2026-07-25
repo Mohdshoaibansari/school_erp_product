@@ -47,7 +47,9 @@ def list_users(
     ctx: TenantContext = Depends(get_tenant_context),
     svc: IdentityUserService = Depends(get_identity_user_service),
 ) -> list[UserDTO]:
-    """List Users, optionally filtered by user_category_id or lifecycle_status."""
+    """List Users, optionally filtered by user_category_id or lifecycle_status.
+
+    D21: Platform owner sees all users across all clients (no tenant filter)."""
     filters = {}
     if user_category_id is not None:
         filters["user_category_id"] = user_category_id

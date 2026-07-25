@@ -317,11 +317,14 @@ def audit_emitter() -> DefaultAuditEmitter:
 
 @pytest.fixture
 def platform_owner_ctx():
-    """Platform Owner TenantContext (D11 — ALL C-01 operations)."""
+    """Platform Owner TenantContext (D11 — ALL C-01 operations).
+
+    D1/D10: Platform owner has no client_id, no app_user row, no roles.
+    Authorization is via is_platform_owner=True flag only."""
     return TenantContext(
-        client_id=uuid.uuid4(),
+        client_id=None,
         is_platform_owner=True,
-        roles=["platform_owner"],
+        roles=[],
         user_id="platform-owner",
     )
 

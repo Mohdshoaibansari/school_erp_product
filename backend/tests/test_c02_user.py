@@ -556,9 +556,14 @@ class TestEmailUniqueness:
 class TestLookupTables:
     """11.5: Test lookup tables: UserCategory and Role are queryable and usable for FK validation."""
 
-    def test_user_categories_queryable(self, platform_client, db_session):
+    def test_user_categories_queryable(self, make_tenant_client, client_a, db_session):
         """11.5 evidence: UserCategory lookup table is queryable."""
-        response = platform_client.get("/api/v1/lookups/user-categories")
+        client = make_tenant_client(
+            subdomain="test-school",
+            client_id=client_a.id,
+            roles=["admin"],
+        )
+        response = client.get("/api/v1/lookups/user-categories")
         assert response.status_code == 200, f"Failed to list user categories: {response.text}"
         categories = response.json()
         assert len(categories) > 0, "UserCategory seed data should exist"
@@ -567,9 +572,14 @@ class TestLookupTables:
         assert "Learner" in names, "Learner should be in UserCategory seed data"
         assert "Academic Staff" in names, "Academic Staff should be in UserCategory seed data"
 
-    def test_roles_queryable(self, platform_client, db_session):
+    def test_roles_queryable(self, make_tenant_client, client_a, db_session):
         """11.5 evidence: Role lookup table is queryable."""
-        response = platform_client.get("/api/v1/lookups/roles")
+        client = make_tenant_client(
+            subdomain="test-school",
+            client_id=client_a.id,
+            roles=["admin"],
+        )
+        response = client.get("/api/v1/lookups/roles")
         assert response.status_code == 200, f"Failed to list roles: {response.text}"
         roles = response.json()
         assert len(roles) > 0, "Role seed data should exist"

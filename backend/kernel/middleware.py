@@ -235,15 +235,15 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
                         content={"detail": "Invalid or expired JWT"},
                     )
 
-        # D9: Platform owner detected ONLY from JWT claim
-        # If is_platform_owner=true in JWT, skip subdomain and set no client_id
-        import uuid
-
-        client_id = None
+        # D8/D9: Platform owner from JWT — if no Host header, skip subdomain.
+        # If Host header is provided, still resolve it for client context.
         if is_platform_owner:
-            # Platform owner from JWT — skip subdomain resolution (D8)
-            logger.debug("[MW] Platform owner detected from JWT — skipping subdomain resolution")
-        elif subdomain:
+            logger.debug("[MW] Platform owner detected from JWT")
+            if not subdomain:
+                logger.debug("[MW] No subdomain — platform owner, no client context")
+
+        # Resolve client from subdomain if available
+        if subdomain:
             resolved = _resolve_client_from_subdomain(subdomain)
             if resolved:
                 client_id = resolved

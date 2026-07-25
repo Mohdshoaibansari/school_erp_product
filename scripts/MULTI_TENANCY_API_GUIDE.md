@@ -42,7 +42,7 @@ curl -X POST http://127.0.0.1:8000/api/auth/login \
 
 **Save the token:**
 ```bash
-export PLATFORM_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhNDk3OTExYy1iZmM1LTQ5ZGItYTI0NC1iY2FmOTJjMzkxNDEiLCJpc19wbGF0Zm9ybV9vd25lciI6dHJ1ZSwiaWF0IjoxNzg0OTUzMDIzLCJleHAiOjE3ODQ5NTY2MjN9.ehzPOMlDEX1iwlpZwenLCGw_5efvh9HMIO5jIlR18rI"
+export PLATFORM_TOKEN="<paste access_token from login>"
 ```
 
 ### 1.2 List All Clients
@@ -57,14 +57,13 @@ curl -X GET "$BASE_URL/api/v1/platform/clients" \
 
 ### 1.3 Create a New Client (School E)
 
-#### 1.3.0 Get Prerequisite IDs
-
-First, get the `legal_entity_type_id`:
+First, get the `legal_entity_type_id` via Supabase REST API
+(because platform owner can't access lookups):
 
 ```bash
-# List legal entity types
-curl -X GET "$BASE_URL/api/v1/lookups/legal-entity-types" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" | python -m json.tool
+curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/legal_entity_type?select=id,name" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python -m json.tool
 ```
 
 **Save the ID:**
@@ -72,7 +71,7 @@ curl -X GET "$BASE_URL/api/v1/lookups/legal-entity-types" \
 export LEGAL_ENTITY_TYPE_ID="<paste id from response>"
 ```
 
-#### 1.3.1 Create Client
+Now create the client:
 
 ```bash
 curl -X POST "$BASE_URL/api/v1/platform/clients" \
@@ -148,293 +147,220 @@ curl -X GET "$BASE_URL/api/v1/platform/clients" \
 
 **Expected:** Both `test-school` and `school-e` clients
 
-## Flow 2: Create Institutions Under Different Clients
+## Flow 2: Bootstrap School E — Create Admin User
 
-### 2.1 Get Institution Types (needed for creating institutions)
+> Platform owner only manages clients. To create institutions and users for School E,
+> we bootstrap an admin user via Supabase Admin API + SQL, then login as that admin.
 
-bash
-curl -X GET "$BASE_URL/api/v1/platform/institution-types" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" | python -m json.tool
-
-
-**Expected:** Array of institution types. Copy the `id` of "School" type.
-
-### 2.2 Create Institution Under School E
-
-bash
-curl -X POST "$BASE_URL/api/v1/institutions" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-e.localhost" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "display_name": "School E Main Campus",
-    "institution_type_id": "8159019c-7f56-44f7-a2cf-e323403cee21"
-  }'
-
-
-**Expected:** `201 Created` with `current_lifecycle_status: "onboarding"`
-
-**Save the institution ID:**
-bash
-export INST_E_ID="<paste institution id from response>"
-
-
-### 2.3 Institution Lifecycle States
-
-| State | Meaning | Transitions |
-|---|---|---|
-| `onboarding` | Newly created, setting up | → `active`, `archived` |
-| `active` | Fully operational | → `inactive`, `archived` |
-| `inactive` | Temporarily disabled | → `active`, `archived` |
-| `archived` | Permanently closed | → `active` (can be reactivated) |
-
-
-onboarding → active → inactive → archived
-    ↑           ↑         |
-    └───────────┘─────────┘
-
-
-### 2.4 Go Live (onboarding → active)
-
-Institutions start as `"onboarding"`. They need to be activated:
-
-bash
-curl -X POST "$BASE_URL/api/v1/institutions/$INST_E_ID/transition" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-e.localhost" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "new_state": "active",
-    "reason": "Setup complete, ready for operations"
-  }'
-
-
-**Expected:** `200 OK` with `current_lifecycle_status: "active"`
-
-### 2.5 Deactivate Institution (active → inactive)
-
-bash
-curl -X POST "$BASE_URL/api/v1/institutions/$INST_E_ID/transition" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-e.localhost" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "new_state": "inactive",
-    "reason": "Compliance issue"
-  }'
-
-
-### 2.6 Reactivate Institution (inactive → active)
-
-bash
-curl -X POST "$BASE_URL/api/v1/institutions/$INST_E_ID/transition" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-e.localhost" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "new_state": "active",
-    "reason": "Compliance resolved"
-  }'
-
-
-### 2.7 Archive Institution (active/inactive → archived)
-
-bash
-curl -X POST "$BASE_URL/api/v1/institutions/$INST_E_ID/transition" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-e.localhost" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "new_state": "archived",
-    "reason": "School closed"
-  }'
-
-
-**Note:** Archived institutions CAN be reactivated (archived → active). This is different from Client lifecycle where archived is terminal.
-
-### 2.8 List Institutions
-
-bash
-curl -X GET "$BASE_URL/api/v1/institutions" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-e.localhost" | python -m json.tool
-
-**Expected:** Only School E's institutions (tenant isolation)
-
----
-
-## Flow 3: Create Users at Different Institutions
-
-### 3.1 Create Admin User at School E
-
-bash
-curl -X POST "$BASE_URL/api/v1/users" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-e.localhost" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@school-e.com",
-    "name": "School E Admin",
-    "user_category_id": "'"$USER_CATEGORY_ID"'",
-    "institution_id": "'"$INST_E_ID"'"
-  }'
-
-### 3.1.1 List Users
- ```bash
-curl -X GET "$BASE_URL/api/v1/users" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: $HOST" | python -m json.tool
- ```
-
- With filters:
-
- ```bash
-   # Filter by institution
-   curl -X GET "$BASE_URL/api/v1/users?institution_id=$INST_E_ID" \
-     -H "Authorization: Bearer $PLATFORM_TOKEN" \
-     -H "Host: school-e.localhost" | python -m json.tool
-
-   # Filter by lifecycle status
-   curl -X GET "$BASE_URL/api/v1/users?lifecycle_status=active" \
-     -H "Authorization: Bearer $PLATFORM_TOKEN" \
-    #  -H "Host: school-e.localhost" | python -m json.tool
-     -H "Host: test-school.localhost" | python -m json.tool
-
-  export USER_ID=45284df0-94a2-439b-aeb0-4feae22fc068
-   curl -X DELETE "$BASE_URL/api/v1/users/$USER_ID" \
-     -H "Authorization: Bearer $PLATFORM_TOKEN" \
-     -H "Host: school-e.localhost"
- ```
-
-**Note:** Get `user_category_id` first:
+### 2.1 Get Prerequisite IDs via Supabase REST API
 
 ```bash
-curl -X GET "$BASE_URL/api/v1/lookups/user-categories" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" | python -m json.tool
-```
+# Get legal_entity_type_id (for clients)
+curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/legal_entity_type?select=id,name" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python -m json.tool
 
-**Save the category ID:**
-```bash
-export USER_CATEGORY_ID="<paste id from response, e.g., Academic Staff>"
-```
+# Get institution_type_id
+curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/institution_type?select=id,name" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python -m json.tool
 
+# Get role IDs (Admin role)
+curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/role?select=id,name" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python -m json.tool
 
-**Save the user ID:**
-bash
-export ADMIN_B_USER_ID="<paste user id here>"
-
-
-### 3.2 Assign Admin Role to School E User
-
-bash
-# Get role IDs first
-curl -X GET "$BASE_URL/api/v1/lookups/roles" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: $HOST" | python -m json.tool
-
-# Assign Admin role
-curl -X POST "$BASE_URL/api/v1/users/$ADMIN_B_USER_ID/roles" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-e.localhost" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "role_id": "70343690-695e-46a0-992c-c6eed7fb0c57"
-  }'
-
-
-### 3.3 Activate the User (Set Password)
-
-When a user is created via the API, two things happen:
-1. **`app_user` row** is created with `lifecycle_status = 'invited'`
-2. **Supabase Auth user** is created with `email_confirm = false` and **no password**
-
-To activate the user, you need to:
-1. Set a password in Supabase Auth
-2. Set `lifecycle_status = 'active'` in our database
-
-### 3.3.1 Get the User ID
-
-First, get the user ID from the database:
-
-```bash
-# Get user ID
-export SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpcHNjbXF2emtpcHNxdG1mZHJ5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MzIzODI0MywiZXhwIjoyMDk4ODE0MjQzfQ.ugz-v6WHEX-oKonbjlw5QJmPe-3BFLw3w4UnlMKAC5U
-curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?email=eq.admin@school-e.com&select=id" \
+# Get user_category_id (Academic Staff)
+curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/user_category?select=id,name" \
   -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python -m json.tool
 ```
 
-### 3.3.2 Set Password in Supabase Auth
+**Save the IDs:**
+```bash
+export INST_TYPE_ID="<paste institution_type id>"
+export ADMIN_ROLE_ID="<paste Admin role id>"
+export ACADEMIC_STAFF_ID="<paste Academic Staff category id>"
+```
 
-Use the Supabase Auth Admin API to set a password:
+### 2.2 Create Admin User in Supabase Auth + app_user
 
 ```bash
-curl -X PUT "https://ripscmqvzkipsqtmfdry.supabase.co/auth/v1/admin/users/$ADMIN_D_USER_ID" \
+# Generate a UUID for the new user
+ADMIN_USER_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
+export ADMIN_USER_ID
+
+# Step 1: Create in Supabase Auth
+curl -X POST "https://ripscmqvzkipsqtmfdry.supabase.co/auth/v1/admin/users" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
   -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-    "password": "Admin@123",
-    "email_confirm": true
-  }' | python -m json.tool
+  -d "{
+    \"id\": \"$ADMIN_USER_ID\",
+    \"email\": \"admin@school-e.com\",
+    \"password\": \"Admin@123\",
+    \"email_confirm\": true
+  }" | python -m json.tool
+
+# Step 2: Insert into app_user (via Supabase REST API)
+curl -X POST "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Prefer: return=minimal" \
+  -d "{
+    \"id\": \"$ADMIN_USER_ID\",
+    \"client_id\": \"$CLIENT_E_ID\",
+    \"institution_id\": \"$INST_E_ID\",
+    \"email\": \"admin@school-e.com\",
+    \"name\": \"School E Admin\",
+    \"user_category_id\": \"$ACADEMIC_STAFF_ID\",
+    \"lifecycle_status\": \"active\"
+  }"
+
+# Step 3: Assign Admin role
+curl -X POST "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/role_assignment" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Prefer: return=minimal" \
+  -d "{
+    \"id\": \"$(uuidgen | tr '[:upper:]' '[:lower:]')\",
+    \"user_id\": \"$ADMIN_USER_ID\",
+    \"role_id\": \"$ADMIN_ROLE_ID\",
+    \"scope_type\": \"institution\",
+    \"scope_id\": \"$INST_E_ID\"
+  }"
 ```
 
-**Expected:** `200 OK` with user object
-
-### 3.3.3 Activate User in Our Database
-
-Set the lifecycle status to `active`:
-
-```bash
-PGPASSWORD='Infosys!657627sh' psql 'postgresql://postgres@db.ripscmqvzkipsqtmfdry.supabase.co:5432/postgres' -c "
-  UPDATE app_user SET lifecycle_status = 'active' WHERE email = 'admin@school-e.com';
-"
-```
-
-### 3.3.4 Verify User is Active
-
-```bash
-curl -X GET "$BASE_URL/api/v1/users/$ADMIN_D_USER_ID" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
-  -H "Host: school-e.localhost" | python -m json.tool
-```
-
-**Expected:** `lifecycle_status: "active"`
-
-### 3.3.5 Login with New Password
+### 2.3 Login as School E Admin
 
 ```bash
 curl -X POST "$BASE_URL/api/auth/login" \
   -H "Content-Type: application/json" \
   -H "Host: school-e.localhost" \
+  -d '{"email":"admin@school-e.com","password":"Admin@123"}' | python -m json.tool
+```
+
+**Save the token:**
+```bash
+export ADMIN_E_TOKEN="<paste access_token>"
+```
+
+### 2.4 Create Institution Under School E
+
+```bash
+curl -X POST "$BASE_URL/api/v1/institutions" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
+  -H "Host: school-e.localhost" \
+  -H "Content-Type: application/json" \
   -d '{
-    "email": "admin@school-e.com",
-    "password": "Admin@123"
+    "display_name": "School E Main Campus",
+    "institution_type_id": "'"$INST_TYPE_ID"'"
   }' | python -m json.tool
 ```
 
-**Expected:** `200 OK` with access token
-
-### 3.3.6 Quick Reference: User Creation Flow
-
-```
-1. POST /api/v1/users
-   → Creates app_user (invited) + Supabase Auth user (no password)
-
-2. Supabase Auth Admin API: set password
-   → User can now authenticate
-
-3. UPDATE app_user SET lifecycle_status = 'active'
-   → User can now pass lifecycle check at login
-
-4. POST /api/auth/login
-   → Returns access + refresh tokens
+**Save the institution ID:**
+```bash
+export INST_E_ID="<paste institution id>"
 ```
 
-**Note:** In production, the invite flow (D4) handles steps 2-3 automatically:
-- Admin creates user → invite email sent
-- User clicks link → sets password via `/auth/activate`
-- User is now active and can log in
+### 2.5 Institution Lifecycle Transitions
+
+```bash
+# Go live (onboarding → active)
+curl -X POST "$BASE_URL/api/v1/institutions/$INST_E_ID/transition" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
+  -H "Host: school-e.localhost" \
+  -H "Content-Type: application/json" \
+  -d '{"new_state":"active","reason":"Setup complete"}'
+
+# List institutions (should see only School E)
+curl -X GET "$BASE_URL/api/v1/institutions" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
+  -H "Host: school-e.localhost" | python -m json.tool
+```
+
+---
+
+## Flow 3: Create Users Under School E
+
+### 3.1 Get Prerequisite IDs (using admin token)
+
+```bash
+# Get user categories
+curl -X GET "$BASE_URL/api/v1/lookups/user-categories" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
+  -H "Host: school-e.localhost" | python -m json.tool
+
+# Get roles
+curl -X GET "$BASE_URL/api/v1/lookups/roles" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
+  -H "Host: school-e.localhost" | python -m json.tool
+```
+
+### 3.2 Create Users
+
+```bash
+# Create teacher
+curl -X POST "$BASE_URL/api/v1/users" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
+  -H "Host: school-e.localhost" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email":"teacher@school-e.com",
+    "name":"School E Teacher",
+    "user_category_id":"<Academic Staff id>",
+    "institution_id":"'"$INST_E_ID"'"
+  }' | python -m json.tool
+
+# Create student
+curl -X POST "$BASE_URL/api/v1/users" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
+  -H "Host: school-e.localhost" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email":"student@school-e.com",
+    "name":"School E Student",
+    "user_category_id":"<Learner id>",
+    "institution_id":"'"$INST_E_ID"'"
+  }' | python -m json.tool
+```
+
+### 3.3 Activate Users (Set Password + Lifecycle)
+
+```bash
+# Get user ID from app_user
+curl -X GET "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?email=eq.teacher@school-e.com&select=id" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | python -m json.tool
+
+export TEACHER_ID="<paste id>"
+
+# Set password in Supabase Auth
+curl -X PUT "https://ripscmqvzkipsqtmfdry.supabase.co/auth/v1/admin/users/$TEACHER_ID" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"password":"Teacher@123","email_confirm":true}'
+
+# Activate in app_user
+curl -X PATCH "https://ripscmqvzkipsqtmfdry.supabase.co/rest/v1/app_user?id=eq.$TEACHER_ID" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Prefer: return=minimal" \
+  -d '{"lifecycle_status":"active"}'
+```
+
+### 3.4 List Users (Tenant Isolation)
+
+```bash
+# School E admin sees only School E users
+curl -X GET "$BASE_URL/api/v1/users" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
+  -H "Host: school-e.localhost" | python -m json.tool
+```
 
 ---
 
@@ -455,14 +381,14 @@ curl -X POST "$BASE_URL/api/auth/login" \
 
 **Save the token:**
 bash
-export ADMIN_B_TOKEN="<paste access_token here>"
+export ADMIN_E_TOKEN="<paste access_token here>"
 
 
 ### 4.2 School E Admin Lists Institutions (Should See Only School E)
 
 bash
 curl -X GET "$BASE_URL/api/v1/institutions" \
-  -H "Authorization: Bearer $ADMIN_B_TOKEN" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
   -H "Host: school-e.localhost" | python -m json.tool
 
 **Expected:** Only School E's institutions
@@ -472,7 +398,7 @@ curl -X GET "$BASE_URL/api/v1/institutions" \
 bash
 # Try to access test-school context with School E token
 curl -X GET "$BASE_URL/api/v1/institutions" \
-  -H "Authorization: Bearer $ADMIN_B_TOKEN" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
   -H "Host: test-school.localhost" | python -m json.tool
 
 **Expected:** `401 Unauthorized` or `403 Forbidden` — cross-tenant access blocked
@@ -487,7 +413,7 @@ curl -X GET "$BASE_URL/api/v1/institutions" \
 
 bash
 curl -X POST "$BASE_URL/api/v1/fee-types" \
-  -H "Authorization: Bearer $ADMIN_B_TOKEN" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
   -H "Host: school-e.localhost" \
   -H "Content-Type: application/json" \
   -d '{
@@ -504,7 +430,7 @@ curl -X POST "$BASE_URL/api/v1/fee-types" \
 
 bash
 curl -X GET "$BASE_URL/api/v1/fee-types" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
   -H "Host: test-school.localhost" | python -m json.tool
 
 **Expected:** Only School A's fee types (not School E's "School E Tuition")
@@ -513,7 +439,7 @@ curl -X GET "$BASE_URL/api/v1/fee-types" \
 
 bash
 curl -X GET "$BASE_URL/api/v1/fee-types" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
   -H "Host: school-e.localhost" | python -m json.tool
 
 **Expected:** Only School E's fee types
@@ -525,8 +451,8 @@ curl -X GET "$BASE_URL/api/v1/fee-types" \
 ### 6.1 Suspend a User
 
 bash
-curl -X POST "$BASE_URL/api/v1/users/$ADMIN_B_USER_ID/transition" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+curl -X POST "$BASE_URL/api/v1/users/$ADMIN_E_USER_ID/transition" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
   -H "Host: school-e.localhost" \
   -H "Content-Type: application/json" \
   -d '{
@@ -554,8 +480,8 @@ curl -X POST "$BASE_URL/api/auth/login" \
 ### 6.3 Reactivate User
 
 bash
-curl -X POST "$BASE_URL/api/v1/users/$ADMIN_B_USER_ID/transition" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+curl -X POST "$BASE_URL/api/v1/users/$ADMIN_E_USER_ID/transition" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
   -H "Host: school-e.localhost" \
   -H "Content-Type: application/json" \
   -d '{
@@ -572,7 +498,7 @@ curl -X POST "$BASE_URL/api/v1/users/$ADMIN_B_USER_ID/transition" \
 
 bash
 curl -X POST "$BASE_URL/api/v1/users" \
-  -H "Authorization: Bearer $PLATFORM_TOKEN" \
+  -H "Authorization: Bearer $ADMIN_E_TOKEN" \
   -H "Host: test-school.localhost" \
   -H "Content-Type: application/json" \
   -d '{

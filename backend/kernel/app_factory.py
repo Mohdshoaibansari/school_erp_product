@@ -12,8 +12,12 @@ from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Callable, Protocol
 
 from fastapi import FastAPI
+from fastapi.security import HTTPBearer
 
 logger = logging.getLogger(__name__)
+
+# OAuth2 Bearer security scheme — enables "Authorize" button in Swagger UI /docs
+bearer_scheme = HTTPBearer()
 
 
 class ModuleManifest(Protocol):
@@ -78,6 +82,38 @@ def create_app(module_manifests: list[ModuleManifest] | None = None) -> FastAPI:
         description="Multi-tenant School ERP platform — modular monolith",
         version="0.1.0",
     )
+
+    # Register a Bearer security scheme so /docs shows the "Authorize" button.
+    # We patch the OpenAPI schema to inject the securityScheme definition.
+    from fastapi.openapi.utils import get_openapi
+    _orig_openapi = app.openapi
+
+    def _custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+        schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+        schema.setdefault("components", {})
+        schema["components"]["securitySchemes"] = {
+            "HTTPBearer": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+            },
+        }
+        for path in schema.get("paths", {}).values():
+            for operation in path.values():
+                if callable(operation):
+                    continue
+                operation["security"] = [{"HTTPBearer": []}]
+        app.openapi_schema = schema
+        return schema
+
+    app.openapi = _custom_openapi
 
     manifests = module_manifests or []
 

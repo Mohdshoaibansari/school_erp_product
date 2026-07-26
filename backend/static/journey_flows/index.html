@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>School ERP — Journey Flows</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 0; background: #f7f7f9; color: #222; }
+    .header { background: #1f2937; color: white; padding: 20px 28px; }
+    .header h1 { margin: 0; font-size: 22px; }
+    .header p { margin: 4px 0 0; opacity: 0.7; font-size: 13px; }
+    .container { max-width: 900px; margin: 0 auto; padding: 24px 28px; }
+    h2 { margin-top: 32px; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px; font-size: 18px; }
+    .flow-card { background: white; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px 18px; margin: 10px 0; display: flex; align-items: center; gap: 12px; transition: box-shadow 0.15s; }
+    .flow-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .flow-num { background: #3b82f6; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; flex-shrink: 0; }
+    .flow-body { flex: 1; }
+    .flow-title { margin: 0; font-size: 15px; font-weight: 600; }
+    .flow-desc { margin: 2px 0 0; font-size: 13px; color: #666; }
+    .flow-link { color: #3b82f6; text-decoration: none; font-size: 13px; }
+    .flow-link:hover { text-decoration: underline; }
+    .footer { margin-top: 40px; padding: 16px 0; border-top: 1px solid #e5e7eb; font-size: 12px; color: #888; }
+    code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>School ERP — Journey Flows</h1>
+    <p>Interactive end-to-end testing scenarios — run steps, IDs auto-chain</p>
+  </div>
+  <div class="container">
+
+    <h2>Actor Journeys</h2>
+
+    <div class="flow-card">
+      <div class="flow-num">1</div>
+      <div class="flow-body">
+        <div class="flow-title">Platform Owner Onboarding</div>
+        <div class="flow-desc">Login → Create client → Activate → Bootstrap Client Director</div>
+        <a class="flow-link" href="01_platform_owner.html">Open flow →</a>
+      </div>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-num">2</div>
+      <div class="flow-body">
+        <div class="flow-title">Client Director</div>
+        <div class="flow-desc">Login → Create institution → Activate → Create admin/teachers/students</div>
+        <a class="flow-link" href="02_client_director.html">Open flow →</a>
+      </div>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-num">3</div>
+      <div class="flow-body">
+        <div class="flow-title">Institute Admin</div>
+        <div class="flow-desc">Login → Manage org units → Transition institution lifecycle</div>
+        <a class="flow-link" href="03_institute_admin.html">Open flow →</a>
+      </div>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-num">4</div>
+      <div class="flow-body">
+        <div class="flow-title">Teacher</div>
+        <div class="flow-desc">Login → Create homework → Close → Grade submissions</div>
+        <a class="flow-link" href="04_teacher.html">Open flow →</a>
+      </div>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-num">5</div>
+      <div class="flow-body">
+        <div class="flow-title">Student</div>
+        <div class="flow-desc">Login → View homework → Submit → View grades</div>
+        <a class="flow-link" href="05_student.html">Open flow →</a>
+      </div>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-num">6</div>
+      <div class="flow-body">
+        <div class="flow-title">Parent (Future Placeholder)</div>
+        <div class="flow-desc">Login → View child's fees/grades (not yet implemented — returns 403)</div>
+        <a class="flow-link" href="06_parent.html">Open flow →</a>
+      </div>
+    </div>
+
+    <h2>Cross-Cutting Scenarios</h2>
+
+    <div class="flow-card">
+      <div class="flow-num">7</div>
+      <div class="flow-body">
+        <div class="flow-title">Tenant Isolation</div>
+        <div class="flow-desc">Cross-tenant access attempts — should be blocked</div>
+        <a class="flow-link" href="07_tenant_isolation.html">Open flow →</a>
+      </div>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-num">8</div>
+      <div class="flow-body">
+        <div class="flow-title">Lifecycle Gating</div>
+        <div class="flow-desc">Suspended/archived client/institution effects</div>
+        <a class="flow-link" href="08_lifecycle_gating.html">Open flow →</a>
+      </div>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-num">9</div>
+      <div class="flow-body">
+        <div class="flow-title">Platform Bootstrap (Full E2E)</div>
+        <div class="flow-desc">From 0 to login — full end-to-end onboarding</div>
+        <a class="flow-link" href="09_platform_bootstrap.html">Open flow →</a>
+      </div>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-num">10</div>
+      <div class="flow-body">
+        <div class="flow-title">Ownership Transfer</div>
+        <div class="flow-desc">Institution moved between clients (with approval)</div>
+        <a class="flow-link" href="10_ownership_transfer.html">Open flow →</a>
+      </div>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-num">11</div>
+      <div class="flow-body">
+        <div class="flow-title">Error / Edge Cases</div>
+        <div class="flow-desc">Invalid JWT, missing permissions, FK violations</div>
+        <a class="flow-link" href="11_error_edge_cases.html">Open flow →</a>
+      </div>
+    </div>
+
+    <div class="flow-card">
+      <div class="flow-num">12</div>
+      <div class="flow-body">
+        <div class="flow-title">Token Lifecycle</div>
+        <div class="flow-desc">Login → Refresh → Logout for both user types</div>
+        <a class="flow-link" href="12_token_lifecycle.html">Open flow →</a>
+      </div>
+    </div>
+
+    <div class="footer">
+      <strong>Prerequisites:</strong> backend running on <code>http://127.0.0.1:8000</code>,
+      migrations applied, seed data loaded. Env vars persist across flows via localStorage
+      — click <code>Clear Store</code> on any flow page to reset.
+    </div>
+
+  </div>
+</body>
+</html>

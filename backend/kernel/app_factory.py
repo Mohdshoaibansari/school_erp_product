@@ -115,6 +115,13 @@ def create_app(module_manifests: list[ModuleManifest] | None = None) -> FastAPI:
 
     app.openapi = _custom_openapi
 
+    # Mount journey-flows static UI (interactive curl runner) at /static/journey_flows
+    from fastapi.staticfiles import StaticFiles
+    import os
+    _static_dir = os.path.join(os.path.dirname(__file__), "..", "static", "journey_flows")
+    if os.path.isdir(_static_dir):
+        app.mount("/static/journey_flows", StaticFiles(directory=_static_dir), name="journey_flows")
+
     manifests = module_manifests or []
 
     # Invoke route registration hooks in dependency order (list is already ordered)

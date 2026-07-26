@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 1 — Platform Owner Onboarding</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 1 — Platform Owner Onboarding</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+
+  <div class="layout">
+    <div class="main-col container">
+
+      <div class="intro">
+        <strong>This flow:</strong> Platform Owner logs in → creates a new Client (tenant) →
+        activates it → bootstraps the first Client Director user for that client.
+        After this flow, you can run <code>02_client_director.html</code>.
+      </div>
+
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Backend running on <code>http://127.0.0.1:8000</code>.
+        A platform owner user exists in Supabase Auth with
+        <code>user_metadata.is_platform_owner = true</code>.
+        Run <code>scripts/migrate_platform_owner.py</code> if not.
+      </div>
+
+      <h2>Steps</h2>
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">Login as Platform Owner</span></div>
+        <div class="step-desc">No Host header — platform owner is client-independent.</div>
+        <div class="step-request">POST /api/auth/login
+body: { "email":"admin@school-erp.com", "password":"Shoby@123" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/auth/login",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "email":"admin@school-erp.com", "password":"Shoby@123" }),
+          extractions: [
+            { var: "PLATFORM_TOKEN", path: "access_token" },
+            { var: "PLATFORM_USER_ID", path: "user.id" }
+          ]
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">List all existing clients</span></div>
+        <div class="step-desc">Verify platform endpoints work. No Host header.</div>
+        <div class="step-request">GET /api/v1/platform/clients
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">Create a new Client (tenant)</span></div>
+        <div class="step-desc">Slug = subdomain that this client will use. <strong>Immutable.</strong></div>
+        <div class="step-request">POST /api/v1/platform/clients
+body: {
+  "display_name":"Greenwood Academy",
+  "legal_name":"Greenwood Academy Pvt Ltd",
+  "slug":"greenwood",
+  "primary_contact_email":"director@greenwood.com",
+  "legal_entity_type_id":"a3b63601-71b4-4863-9ce5-8915d116ec60"
+}</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "display_name":"Greenwood Academy",
+            "legal_name":"Greenwood Academy Pvt Ltd",
+            "slug":"greenwood",
+            "primary_contact_email":"director@greenwood.com",
+            "legal_entity_type_id":"a3b63601-71b4-4863-9ce5-8915d116ec60"
+          }),
+          extractions: [
+            { var: "CLIENT_ID", path: "id" },
+            { var: "CLIENT_SLUG", path: "slug" }
+          ]
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
+        <div class="note">New client starts in <code>prospective</code> state. Must be activated before users can login.</div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">Activate Client (prospective → active)</span></div>
+        <div class="step-desc">Required before users under this client can operate.</div>
+        <div class="step-request">POST /api/v1/platform/clients/$CLIENT_ID/transition
+body: { "new_state":"active", "reason":"Onboarding approved" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/platform/clients/$CLIENT_ID/transition",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "new_state":"active", "reason":"Onboarding approved" }),
+          extractions: []
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+        <div class="note">After success, <code>current_lifecycle_status</code> should be <code>active</code>.</div>
+      </div>
+
+      <!-- Step 5 — Bootstrap Director -->
+      <h3>Bootstrap Client Director</h3>
+      <div class="note">The first user for the new client. We create them directly via Supabase Admin API +
+      REST API (since <code>POST /api/v1/users</code> needs an existing authorized user).</div>
+
+      <div class="step">
+        <div><span class="step-num">5</span><span class="step-title">Generate UUID for Director</span></div>
+        <div class="step-desc">Generate locally in JS; same UUID used for Supabase Auth + app_user.</div>
+        <button class="run-btn" onclick='
+          STORE.DIRECTOR_ID = crypto.randomUUID();
+          saveStore();
+          document.getElementById("result-5").innerHTML =
+            "<div style=\"color:#0a0;font-weight:bold;\">✓ generated DIRECTOR_ID = " + STORE.DIRECTOR_ID + "</div>";
+          renderStorePanel("store-panel");
+        '>Generate UUID</button>
+        <div class="result" id="result-5"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">6</span><span class="step-title">Create Director in Supabase Auth</span></div>
+        <div class="step-desc">Uses Supabase Admin API. Need <code>SUPABASE_URL</code> + <code>SUPABASE_SERVICE_ROLE_KEY</code> stored in env.</div>
+        <div class="step-request">POST {SUPABASE_URL}/auth/v1/admin/users
+body: { "id":"$DIRECTOR_ID", "email":"director@greenwood.com", "password":"Director@123", "email_confirm":true }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "$SUPABASE_URL/auth/v1/admin/users",
+          headers: {
+            "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY",
+            "apikey": "$SUPABASE_SERVICE_ROLE_KEY",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            "id": "$DIRECTOR_ID",
+            "email": "director@greenwood.com",
+            "password": "Director@123",
+            "email_confirm": true
+          }),
+          extractions: []
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+        <div class="note">First time? Set <code>SUPABASE_URL</code> and <code>SUPABASE_SERVICE_ROLE_KEY</code> env vars below in the store panel.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">7</span><span class="step-title">Insert Director into app_user</span></div>
+        <div class="step-desc">No <code>institution_id</code> — Client Director manages the whole client.</div>
+        <div class="step-request">POST {SUPABASE_URL}/rest/v1/app_user
+body: {
+  "id":"$DIRECTOR_ID",
+  "client_id":"$CLIENT_ID",
+  "email":"director@greenwood.com",
+  "name":"Greenwood Director",
+  "user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24",
+  "lifecycle_status":"active"
+}</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "$SUPABASE_URL/rest/v1/app_user",
+          headers: {
+            "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY",
+            "apikey": "$SUPABASE_SERVICE_ROLE_KEY",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            "id": "$DIRECTOR_ID",
+            "client_id": "$CLIENT_ID",
+            "email": "director@greenwood.com",
+            "name": "Greenwood Director",
+            "user_category_id": "20a3b37b-56be-4573-a7ee-b2c5b016fc24",
+            "lifecycle_status": "active"
+          }),
+          extractions: []
+        }, "result-7")'>Run Step 7</button>
+        <div class="result" id="result-7"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">8</span><span class="step-title">Assign Client Director role</span></div>
+        <div class="step-desc">Role <code>client_director</code> has <code>institution.create</code> permission. <code>id</code> column needs its own UUID.</div>
+        <div class="step-request">POST {SUPABASE_URL}/rest/v1/role_assignment
+body: {
+  "id":"<new uuid>",
+  "client_id":"$CLIENT_ID",
+  "user_id":"$DIRECTOR_ID",
+  "role_id":"0b542f1d-4fa3-4771-8526-af7febba2aa0",
+  "scope":"client"
+}</div>
+        <button class="run-btn" onclick='
+          STORE.ASSIGN_ID = crypto.randomUUID();
+          saveStore();
+          runStep({
+            method: "POST",
+            url: "$SUPABASE_URL/rest/v1/role_assignment",
+            headers: {
+              "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY",
+              "apikey": "$SUPABASE_SERVICE_ROLE_KEY",
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              "id": "$ASSIGN_ID",
+              "client_id": "$CLIENT_ID",
+              "user_id": "$DIRECTOR_ID",
+              "role_id": "0b542f1d-4fa3-4771-8526-af7febba2aa0",
+              "scope": "client"
+            }),
+            extractions: []
+          }, "result-8");
+        '>Run Step 8</button>
+        <div class="result" id="result-8"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">9</span><span class="step-title">Verify — Director Login</span></div>
+        <div class="step-desc">Login as the new Client Director. Host = client slug + <code>.localhost</code>.</div>
+        <div class="step-request">POST /api/auth/login
+Host: $CLIENT_SLUG.localhost
+body: { "email":"director@greenwood.com", "password":"Director@123" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/auth/login",
+          headers: {
+            "Content-Type": "application/json",
+            "Host": "$CLIENT_SLUG.localhost"
+          },
+          body: JSON.stringify({ "email":"director@greenwood.com", "password":"Director@123" }),
+          extractions: [
+            { var: "DIRECTOR_TOKEN", path: "access_token" }
+          ]
+        }, "result-9")'>Run Step 9</button>
+        <div class="result" id="result-9"></div>
+        <div class="note">Note: cross-origin <code>Host</code> headers set via fetch may not propagate. If login fails with subdomain not resolved, run in curl. The backend middleware will fall back to looking up <code>client_id</code> from app_user.</div>
+      </div>
+
+      <div class="flow-end">
+        ✅ <strong>Flow 1 complete.</strong> You now have:
+        <ul>
+          <li><code>PLATFORM_TOKEN</code> — platform owner session</li>
+          <li><code>CLIENT_ID</code>, <code>CLIENT_SLUG</code> — the new tenant</li>
+          <li><code>DIRECTOR_ID</code>, <code>DIRECTOR_TOKEN</code> — the new Client Director</li>
+        </ul>
+        Continue to <a href="02_client_director.html">Flow 2 — Client Director</a>.
+      </div>
+
+    </div>
+
+    <div>
+      <div class="store-panel" id="store-panel"></div>
+    </div>
+  </div>
+
+  <script src="shared.js"></script>
+  <script>
+    // Initialize any missing env vars with sensible defaults
+    if (!STORE.SUPABASE_URL) {
+      STORE.SUPABASE_URL = "https://ripscmqvzkipsqtmfdry.supabase.co";
+      saveStore();
+    }
+    renderStorePanel("store-panel");
+  </script>
+</body>
+</html>

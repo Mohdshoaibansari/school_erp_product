@@ -29,6 +29,21 @@
   </div>
   <div class="container">
 
+    <h2>One-Time Setup</h2>
+    <div class="setup-card">
+      <p style="margin:0 0 10px;font-size:14px;">Paste your <strong>SUPABASE_SERVICE_ROLE_KEY</strong> below. It's stored locally in your browser and used by all flows that call the Supabase Admin API (steps 5-8 in Flow 1, ownership transfer, etc.).</p>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <input id="supabase-key-input" type="password" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." style="flex:1;padding:8px 10px;border:1px solid #d1d5db;border-radius:4px;font-family:monospace;font-size:12px;">
+        <button onclick="saveSupabaseKey()" style="background:#3b82f6;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:13px;">Save Key</button>
+      </div>
+      <div id="key-status" style="margin-top:8px;font-size:12px;color:#666;"></div>
+      <div style="font-size:12px;color:#888;margin-top:8px;">Find it in Supabase Dashboard → Project Settings → API → <code>service_role</code> secret. Stored in localStorage — clear by clicking "Clear Store" on any flow page.</div>
+    </div>
+
+    <style>
+      .setup-card { background: white; border: 2px solid #3b82f6; border-radius: 6px; padding: 16px 20px; margin: 16px 0; }
+    </style>
+
     <h2>Actor Journeys</h2>
 
     <div class="flow-card">
@@ -148,5 +163,32 @@
     </div>
 
   </div>
+
+  <script src="shared.js"></script>
+  <script>
+    // Check current key status on load
+    (function checkKey() {
+      const status = document.getElementById('key-status');
+      if (STORE.SUPABASE_SERVICE_ROLE_KEY) {
+        status.innerHTML = '<span style="color:#16a34a;">✓ Key already set (' + STORE.SUPABASE_SERVICE_ROLE_KEY.substring(0, 20) + '...)</span>';
+      } else {
+        status.innerHTML = '<span style="color:#dc2626;">⚠ No key set yet. Paste it above and click Save.</span>';
+      }
+    })();
+
+    function saveSupabaseKey() {
+      const input = document.getElementById('supabase-key-input');
+      const status = document.getElementById('key-status');
+      const key = input.value.trim();
+      if (!key) {
+        status.innerHTML = '<span style="color:#dc2626;">⚠ Paste a key first</span>';
+        return;
+      }
+      STORE.SUPABASE_SERVICE_ROLE_KEY = key;
+      saveStore();
+      status.innerHTML = '<span style="color:#16a34a;">✓ Saved! Key stored locally (' + key.substring(0, 20) + '...)</span>';
+      input.value = '';
+    }
+  </script>
 </body>
 </html>

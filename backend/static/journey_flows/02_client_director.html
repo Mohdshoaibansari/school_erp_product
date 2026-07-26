@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 2 — Client Director</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 2 — Client Director Journey</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+  <div class="layout">
+    <div class="main-col container">
+      <div class="intro">
+        <strong>This flow:</strong> Client Director logs in → creates institution → activates it →
+        creates institute admin, teacher, and student users. Assumes Flow 1 (Platform Owner Onboarding)
+        was completed and the env vars are stored.
+      </div>
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Run Flow 1 first. Stored vars required:
+        <code>DIRECTOR_TOKEN</code>, <code>CLIENT_SLUG</code>, <code>CLIENT_ID</code>.
+        Also set <code>SUPABASE_SERVICE_ROLE_KEY</code> on the index page.
+      </div>
+
+      <h2>Steps</h2>
+
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">Login as Client Director</span></div>
+        <div class="step-desc">Login as the Director created in Flow 1. Uses Host header = client slug.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email":"director@greenwood.com", "password":"Director@123" }),
+          extractions: [{ var: "DIRECTOR_TOKEN", path: "access_token" }]
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+        <div class="note">If Host header is dropped, login still works — middleware falls back to app_user lookup.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">List institution types (lookup)</span></div>
+        <div class="step-desc">Get available institution types to use when creating the school.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/lookups/institution-types",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: [{ var: "INST_TYPE_ID", path: "0.id" }]
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">Create Institution (School)</span></div>
+        <div class="step-desc">Create "Greenwood High School" under this client. Starts in <code>onboarding</code> state.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/institutions",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "display_name":"Greenwood High School",
+            "institution_type_id":"$INST_TYPE_ID",
+            "legal_name":"Greenwood High School Society",
+            "code":"GHS",
+            "primary_contact_email":"info@greenwoodhigh.com",
+            "primary_contact_phone":"+91-121-1234567",
+            "established_year":1998,
+            "affiliation_number":"CBSE/9801234",
+            "affiliation_board":"CBSE"
+          }),
+          extractions: [{ var: "INST_ID", path: "id" }]
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">Activate Institution (onboarding → active)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/institutions/$INST_ID/transition",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "new_state":"active", "reason":"Setup complete" }),
+          extractions: []
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+      </div>
+
+      <h3>Create Users</h3>
+      <div class="note">All users are created inside this institution. Each new user requires:
+      (1) create in app_user via our API, (2) set password in Supabase Auth, (3) activate lifecycle.
+      The Director's API call auto-creates the Supabase Auth user too.</div>
+
+      <div class="step">
+        <div><span class="step-num">5</span><span class="step-title">Create Institute Admin</span></div>
+        <div class="step-desc">Institution-scoped admin. Manages one school.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/users",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "email":"admin@greenwoodhigh.com",
+            "name":"Anita Verma",
+            "user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24",
+            "institution_id":"$INST_ID"
+          }),
+          extractions: [{ var: "ADMIN_ID", path: "id" }]
+        }, "result-5")'>Run Step 5</button>
+        <div class="result" id="result-5"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">6</span><span class="step-title">Assign Admin Role</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/users/$ADMIN_ID/roles",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "role_id":"70343690-695e-46a0-992c-c6eed7fb0c57" }),
+          extractions: []
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+        <div class="note">Role <code>Admin</code> id: <code>70343690-695e-46a0-992c-c6eed7fb0c57</code></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">7</span><span class="step-title">Activate Admin (set password)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "PUT",
+          url: "$SUPABASE_URL/auth/v1/admin/users/$ADMIN_ID",
+          headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
+          body: JSON.stringify({ "password":"Admin@123", "email_confirm":true }),
+          extractions: []
+        }, "result-7")'>Run Step 7</button>
+        <div class="result" id="result-7"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">8</span><span class="step-title">Activate Admin (lifecycle)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "PATCH",
+          url: "$SUPABASE_URL/rest/v1/app_user?id=eq.$ADMIN_ID",
+          headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
+          body: JSON.stringify({ "lifecycle_status":"active" }),
+          extractions: []
+        }, "result-8")'>Run Step 8</button>
+        <div class="result" id="result-8"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">9</span><span class="step-title">Create Teacher</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/users",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "email":"teacher@greenwoodhigh.com",
+            "name":"Rahul Sharma",
+            "user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24",
+            "institution_id":"$INST_ID"
+          }),
+          extractions: [{ var: "TEACHER_ID", path: "id" }]
+        }, "result-9")'>Run Step 9</button>
+        <div class="result" id="result-9"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">10</span><span class="step-title">Assign Teacher Role + Activate</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/users/$TEACHER_ID/roles",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "role_id":"5d1efdc6-b15d-403f-8dac-bbacbcb5ff3c" }),
+          extractions: []
+        }, "result-10")'>Run Step 10 — Assign Role</button>
+        <div class="result" id="result-10"></div>
+        <button class="run-btn" onclick='runStep({
+          method: "PUT",
+          url: "$SUPABASE_URL/auth/v1/admin/users/$TEACHER_ID",
+          headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
+          body: JSON.stringify({ "password":"Teacher@123", "email_confirm":true }),
+          extractions: []
+        }, "result-10b")'>Run Step 10b — Set Password</button>
+        <div class="result" id="result-10b"></div>
+        <button class="run-btn" onclick='runStep({
+          method: "PATCH",
+          url: "$SUPABASE_URL/rest/v1/app_user?id=eq.$TEACHER_ID",
+          headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
+          body: JSON.stringify({ "lifecycle_status":"active" }),
+          extractions: []
+        }, "result-10c")'>Run Step 10c — Activate</button>
+        <div class="result" id="result-10c"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">11</span><span class="step-title">Create Student</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/users",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "email":"student@greenwoodhigh.com",
+            "name":"Arjun Kumar",
+            "user_category_id":"024ffc86-e4d4-4901-9449-fd6546843909",
+            "institution_id":"$INST_ID"
+          }),
+          extractions: [{ var: "STUDENT_ID", path: "id" }]
+        }, "result-11")'>Run Step 11</button>
+        <div class="result" id="result-11"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">12</span><span class="step-title">Assign Student Role + Activate</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/users/$STUDENT_ID/roles",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "role_id":"03bd67b4-8c4e-4e3b-861e-e7548ba930e8" }),
+          extractions: []
+        }, "result-12")'>Run Step 12 — Assign Role</button>
+        <div class="result" id="result-12"></div>
+        <button class="run-btn" onclick='runStep({
+          method: "PUT",
+          url: "$SUPABASE_URL/auth/v1/admin/users/$STUDENT_ID",
+          headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
+          body: JSON.stringify({ "password":"Student@123", "email_confirm":true }),
+          extractions: []
+        }, "result-12b")'>Run Step 12b — Set Password</button>
+        <div class="result" id="result-12b"></div>
+        <button class="run-btn" onclick='runStep({
+          method: "PATCH",
+          url: "$SUPABASE_URL/rest/v1/app_user?id=eq.$STUDENT_ID",
+          headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
+          body: JSON.stringify({ "lifecycle_status":"active" }),
+          extractions: []
+        }, "result-12c")'>Run Step 12c — Activate</button>
+        <div class="result" id="result-12c"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">13</span><span class="step-title">Verify — List all users</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/users",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-13")'>Run Step 13</button>
+        <div class="result" id="result-13"></div>
+        <div class="note">Should show Director, Admin, Teacher, Student — all in this client only.</div>
+      </div>
+
+      <div class="flow-end">
+        ✅ <strong>Flow 2 complete.</strong> You now have:
+        <ul>
+          <li><code>INST_ID</code> — Greenwood High School (active)</li>
+          <li><code>ADMIN_ID</code> — Institute Admin (admin@greenwoodhigh.com / Admin@123)</li>
+          <li><code>TEACHER_ID</code> — Teacher (teacher@greenwoodhigh.com / Teacher@123)</li>
+          <li><code>STUDENT_ID</code> — Student (student@greenwoodhigh.com / Student@123)</li>
+        </ul>
+        Continue to <a href="03_institute_admin.html">Flow 3 — Institute Admin</a>,
+        <a href="04_teacher.html">Flow 4 — Teacher</a>, or
+        <a href="05_student.html">Flow 5 — Student</a>.
+      </div>
+    </div>
+    <div><div class="store-panel" id="store-panel"></div></div>
+  </div>
+  <script src="shared.js"></script>
+  <script>renderStorePanel("store-panel");</script>
+</body>
+</html>

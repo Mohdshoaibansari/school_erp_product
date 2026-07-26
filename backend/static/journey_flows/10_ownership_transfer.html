@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 10 — Ownership Transfer</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 10 — Ownership Transfer Cross-Cutting</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+  <div class="layout">
+    <div class="main-col container">
+      <div class="intro">
+        <strong>This flow:</strong> Transfer an institution from Client A to Client B with Platform Owner
+        approval (D12). Requires two clients both with active institutions.
+      </div>
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Run Flow 9 (creates Sunrise client) + Flow 1+2 (creates Greenwood client).
+        Stored vars: <code>PLATFORM_TOKEN</code>, <code>INST_ID</code> (Greenwood), <code>BOOT_INST_ID</code> (Sunrise),
+        <code>CLIENT_ID</code> (Greenwood), <code>BOOT_CLIENT_ID</code> (Sunrise).
+      </div>
+
+      <h2>Steps</h2>
+      <div class="note">Scenario: Transfer Greenwood's institution to Sunrise (or vice versa). Let's transfer Greenwood → Sunrise.</div>
+
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">Request Ownership Transfer</span></div>
+        <div class="step-desc">Initiated by Platform Owner. Records an <code>Approval</code> row in pending state.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/platform/ownership-transfers",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "institution_id":"$INST_ID",
+            "to_client_id":"$BOOT_CLIENT_ID",
+            "reason":"Reorganization — school moved to new trust"
+          }),
+          extractions: [{ var: "TRANSFER_APPROVAL_ID", path: "id" }]
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">Approve Transfer</span></div>
+        <div class="step-desc">Executes the transfer in a single DB transaction (D12). Institution's <code>client_id</code> moves A → B.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/platform/ownership-transfers/$TRANSFER_APPROVAL_ID/approve?to_client_id=$BOOT_CLIENT_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "consent_source":true, "consent_dest":true, "reason":"Both parties agreed" }),
+          extractions: [{ var: "TRANSFER_EVENT_ID", path: "id" }]
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">Verify Institution is now under Sunrise</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/platform/clients/$BOOT_CLIENT_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-3")'>Run Step 3 — View Sunrise client</button>
+        <div class="result" id="result-3"></div>
+        <div class="note">The institution's <code>client_id</code> should now match <code>BOOT_CLIENT_ID</code>.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">Sunrise Director lists institutions — should now include transferred one</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/institutions",
+          headers: { "Authorization": "Bearer $BOOT_DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+        <div class="note">Should show both Sunrise Main Campus AND the transferred Greenwood institution.</div>
+      </div>
+
+      <div class="flow-end">
+        ✅ <strong>Flow 10 complete.</strong> Ownership transfer executed with proper approval flow.
+        <div style="margin-top:8px;padding:8px;background:#fef3c7;border-radius:4px;">
+        <strong>⚠ C-11 audit immutability:</strong> Per D12, audit events recorded before the transfer keep their
+        original ClientId — historical truth is preserved.
+        </div>
+      </div>
+    </div>
+    <div><div class="store-panel" id="store-panel"></div></div>
+  </div>
+  <script src="shared.js"></script>
+  <script>renderStorePanel("store-panel");</script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 5 — Student</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 5 — Student Journey</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+  <div class="layout">
+    <div class="main-col container">
+      <div class="intro">
+        <strong>This flow:</strong> Student logs in → views active homeworks → submits homework →
+        views grades. Assumes Flow 4 completed (homework exists, may or may not be graded).
+      </div>
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Run Flow 2 (create student) and Flow 4 (create homework) first.
+        Stored vars: <code>CLIENT_SLUG</code>, <code>STUDENT_ID</code>, <code>HOMEWORK_ID</code>.
+      </div>
+
+      <h2>Steps</h2>
+
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">Login as Student</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email":"student@greenwoodhigh.com", "password":"Student@123" }),
+          extractions: [{ var: "STUDENT_TOKEN", path: "access_token" }]
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">View Active Homeworks</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/homeworks?status=active",
+          headers: { "Authorization": "Bearer $STUDENT_TOKEN" },
+          extractions: []
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">Submit Homework</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/submissions",
+          headers: { "Authorization": "Bearer $STUDENT_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "homework_id":"$HOMEWORK_ID",
+            "student_id":"$STUDENT_ID",
+            "content":"Here are my answers to all the problems on pages 10-15."
+          }),
+          extractions: [{ var: "STUDENT_SUBMISSION_ID", path: "id" }]
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
+        <div class="note">If you already submitted in Flow 4, this will create a second submission OR return an error if one-submission-per-homework is enforced.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">View My Submissions</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/submissions?student_id=$STUDENT_ID",
+          headers: { "Authorization": "Bearer $STUDENT_TOKEN" },
+          extractions: []
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+        <div class="note">Student should see only their own submissions (tenant + ownership filter).</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">5</span><span class="step-title">View My Grades</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/grades?student_id=$STUDENT_ID",
+          headers: { "Authorization": "Bearer $STUDENT_TOKEN" },
+          extractions: []
+        }, "result-5")'>Run Step 5</button>
+        <div class="result" id="result-5"></div>
+        <div class="note">If teacher has graded the submission (Flow 4 step 6), you'll see the score and feedback here.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">6</span><span class="step-title">Try creating homework (should FAIL)</span></div>
+        <div class="step-desc">Verify student CANNOT create homework — permission denied.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/homeworks",
+          headers: { "Authorization": "Bearer $STUDENT_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "title":"Cheating attempt",
+            "institution_id":"$INST_ID",
+            "assigned_by":"$STUDENT_ID",
+            "due_date":"2026-08-15"
+          }),
+          extractions: []
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+        <div class="note">Expect <code>403 Permission denied</code>.</div>
+      </div>
+
+      <div class="flow-end">
+        ✅ <strong>Flow 5 complete.</strong> Student can view homeworks, submit, and view grades — but cannot create homework.
+      </div>
+    </div>
+    <div><div class="store-panel" id="store-panel"></div></div>
+  </div>
+  <script src="shared.js"></script>
+  <script>renderStorePanel("store-panel");</script>
+</body>
+</html>

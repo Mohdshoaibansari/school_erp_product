@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 11 — Error / Edge Cases</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 11 — Error / Edge Cases Cross-Cutting</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+  <div class="layout">
+    <div class="main-col container">
+      <div class="intro">
+        <strong>This flow:</strong> Verifies the system correctly rejects invalid input, expired/invalid
+        JWTs, missing permissions, and FK violations. Each step expects a non-2xx response — the
+        "✓ Expected failure" indicator means the system rejected correctly.
+      </div>
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Run Flow 1 + Flow 2 first. Stored vars:
+        <code>PLATFORM_TOKEN</code>, <code>DIRECTOR_TOKEN</code>, <code>STUDENT_TOKEN</code>,
+        <code>INST_ID</code>, <code>CLIENT_SLUG</code>.
+      </div>
+
+      <h2>Steps</h2>
+
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">No Authorization header</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          headers: {},
+          extractions: []
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+        <div class="note"><strong>Expected:</strong> <code>401 Invalid or expired JWT</code>.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">Invalid JWT (garbage)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          headers: { "Authorization": "Bearer not.a.valid.jwt" },
+          extractions: []
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+        <div class="note"><strong>Expected:</strong> <code>401 Invalid or expired JWT</code>.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">Student tries to create fee type (no permission)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/fee-types",
+          headers: { "Authorization": "Bearer $STUDENT_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "name":"Hack", "amount":1, "institution_id":"$INST_ID" }),
+          extractions: []
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
+        <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">Director tries to access platform endpoint (no permission)</span></div>
+        <div class="step-desc">Director does not have <code>client.create</code> permission — should be blocked.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "display_name":"Hack", "slug":"hack", "primary_contact_email":"hack@hack.com", "legal_entity_type_id":"a3b63601-71b4-4863-9ce5-8915d116ec60" }),
+          extractions: []
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+        <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code> — Director has no <code>client.create</code> permission.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">5</span><span class="step-title">Invalid UUID in path parameter</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/institutions/not-a-uuid",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-5")'>Run Step 5</button>
+        <div class="result" id="result-5"></div>
+        <div class="note"><strong>Expected:</strong> <code>422</code> with <code>uuid_parsing</code> validation error.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">6</span><span class="step-title">Nonexistent institution (valid UUID but not found)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/institutions/00000000-0000-0000-0000-000000000000",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+        <div class="note"><strong>Expected:</strong> <code>404 Institution not found</code>.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">7</span><span class="step-title">Invalid lifecycle transition (active → prospective)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/institutions/$INST_ID/transition",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "new_state":"prospective", "reason":"Invalid arc" }),
+          extractions: []
+        }, "result-7")'>Run Step 7</button>
+        <div class="result" id="result-7"></div>
+        <div class="note"><strong>Expected:</strong> <code>400</code> — disallowed transition arc.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">8</span><span class="step-title">Create user with duplicate email</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/users",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "email":"admin@greenwoodhigh.com", "name":"Dup", "user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24", "institution_id":"$INST_ID" }),
+          extractions: []
+        }, "result-8")'>Run Step 8</button>
+        <div class="result" id="result-8"></div>
+        <div class="note"><strong>Expected:</strong> <code>409</code> with <code>{"error":"email_taken"}</code> or <code>400</code> from Supabase.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">9</span><span class="step-title">Missing required field (create client without slug)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "display_name":"No Slug", "primary_contact_email":"x@y.com", "legal_entity_type_id":"a3b63601-71b4-4863-9ce5-8915d116ec60" }),
+          extractions: []
+        }, "result-9")'>Run Step 9</button>
+        <div class="result" id="result-9"></div>
+        <div class="note"><strong>Expected:</strong> <code>422</code> validation error — <code>slug</code> field required.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">10</span><span class="step-title">Reserved slug rejected</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "display_name":"Admin Client", "slug":"admin", "primary_contact_email":"x@y.com", "legal_entity_type_id":"a3b63601-71b4-4863-9ce5-8915d116ec60" }),
+          extractions: []
+        }, "result-10")'>Run Step 10</button>
+        <div class="result" id="result-10"></div>
+        <div class="note"><strong>Expected:</strong> <code>400</code> with <code>{"error":"slug_reserved"}</code>.</div>
+      </div>
+
+      <div class="flow-end">
+        ✅ <strong>Flow 11 complete.</strong> All error/edge cases verified — the system correctly rejects
+        invalid input with appropriate HTTP status codes and meaningful error messages.
+      </div>
+    </div>
+    <div><div class="store-panel" id="store-panel"></div></div>
+  </div>
+  <script src="shared.js"></script>
+  <script>renderStorePanel("store-panel");</script>
+</body>
+</html>

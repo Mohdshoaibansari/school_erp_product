@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 7 — Tenant Isolation</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 7 — Tenant Isolation Cross-Cutting</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+  <div class="layout">
+    <div class="main-col container">
+      <div class="intro">
+        <strong>This flow:</strong> Verifies that a user from Client A cannot see or access Client B's
+        data. Tests cross-tenant access at the API layer and confirms RLS +
+        repo-level filtering block leakage.
+      </div>
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Run Flow 1 + Flow 2 first. Stored vars:
+        <code>PLATFORM_TOKEN</code>, <code>DIRECTOR_TOKEN</code>, <code>INST_ID</code>, <code>CLIENT_SLUG</code>.
+      </div>
+
+      <h2>Steps</h2>
+
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">Login from wrong subdomain</span></div>
+        <div class="step-desc">Greenwood director logs in with <code>Host: test-school.localhost</code> — should fail cross-tenant check.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "test-school.localhost" },
+          body: JSON.stringify({ "email":"director@greenwood.com", "password":"Director@123" }),
+          extractions: []
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+        <div class="note"><strong>If middleware falls back to app_user lookup:</strong> login succeeds but client_id is set to Greenwood's client — so cross-tenant access at the data layer still works. The Host header alone doesn't grant access to another tenant's data.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">Greenwood Director lists institutions — should see only Greenwood</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/institutions",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+        <div class="note">Should show only Greenwood High School — not test-school's institutions.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">Try to access another client's institution by ID</span></div>
+        <div class="step-desc">Get the test-school institution ID first (via platform owner), then try to read it as Greenwood director.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-3")'>Run Step 3a — Get clients (platform)</button>
+        <div class="result" id="result-3"></div>
+        <div class="note">Find test-school's institution ID from a flow you ran earlier, store it as <code>OTHER_INST_ID</code> in the env panel. Then:</div>
+        <div class="step-request">export OTHER_INST_ID="...paste id..."</div>
+        <button class="run-btn" onclick='
+          const otherId = prompt("Paste the test-school institution ID:");
+          if (otherId) { STORE.OTHER_INST_ID = otherId; saveStore(); renderStorePanel("store-panel"); alert("Saved OTHER_INST_ID"); }
+        '>Set OTHER_INST_ID</button>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/institutions/$OTHER_INST_ID",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-3b")'>Run Step 3b — Try to read other tenant's institution</button>
+        <div class="result" id="result-3b"></div>
+        <div class="note"><strong>Expected:</strong> <code>404 Institution not found</code> — repo-level tenant filter blocks it.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">Platform Owner lists clients — should see ALL</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+        <div class="note">Platform Owner bypasses tenant filter (D36) — sees every client.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">5</span><span class="step-title">Greenwood Director lists users — should see only Greenwood users</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/users",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-5")'>Run Step 5</button>
+        <div class="result" id="result-5"></div>
+        <div class="note">No users from test-school should appear (RLS + repo filter).</div>
+      </div>
+
+      <div class="flow-end">
+        ✅ <strong>Flow 7 complete.</strong> Tenant isolation verified:
+        <ul>
+          <li>User from Client A cannot read Client B's institutions (404)</li>
+          <li>User listings are scoped to the caller's client</li>
+          <li>Platform Owner is the only actor that sees all clients</li>
+        </ul>
+      </div>
+    </div>
+    <div><div class="store-panel" id="store-panel"></div></div>
+  </div>
+  <script src="shared.js"></script>
+  <script>renderStorePanel("store-panel");</script>
+</body>
+</html>

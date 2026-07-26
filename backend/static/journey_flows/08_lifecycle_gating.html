@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 8 — Lifecycle Gating</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 8 — Lifecycle Gating Cross-Cutting</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+  <div class="layout">
+    <div class="main-col container">
+      <div class="intro">
+        <strong>This flow:</strong> Tests effective-state gating — when a Client or Institution enters
+        a non-active state, users under it should be effectively blocked from operating (D9, AC-7).
+      </div>
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Run Flow 1 + Flow 2 first. Stored vars:
+        <code>PLATFORM_TOKEN</code>, <code>DIRECTOR_TOKEN</code>, <code>ADMIN_TOKEN</code>,
+        <code>CLIENT_ID</code>, <code>INST_ID</code>.
+      </div>
+
+      <h2>Steps</h2>
+
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">Platform Owner suspends the Client</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/platform/clients/$CLIENT_ID/transition",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "new_state":"suspended", "reason":"Payment overdue" }),
+          extractions: []
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+        <div class="note">Client now <code>suspended</code>. Institution's effective state should be gated.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">Institute Admin tries to create org unit</span></div>
+        <div class="step-desc">Should be blocked by effective-state gating (client suspended). <strong>Note:</strong> Current implementation may not enforce effective-state gating at runtime — this is logged as a known gap.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/org-units",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "institution_id":"$INST_ID", "name":"Should Fail", "type":"department", "sort_order":3 }),
+          extractions: []
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+        <div class="note"><strong>Expected (per spec):</strong> <code>403</code> effective-state blocked.
+        <strong>Actual (current):</strong> may succeed — runtime gating is deferred (Q-AC-7 known gap).</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">Reactivate the Client</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/platform/clients/$CLIENT_ID/transition",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "new_state":"active", "reason":"Payment resolved" }),
+          extractions: []
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">Institute Admin deactivates Institution</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/institutions/$INST_ID/transition",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "new_state":"inactive", "reason":"Term break" }),
+          extractions: []
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">5</span><span class="step-title">Teacher tries to create homework (institution inactive)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/homeworks",
+          headers: { "Authorization": "Bearer $TEACHER_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "title":"Should Fail", "institution_id":"$INST_ID", "assigned_by":"$TEACHER_ID", "due_date":"2026-08-15" }),
+          extractions: []
+        }, "result-5")'>Run Step 5</button>
+        <div class="result" id="result-5"></div>
+        <div class="note"><strong>Expected (spec):</strong> blocked by institution effective state. <strong>Actual:</strong> may succeed — runtime gating deferred.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">6</span><span class="step-title">Reactivate Institution</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/institutions/$INST_ID/transition",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "new_state":"active", "reason":"Term resumed" }),
+          extractions: []
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+      </div>
+
+      <div class="flow-end">
+        ✅ <strong>Flow 8 complete.</strong> Demonstrates the lifecycle gating concept.
+        <div style="margin-top:8px;padding:8px;background:#fef3c7;border-radius:4px;">
+        <strong>⚠ Known Gap:</strong> Runtime effective-state gating (D9, AC-7) is not yet enforced at the API layer —
+        a suspended Client's institution users can still operate. This is planned for a future phase.
+        The lifecycle states themselves ARE persisted correctly, so when gating is added, it can read the state.
+        </div>
+      </div>
+    </div>
+    <div><div class="store-panel" id="store-panel"></div></div>
+  </div>
+  <script src="shared.js"></script>
+  <script>renderStorePanel("store-panel");</script>
+</body>
+</html>

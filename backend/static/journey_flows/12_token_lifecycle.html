@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 12 — Token Lifecycle</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 12 — Token Lifecycle Cross-Cutting</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+  <div class="layout">
+    <div class="main-col container">
+      <div class="intro">
+        <strong>This flow:</strong> Exercises the full token lifecycle for both Platform Owner and a normal
+        Client Director — login → use access token → refresh → use new token → logout → verify old refresh fails.
+      </div>
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Run Flow 1 first. Stored vars: <code>CLIENT_SLUG</code>.
+        Supabase signups enabled (so Platform Owner + Director accounts exist).
+      </div>
+
+      <h2>Platform Owner Token Lifecycle</h2>
+
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">Platform Owner Login</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/auth/login",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "email":"admin@school-erp.com", "password":"Shoby@123" }),
+          extractions: [
+            { var: "PO_ACCESS_TOKEN", path: "access_token" },
+            { var: "PO_REFRESH_TOKEN", path: "refresh_token" }
+          ]
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+        <div class="note">Notice: Platform Owner's <code>refresh_token</code> is empty (D2 — platform owner gets a custom HS256 JWT, no Supabase refresh).</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">Use Access Token — List Clients</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          headers: { "Authorization": "Bearer $PO_ACCESS_TOKEN" },
+          extractions: []
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">Platform Owner Refresh — should fail (empty refresh)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/auth/refresh",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "refresh_token":"$PO_REFRESH_TOKEN" }),
+          extractions: []
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
+        <div class="note"><strong>Expected:</strong> <code>401</code> — Platform Owner must re-login (custom JWT has no refresh).</div>
+      </div>
+
+      <h2>Client Director Token Lifecycle</h2>
+
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">Director Login</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email":"director@greenwood.com", "password":"Director@123" }),
+          extractions: [
+            { var: "DIR_ACCESS_TOKEN", path: "access_token" },
+            { var: "DIR_REFRESH_TOKEN", path: "refresh_token" }
+          ]
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">5</span><span class="step-title">Use Access Token — List Institutions</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/institutions",
+          headers: { "Authorization": "Bearer $DIR_ACCESS_TOKEN" },
+          extractions: []
+        }, "result-5")'>Run Step 5</button>
+        <div class="result" id="result-5"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">6</span><span class="step-title">Refresh Access Token</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/auth/refresh",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "refresh_token":"$DIR_REFRESH_TOKEN" }),
+          extractions: [
+            { var: "DIR_ACCESS_TOKEN_NEW", path: "access_token" },
+            { var: "DIR_REFRESH_TOKEN_NEW", path: "refresh_token" }
+          ]
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+        <div class="note">Returns a new access + refresh token pair.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">7</span><span class="step-title">Use New Access Token</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/institutions",
+          headers: { "Authorization": "Bearer $DIR_ACCESS_TOKEN_NEW" },
+          extractions: []
+        }, "result-7")'>Run Step 7</button>
+        <div class="result" id="result-7"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">8</span><span class="step-title">Logout (revoke refresh)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/auth/logout",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer $DIR_ACCESS_TOKEN_NEW" },
+          body: JSON.stringify({ "refresh_token":"$DIR_REFRESH_TOKEN_NEW" }),
+          extractions: []
+        }, "result-8")'>Run Step 8</button>
+        <div class="result" id="result-8"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">9</span><span class="step-title">Try to use revoked refresh token — should fail</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/auth/refresh",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "refresh_token":"$DIR_REFRESH_TOKEN_NEW" }),
+          extractions: []
+        }, "result-9")'>Run Step 9</button>
+        <div class="result" id="result-9"></div>
+        <div class="note"><strong>Expected:</strong> <code>401 Invalid or expired refresh token</code>.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">10</span><span class="step-title">Login with wrong password — should fail</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email":"director@greenwood.com", "password":"WrongPass" }),
+          extractions: []
+        }, "result-10")'>Run Step 10</button>
+        <div class="result" id="result-10"></div>
+        <div class="note"><strong>Expected:</strong> <code>401 Invalid email or password</code>.</div>
+      </div>
+
+      <div class="flow-end">
+        ✅ <strong>Flow 12 complete.</strong> Token lifecycle verified for both user types.
+        <ul>
+          <li>Platform Owner: custom HS256 JWT, no refresh</li>
+          <li>Normal User: Supabase JWT, refresh works, logout revokes</li>
+          <li>Revoked tokens cannot be reused</li>
+        </ul>
+      </div>
+    </div>
+    <div><div class="store-panel" id="store-panel"></div></div>
+  </div>
+  <script src="shared.js"></script>
+  <script>renderStorePanel("store-panel");</script>
+</body>
+</html>

@@ -276,21 +276,36 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
                 content={"detail": "Platform owner access restricted to platform endpoints"},
             )
 
-        # Role lookup for normal users (not platform owner)
-        if user_id and not roles and client_id and not is_platform_owner:
+        # Role lookup for normal users (not platform owner).
+        # Fallback: if client_id was not resolved from subdomain (e.g. Swagger UI
+        # without Host header), look up the user's client_id and institution_id
+        # from app_user so tenant context is still populated.
+        if user_id and not roles and not is_platform_owner:
             try:
                 from sqlalchemy import create_engine, text as sa_text
                 db_url = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:54322/postgres")
                 engine = create_engine(db_url)
                 with engine.connect() as conn:
                     conn.execute(sa_text("SET LOCAL app.is_platform_owner = 'true'"))
-                    result = conn.execute(sa_text(
-                        "SELECT r.name FROM role r "
-                        "JOIN role_assignment ra ON r.id = ra.role_id "
-                        "WHERE ra.user_id = :uid"
-                    ), {"uid": user_id}).fetchall()
-                    roles = [row[0] for row in result]
-                    logger.debug("[MW] Role lookup from DB: user_id=%s roles=%s", user_id, roles)
+                    # Fallback: resolve client_id + institution_id from app_user
+                    if client_id is None:
+                        row = conn.execute(sa_text(
+                            "SELECT client_id, institution_id FROM app_user WHERE id = :uid"
+                        ), {"uid": user_id}).fetchone()
+                        if row:
+                            client_id = row[0]
+                            if institution_id is None:
+                                institution_id = row[1]
+                            logger.debug("[MW] Resolved client_id from app_user: user_id=%s client_id=%s", user_id, client_id)
+                    # Role lookup (only if we now have a client_id)
+                    if client_id:
+                        result = conn.execute(sa_text(
+                            "SELECT r.name FROM role r "
+                            "JOIN role_assignment ra ON r.id = ra.role_id "
+                            "WHERE ra.user_id = :uid"
+                        ), {"uid": user_id}).fetchall()
+                        roles = [row[0] for row in result]
+                        logger.debug("[MW] Role lookup from DB: user_id=%s roles=%s", user_id, roles)
                 engine.dispose()
             except Exception as e:
                 logger.warning("[MW] Role lookup failed: %s", e)

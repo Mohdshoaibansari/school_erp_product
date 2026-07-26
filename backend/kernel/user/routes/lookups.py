@@ -27,7 +27,7 @@ class InstitutionTypeLookupDTO(BaseModel):
     model_config = {"from_attributes": True}
 
 
-@router.get("/user-categories", response_model=list[UserCategoryDTO])
+@router.get("/user-categories", response_model=list[UserCategoryDTO], summary="List user categories")
 def list_user_categories(
     _authz: None = Depends(require_permission("user", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
@@ -39,7 +39,7 @@ def list_user_categories(
         return [UserCategoryDTO.model_validate(obj) for obj in result]
 
 
-@router.get("/roles", response_model=list[RoleDTO])
+@router.get("/roles", response_model=list[RoleDTO], summary="List roles")
 def list_roles(
     _authz: None = Depends(require_permission("role_assignment", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
@@ -51,7 +51,7 @@ def list_roles(
         return [RoleDTO.model_validate(obj) for obj in result]
 
 
-@router.get("/institution-types", response_model=list[InstitutionTypeLookupDTO])
+@router.get("/institution-types", response_model=list[InstitutionTypeLookupDTO], summary="List institution types")
 def list_institution_types(
     _authz: None = Depends(require_permission("institution", "read")),
     ctx: TenantContext = Depends(get_tenant_context),

@@ -18,7 +18,7 @@ from kernel.user.services.dtos import RoleAssignmentCreateDTO, RoleAssignmentDTO
 router = APIRouter(prefix="/api/v1/users/{user_id}/roles", tags=["roles"])
 
 
-@router.post("", response_model=RoleAssignmentDTO, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=RoleAssignmentDTO, status_code=status.HTTP_201_CREATED, summary="Assign role")
 def create_role_assignment(
     user_id: uuid.UUID,
     dto: RoleAssignmentCreateDTO,
@@ -33,7 +33,7 @@ def create_role_assignment(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("", response_model=list[RoleAssignmentDTO])
+@router.get("", response_model=list[RoleAssignmentDTO], summary="List role assignments")
 def list_role_assignments(
     user_id: uuid.UUID,
     _authz: None = Depends(require_permission("role_assignment", "read")),
@@ -44,7 +44,7 @@ def list_role_assignments(
     return svc.list_role_assignments(ctx, user_id)
 
 
-@router.delete("/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete role assignment")
 def delete_role_assignment(
     user_id: uuid.UUID,
     assignment_id: uuid.UUID,

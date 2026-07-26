@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/v1/users", tags=["users"])
 # 9.1 — User CRUD endpoints
 # ============================================================
 
-@router.post("", response_model=UserDTO, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserDTO, status_code=status.HTTP_201_CREATED, summary="Create user")
 async def create_user(
     dto: UserCreateDTO,
     _authz: None = Depends(require_permission("user", "create")),
@@ -39,7 +39,7 @@ async def create_user(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("", response_model=list[UserDTO])
+@router.get("", response_model=list[UserDTO], summary="List users")
 def list_users(
     user_category_id: uuid.UUID | None = None,
     lifecycle_status: str | None = None,
@@ -58,7 +58,7 @@ def list_users(
     return svc.list_users(ctx, **filters)
 
 
-@router.get("/{user_id}", response_model=UserDTO)
+@router.get("/{user_id}", response_model=UserDTO, summary="Get user")
 def get_user(
     user_id: uuid.UUID,
     _authz: None = Depends(require_permission("user", "read")),
@@ -72,7 +72,7 @@ def get_user(
     return result
 
 
-@router.patch("/{user_id}", response_model=UserDTO)
+@router.patch("/{user_id}", response_model=UserDTO, summary="Update user")
 async def update_user(
     user_id: uuid.UUID,
     dto: UserUpdateDTO,
@@ -91,7 +91,7 @@ async def update_user(
 # 9.2 — User lifecycle endpoints
 # ============================================================
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete user")
 async def delete_user(
     user_id: uuid.UUID,
     _authz: None = Depends(require_permission("user", "delete")),
@@ -109,7 +109,7 @@ async def delete_user(
 # 9.2 — User lifecycle endpoints
 # ============================================================
 
-@router.post("/{user_id}/transition", response_model=UserDTO)
+@router.post("/{user_id}/transition", response_model=UserDTO, summary="Transition user lifecycle")
 async def transition_user_lifecycle(
     user_id: uuid.UUID,
     dto: LifecycleTransitionDTO,

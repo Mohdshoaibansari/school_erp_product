@@ -18,7 +18,7 @@ from kernel.user.services.dtos import UserProfileCreateDTO, UserProfileDTO, User
 router = APIRouter(prefix="/api/v1/users/{user_id}/profile", tags=["profiles"])
 
 
-@router.post("", response_model=UserProfileDTO, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserProfileDTO, status_code=status.HTTP_201_CREATED, summary="Create user profile")
 def create_profile(
     user_id: uuid.UUID,
     dto: UserProfileCreateDTO,
@@ -33,7 +33,7 @@ def create_profile(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("", response_model=UserProfileDTO)
+@router.get("", response_model=UserProfileDTO, summary="Get user profile")
 def get_profile(
     user_id: uuid.UUID,
     _authz: None = Depends(require_permission("user_profile", "read")),
@@ -47,7 +47,7 @@ def get_profile(
     return result
 
 
-@router.patch("", response_model=UserProfileDTO)
+@router.patch("", response_model=UserProfileDTO, summary="Update user profile")
 def update_profile(
     user_id: uuid.UUID,
     dto: UserProfileUpdateDTO,

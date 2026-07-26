@@ -40,7 +40,7 @@ router = APIRouter(prefix="/api/v1/platform", tags=["platform"])
 # 7.3 — Client CRUD + identity-update + lifecycle transitions
 # ============================================================
 
-@router.post("/clients", response_model=ClientDTO, status_code=status.HTTP_201_CREATED)
+@router.post("/clients", response_model=ClientDTO, status_code=status.HTTP_201_CREATED, summary="Create client")
 def create_client(
     dto: ClientCreateDTO,
     _authz: None = Depends(require_permission("client", "create")),
@@ -63,7 +63,7 @@ def create_client(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/clients", response_model=list[ClientDTO])
+@router.get("/clients", response_model=list[ClientDTO], summary="List clients")
 def list_clients(
     _authz: None = Depends(require_permission("client", "read")),
     ctx: TenantContext = Depends(require_platform_owner),
@@ -73,7 +73,7 @@ def list_clients(
     return svc.list_clients(ctx)
 
 
-@router.get("/clients/{client_id}", response_model=ClientDTO)
+@router.get("/clients/{client_id}", response_model=ClientDTO, summary="Get client")
 def get_client(
     client_id: uuid.UUID,
     _authz: None = Depends(require_permission("client", "read")),
@@ -87,7 +87,7 @@ def get_client(
     return result
 
 
-@router.patch("/clients/{client_id}", response_model=ClientDTO)
+@router.patch("/clients/{client_id}", response_model=ClientDTO, summary="Update client")
 def update_client(
     client_id: uuid.UUID,
     dto: ClientUpdateDTO,
@@ -102,7 +102,7 @@ def update_client(
         raise HTTPException(status_code=404, detail="Client not found")
 
 
-@router.post("/clients/{client_id}/transition", response_model=ClientDTO)
+@router.post("/clients/{client_id}/transition", response_model=ClientDTO, summary="Transition client lifecycle")
 def transition_client_lifecycle(
     client_id: uuid.UUID,
     dto: LifecycleTransitionDTO,
@@ -127,7 +127,7 @@ def transition_client_lifecycle(
 # 7.5 — InstitutionType management (Platform-Owner-only, D11)
 # ============================================================
 
-@router.post("/institution-types", response_model=InstitutionTypeDTO, status_code=status.HTTP_201_CREATED)
+@router.post("/institution-types", response_model=InstitutionTypeDTO, status_code=status.HTTP_201_CREATED, summary="Create institution type")
 def create_institution_type(
     dto: InstitutionTypeCreateDTO,
     _authz: None = Depends(require_permission("institution_type", "create")),
@@ -141,7 +141,7 @@ def create_institution_type(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/institution-types", response_model=list[InstitutionTypeDTO])
+@router.get("/institution-types", response_model=list[InstitutionTypeDTO], summary="List institution types")
 def list_institution_types(
     _authz: None = Depends(require_permission("institution_type", "read")),
     ctx: TenantContext = Depends(require_platform_owner),
@@ -151,7 +151,7 @@ def list_institution_types(
     return svc.list_institution_types(ctx)
 
 
-@router.get("/institution-types/{itype_id}", response_model=InstitutionTypeDTO)
+@router.get("/institution-types/{itype_id}", response_model=InstitutionTypeDTO, summary="Get institution type")
 def get_institution_type(
     itype_id: uuid.UUID,
     _authz: None = Depends(require_permission("institution_type", "read")),
@@ -165,7 +165,7 @@ def get_institution_type(
     return result
 
 
-@router.patch("/institution-types/{itype_id}", response_model=InstitutionTypeDTO)
+@router.patch("/institution-types/{itype_id}", response_model=InstitutionTypeDTO, summary="Update institution type")
 def update_institution_type(
     itype_id: uuid.UUID,
     dto: InstitutionTypeUpdateDTO,
@@ -184,7 +184,7 @@ def update_institution_type(
 # 7.7 — Ownership-transfer request/approval (D12, AC-11, AC-19)
 # ============================================================
 
-@router.post("/ownership-transfers", response_model=ApprovalDTO, status_code=status.HTTP_201_CREATED)
+@router.post("/ownership-transfers", response_model=ApprovalDTO, status_code=status.HTTP_201_CREATED, summary="Request ownership transfer")
 def request_ownership_transfer(
     dto: OwnershipTransferRequestDTO,
     _authz: None = Depends(require_permission("client", "transfer_ownership")),
@@ -204,7 +204,7 @@ def request_ownership_transfer(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/ownership-transfers/{approval_id}/approve", response_model=OwnershipTransferEventDTO)
+@router.post("/ownership-transfers/{approval_id}/approve", response_model=OwnershipTransferEventDTO, summary="Approve ownership transfer")
 def approve_ownership_transfer(
     approval_id: uuid.UUID,
     dto: OwnershipTransferApproveDTO,

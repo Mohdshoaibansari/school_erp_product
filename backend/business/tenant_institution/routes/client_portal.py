@@ -36,7 +36,7 @@ router = APIRouter(prefix="/api/v1", tags=["client-portal"])
 # 7.4 — Institution CRUD + identity-update + lifecycle + go-live
 # ============================================================
 
-@router.post("/institutions", response_model=InstitutionDTO, status_code=status.HTTP_201_CREATED)
+@router.post("/institutions", response_model=InstitutionDTO, status_code=status.HTTP_201_CREATED, summary="Create institution")
 def create_institution(
     dto: InstitutionCreateDTO,
     _authz: None = Depends(require_permission("institution", "create")),
@@ -56,7 +56,7 @@ def create_institution(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/institutions", response_model=list[InstitutionDTO])
+@router.get("/institutions", response_model=list[InstitutionDTO], summary="List institutions")
 def list_institutions(
     cross_institution: bool = False,
     _authz: None = Depends(require_permission("institution", "read")),
@@ -71,7 +71,7 @@ def list_institutions(
     return svc.list_institutions(ctx, cross_institution=cross_institution)
 
 
-@router.get("/institutions/{institution_id}", response_model=InstitutionDTO)
+@router.get("/institutions/{institution_id}", response_model=InstitutionDTO, summary="Get institution")
 def get_institution(
     institution_id: uuid.UUID,
     _authz: None = Depends(require_permission("institution", "read")),
@@ -85,7 +85,7 @@ def get_institution(
     return result
 
 
-@router.patch("/institutions/{institution_id}", response_model=InstitutionDTO)
+@router.patch("/institutions/{institution_id}", response_model=InstitutionDTO, summary="Update institution")
 def update_institution(
     institution_id: uuid.UUID,
     dto: InstitutionUpdateDTO,
@@ -100,7 +100,7 @@ def update_institution(
         raise HTTPException(status_code=404, detail="Institution not found")
 
 
-@router.post("/institutions/{institution_id}/transition", response_model=InstitutionDTO)
+@router.post("/institutions/{institution_id}/transition", response_model=InstitutionDTO, summary="Transition institution lifecycle")
 def transition_institution_lifecycle(
     institution_id: uuid.UUID,
     dto: LifecycleTransitionDTO,
@@ -121,7 +121,7 @@ def transition_institution_lifecycle(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/institutions/{institution_id}/go-live", response_model=InstitutionDTO)
+@router.post("/institutions/{institution_id}/go-live", response_model=InstitutionDTO, summary="Go-live institution")
 def go_live_institution(
     institution_id: uuid.UUID,
     dto: LifecycleTransitionDTO,
@@ -149,7 +149,7 @@ def go_live_institution(
 # 7.6 — OrgUnit endpoints (create, move, archive, reactivate, reorder)
 # ============================================================
 
-@router.post("/org-units", response_model=OrgUnitDTO, status_code=status.HTTP_201_CREATED)
+@router.post("/org-units", response_model=OrgUnitDTO, status_code=status.HTTP_201_CREATED, summary="Create org unit")
 def create_org_unit(
     dto: OrgUnitCreateDTO,
     _authz: None = Depends(require_permission("org_unit", "create")),
@@ -165,7 +165,7 @@ def create_org_unit(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/org-units", response_model=list[OrgUnitDTO])
+@router.get("/org-units", response_model=list[OrgUnitDTO], summary="List org units")
 def list_org_units(
     institution_id: uuid.UUID,
     cross_institution: bool = False,
@@ -177,7 +177,7 @@ def list_org_units(
     return svc.list_org_units(ctx, institution_id, cross_institution=cross_institution)
 
 
-@router.get("/org-units/{org_unit_id}/subtree", response_model=list[OrgUnitDTO])
+@router.get("/org-units/{org_unit_id}/subtree", response_model=list[OrgUnitDTO], summary="Get org unit subtree")
 def get_org_unit_subtree(
     org_unit_id: uuid.UUID,
     _authz: None = Depends(require_permission("org_unit", "read")),
@@ -188,7 +188,7 @@ def get_org_unit_subtree(
     return svc.get_org_unit_subtree(ctx, org_unit_id)
 
 
-@router.post("/org-units/{org_unit_id}/move", response_model=OrgUnitDTO)
+@router.post("/org-units/{org_unit_id}/move", response_model=OrgUnitDTO, summary="Move org unit")
 def move_org_unit(
     org_unit_id: uuid.UUID,
     dto: OrgUnitMoveDTO,
@@ -209,7 +209,7 @@ def move_org_unit(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/org-units/{org_unit_id}/archive", response_model=OrgUnitDTO)
+@router.post("/org-units/{org_unit_id}/archive", response_model=OrgUnitDTO, summary="Archive org unit")
 def archive_org_unit(
     org_unit_id: uuid.UUID,
     ctx: TenantContext = Depends(get_tenant_context),
@@ -222,7 +222,7 @@ def archive_org_unit(
         raise HTTPException(status_code=404, detail="OrgUnit not found")
 
 
-@router.post("/org-units/{org_unit_id}/reactivate", response_model=OrgUnitDTO)
+@router.post("/org-units/{org_unit_id}/reactivate", response_model=OrgUnitDTO, summary="Reactivate org unit")
 def reactivate_org_unit(
     org_unit_id: uuid.UUID,
     ctx: TenantContext = Depends(get_tenant_context),
@@ -235,7 +235,7 @@ def reactivate_org_unit(
         raise HTTPException(status_code=404, detail="OrgUnit not found")
 
 
-@router.patch("/org-units/{org_unit_id}/reorder", response_model=OrgUnitDTO)
+@router.patch("/org-units/{org_unit_id}/reorder", response_model=OrgUnitDTO, summary="Reorder org unit")
 def reorder_org_unit(
     org_unit_id: uuid.UUID,
     dto: OrgUnitReorderDTO,

@@ -18,7 +18,7 @@ from kernel.user.services.dtos import UserIdentifierCreateDTO, UserIdentifierDTO
 router = APIRouter(prefix="/api/v1/users/{user_id}/identifiers", tags=["identifiers"])
 
 
-@router.post("", response_model=UserIdentifierDTO, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserIdentifierDTO, status_code=status.HTTP_201_CREATED, summary="Create user identifier")
 def create_identifier(
     user_id: uuid.UUID,
     dto: UserIdentifierCreateDTO,
@@ -33,7 +33,7 @@ def create_identifier(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("", response_model=list[UserIdentifierDTO])
+@router.get("", response_model=list[UserIdentifierDTO], summary="List user identifiers")
 def list_identifiers(
     user_id: uuid.UUID,
     _authz: None = Depends(require_permission("user_identifier", "read")),
@@ -44,7 +44,7 @@ def list_identifiers(
     return svc.list_identifiers(ctx, user_id)
 
 
-@router.delete("/{identifier_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{identifier_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete user identifier")
 def delete_identifier(
     user_id: uuid.UUID,
     identifier_id: uuid.UUID,

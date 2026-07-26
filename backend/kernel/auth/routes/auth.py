@@ -83,7 +83,7 @@ def _raise_http_error(error: AuthError) -> None:
 # Auth endpoints (9.1 — 9.9)
 # ============================================================
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse, summary="Login")
 async def login(
     request: LoginRequest,
     http_request: Request,
@@ -103,7 +103,7 @@ async def login(
         _raise_http_error(e)
 
 
-@router.post("/refresh", response_model=TokenResponse)
+@router.post("/refresh", response_model=TokenResponse, summary="Refresh token")
 async def refresh(
     request: RefreshRequest,
     http_request: Request,
@@ -123,7 +123,7 @@ async def refresh(
         _raise_http_error(e)
 
 
-@router.post("/logout")
+@router.post("/logout", summary="Logout")
 async def logout(
     request: LogoutRequest,
     http_request: Request,
@@ -143,7 +143,7 @@ async def logout(
         _raise_http_error(e)
 
 
-@router.post("/activate")
+@router.post("/activate", summary="Activate user")
 async def activate(
     request: ActivateRequest,
     ctx: TenantContext = Depends(get_tenant_context),
@@ -157,7 +157,7 @@ async def activate(
         _raise_http_error(e)
 
 
-@router.post("/otp/request")
+@router.post("/otp/request", summary="Request OTP")
 async def otp_request(
     request: OtpRequest,
     ctx: TenantContext = Depends(get_tenant_context),
@@ -171,7 +171,7 @@ async def otp_request(
         _raise_http_error(e)
 
 
-@router.post("/otp/verify", response_model=TokenResponse)
+@router.post("/otp/verify", response_model=TokenResponse, summary="Verify OTP")
 async def otp_verify(
     request: OtpVerifyRequest,
     http_request: Request,
@@ -191,7 +191,7 @@ async def otp_verify(
         _raise_http_error(e)
 
 
-@router.post("/password/reset/request")
+@router.post("/password/reset/request", summary="Request password reset")
 async def password_reset_request(
     request: PasswordResetRequest,
     ctx: TenantContext = Depends(get_tenant_context),
@@ -205,7 +205,7 @@ async def password_reset_request(
         _raise_http_error(e)
 
 
-@router.post("/password/reset/confirm")
+@router.post("/password/reset/confirm", summary="Confirm password reset")
 async def password_reset_confirm(
     request: PasswordResetConfirmRequest,
     ctx: TenantContext = Depends(get_tenant_context),
@@ -221,7 +221,7 @@ async def password_reset_confirm(
         _raise_http_error(e)
 
 
-@router.post("/password/change")
+@router.post("/password/change", summary="Change password")
 async def password_change(
     request: PasswordChangeRequest,
     http_request: Request,

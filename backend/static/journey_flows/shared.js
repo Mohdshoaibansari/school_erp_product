@@ -4,6 +4,13 @@
 
 const STORE = {};
 
+/*
+ * Persistence: env vars are stored in localStorage under 'journey_flow_store'.
+ * They survive reloads and even restarting the browser — so you can run Flow 1,
+ * switch flows, come back, and the IDs are still there. To wipe everything,
+ * click the red "Reset All" button in the header (top right of any flow page).
+ */
+
 // Helper: store all variables in localStorage so they survive page reloads
 function loadStore() {
   try {
@@ -61,15 +68,53 @@ function prettyJson(obj) {
   }
 }
 
-// Render the env var store panel
+// Render the env var store panel (right sidebar on flow pages)
 function renderStorePanel(elementId) {
   const el = document.getElementById(elementId);
   if (!el) return;
-  el.innerHTML = '<h4>Env Variables</h4><table style="border-collapse:collapse;font-size:12px;">' +
-    Object.entries(STORE).map(([k, v]) =>
-      `<tr><td style="padding:2px 8px;color:#666;">${k}</td><td style="padding:2px 8px;font-family:monospace;">${(v || '').substring(0, 80)}${(v || '').length > 80 ? '...' : ''}</td></tr>`
-    ).join('') + '</table>' +
-    '<button onclick="clearStore()" style="margin-top:8px;font-size:11px;">Clear Store</button>';
+  const rows = Object.entries(STORE)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => {
+      const val = String(v || '');
+      const shown = val.length > 80 ? val.substring(0, 80) + '...' : val;
+      return `<tr><td style="padding:2px 8px;color:#9ca3af;">${k}</td><td style="padding:2px 8px;font-family:monospace;color:#e5e7eb;word-break:break-all;">${shown}</td></tr>`;
+    }).join('');
+  el.innerHTML = '<h4>Env Variables</h4>' +
+    (rows ? `<table style="border-collapse:collapse;font-size:12px;width:100%;">${rows}</table>` : '<div style="color:#9ca3af;font-size:12px;">No vars stored yet</div>') +
+    '<button onclick="confirmReset()" style="margin-top:10px;background:#7f1d1d;color:#fecaca;border:1px solid #991b1b;padding:5px 12px;font-size:11px;border-radius:3px;cursor:pointer;width:100%;">Reset All Env Vars</button>';
+  updateIndicator();
+}
+
+// Auto-inject a reset button + indicator into every flow page header.
+// This runs once on DOMContentLoaded — no per-page edits needed.
+function _injectHeaderActions() {
+  const header = document.querySelector('.header');
+  if (!header) return;
+  if (header.querySelector('.header-actions')) { return; }
+  const backLink = header.querySelector('.back-link');
+  const actions = document.createElement('div');
+  actions.className = 'header-actions';
+  actions.innerHTML =
+    '<span class="store-indicator" id="store-indicator">0 vars</span>' +
+    '<button class="reset-btn" onclick="confirmReset()">Reset All</button>';
+  // Insert after back link (or at end if no back link)
+  if (backLink) header.insertBefore(actions, backLink);
+  else header.appendChild(actions);
+  updateIndicator();
+}
+
+function updateIndicator() {
+  const ind = document.getElementById('store-indicator');
+  if (!ind) return;
+  const n = Object.keys(STORE).length;
+  ind.textContent = n + ' env var' + (n === 1 ? '' : 's') + ' stored';
+  ind.title = 'Vars: ' + Object.keys(STORE).sort().join(', ');
+}
+
+function confirmReset() {
+  if (confirm('Reset ALL env vars?\n\nThis wipes ALL stored IDs, tokens, and the Supabase service key from this browser. You will need to set them again.')) {
+    clearStore();
+  }
 }
 
 function clearStore() {
@@ -127,6 +172,13 @@ async function runStep(step, resultElId) {
   }
 
   resultEl.innerHTML = log.join('');
-  // Re-render store panel if present
+  // Re-render store panel + indicator after every step
   renderStorePanel('store-panel');
+}
+
+// Auto-inject header actions on every page that includes this script
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _injectHeaderActions);
+} else {
+  _injectHeaderActions();
 }

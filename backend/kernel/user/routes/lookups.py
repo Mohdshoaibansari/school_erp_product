@@ -26,6 +26,13 @@ class InstitutionTypeLookupDTO(BaseModel):
 
     model_config = {"from_attributes": True}
 
+class OrgUnitTypeLookupDTO(BaseModel):
+    """Minimal DTO for org unit type dropdown."""
+    id: str
+    name: str
+
+    model_config = {"from_attributes": True}
+
 
 @router.get("/user-categories", response_model=list[UserCategoryDTO], summary="List user categories")
 def list_user_categories(
@@ -66,5 +73,24 @@ def list_institution_types(
         result = session.execute(text("SELECT id, code FROM institution_type"))
         return [
             InstitutionTypeLookupDTO(id=str(row[0]), code=row[1])
+            for row in result.fetchall()
+        ]
+
+
+@router.get("/org-unit-types", response_model=list[OrgUnitTypeLookupDTO], summary="List org unit types")
+def list_org_unit_types(
+    _authz: None = Depends(require_permission("org_unit", "read")),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> list[OrgUnitTypeLookupDTO]:
+    """List all OrgUnitType values available for org unit creation.
+
+    Accessible to any authenticated user — needed for org unit creation UI.
+    Uses raw SQL to avoid kernel→business import.
+    """
+    session_factory = get_db_session_factory()
+    with session_factory() as session:
+        result = session.execute(text("SELECT id, name FROM org_unit_type ORDER BY name"))
+        return [
+            OrgUnitTypeLookupDTO(id=str(row[0]), name=row[1])
             for row in result.fetchall()
         ]

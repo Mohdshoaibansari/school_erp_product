@@ -49,7 +49,20 @@
       <h3>Org Unit Management</h3>
 
       <div class="step">
-        <div><span class="step-num">3</span><span class="step-title">Create root OrgUnit (Primary School)</span></div>
+        <div><span class="step-num">3</span><span class="step-title">Fetch OrgUnit Type IDs</span></div>
+        <div class="step-desc">OrgUnits require <code>type_id</code> (FK to <code>org_unit_type</code> lookup). Fetch types via our lookup endpoint.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/lookups/org-unit-types",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
+          extractions: [{ var: "ORG_TYPE_DEPARTMENT_ID", path: "0.id" }, { var: "ORG_TYPE_CLASS_ID", path: "2.id" }]
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
+        <div class="note">Returns org_unit_types sorted by name (Department, Faculty, Grade, Class, Section...). Double-check the response to see which row each ID maps to. If you want a different type, manually update <code>ORG_TYPE_DEPARTMENT_ID</code> / <code>ORG_TYPE_CLASS_ID</code> in the env panel.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">Create root OrgUnit (Primary School)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8000/api/v1/org-units",
@@ -57,16 +70,16 @@
           body: JSON.stringify({
             "institution_id":"$INST_ID",
             "name":"Primary School",
-            "type":"department",
+            "type_id":"$ORG_TYPE_DEPARTMENT_ID",
             "sort_order":1
           }),
           extractions: [{ var: "ORG_ROOT_ID", path: "id" }]
-        }, "result-3")'>Run Step 3</button>
-        <div class="result" id="result-3"></div>
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
       </div>
 
       <div class="step">
-        <div><span class="step-num">4</span><span class="step-title">Create child OrgUnit (Grade 5)</span></div>
+        <div><span class="step-num">5</span><span class="step-title">Create child OrgUnit (Grade 5)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8000/api/v1/org-units",
@@ -75,28 +88,28 @@
             "institution_id":"$INST_ID",
             "parent_id":"$ORG_ROOT_ID",
             "name":"Grade 5",
-            "type":"class",
+            "type_id":"$ORG_TYPE_CLASS_ID",
             "sort_order":1
           }),
           extractions: [{ var: "ORG_CHILD_ID", path: "id" }]
-        }, "result-4")'>Run Step 4</button>
-        <div class="result" id="result-4"></div>
+        }, "result-5")'>Run Step 5</button>
+        <div class="result" id="result-5"></div>
       </div>
 
       <div class="step">
-        <div><span class="step-num">5</span><span class="step-title">List OrgUnits (subtree)</span></div>
+        <div><span class="step-num">6</span><span class="step-title">List OrgUnits (subtree)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
           url: "http://127.0.0.1:8000/api/v1/org-units/$ORG_ROOT_ID/subtree",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
           extractions: []
-        }, "result-5")'>Run Step 5</button>
-        <div class="result" id="result-5"></div>
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
         <div class="note">Should show root + Grade 5.</div>
       </div>
 
       <div class="step">
-        <div><span class="step-num">6</span><span class="step-title">Create second root OrgUnit (Secondary School)</span></div>
+        <div><span class="step-num">7</span><span class="step-title">Create second root OrgUnit (Secondary School)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8000/api/v1/org-units",
@@ -104,16 +117,16 @@
           body: JSON.stringify({
             "institution_id":"$INST_ID",
             "name":"Secondary School",
-            "type":"department",
+            "type_id":"$ORG_TYPE_DEPARTMENT_ID",
             "sort_order":2
           }),
           extractions: [{ var: "ORG_ROOT2_ID", path: "id" }]
-        }, "result-6")'>Run Step 6</button>
-        <div class="result" id="result-6"></div>
+        }, "result-7")'>Run Step 7</button>
+        <div class="result" id="result-7"></div>
       </div>
 
       <div class="step">
-        <div><span class="step-num">7</span><span class="step-title">Move Grade 5 from Primary to Secondary</span></div>
+        <div><span class="step-num">8</span><span class="step-title">Move Grade 5 from Primary to Secondary</span></div>
         <div class="step-desc">Move OrgUnit to new parent. Subtree moves with it.</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
@@ -121,37 +134,37 @@
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "new_parent_id":"$ORG_ROOT2_ID" }),
           extractions: []
-        }, "result-7")'>Run Step 7</button>
-        <div class="result" id="result-7"></div>
+        }, "result-8")'>Run Step 8</button>
+        <div class="result" id="result-8"></div>
         <div class="note">Verify with subtree listing afterwards — Grade 5 should now appear under Secondary School.</div>
       </div>
 
       <div class="step">
-        <div><span class="step-num">8</span><span class="step-title">Archive Grade 5 (soft delete)</span></div>
+        <div><span class="step-num">9</span><span class="step-title">Archive Grade 5 (soft delete)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8000/api/v1/org-units/$ORG_CHILD_ID/archive",
-          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
-          extractions: []
-        }, "result-8")'>Run Step 8</button>
-        <div class="result" id="result-8"></div>
-      </div>
-
-      <div class="step">
-        <div><span class="step-num">9</span><span class="step-title">Reactivate Grade 5</span></div>
-        <button class="run-btn" onclick='runStep({
-          method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/org-units/$ORG_CHILD_ID/reactivate",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
           extractions: []
         }, "result-9")'>Run Step 9</button>
         <div class="result" id="result-9"></div>
       </div>
 
+      <div class="step">
+        <div><span class="step-num">10</span><span class="step-title">Reactivate Grade 5</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/org-units/$ORG_CHILD_ID/reactivate",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
+          extractions: []
+        }, "result-10")'>Run Step 10</button>
+        <div class="result" id="result-10"></div>
+      </div>
+
       <h3>Institution Lifecycle Management</h3>
 
       <div class="step">
-        <div><span class="step-num">10</span><span class="step-title">Deactivate Institution (active → inactive)</span></div>
+        <div><span class="step-num">11</span><span class="step-title">Deactivate Institution (active → inactive)</span></div>
         <div class="step-desc">Pause for term break.</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
@@ -159,20 +172,20 @@
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "new_state":"inactive", "reason":"Term break" }),
           extractions: []
-        }, "result-10")'>Run Step 10</button>
-        <div class="result" id="result-10"></div>
+        }, "result-11")'>Run Step 11</button>
+        <div class="result" id="result-11"></div>
       </div>
 
       <div class="step">
-        <div><span class="step-num">11</span><span class="step-title">Reactivate Institution (inactive → active)</span></div>
+        <div><span class="step-num">12</span><span class="step-title">Reactivate Institution (inactive → active)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8000/api/v1/institutions/$INST_ID/transition",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "new_state":"active", "reason":"Term resumed" }),
           extractions: []
-        }, "result-11")'>Run Step 11</button>
-        <div class="result" id="result-11"></div>
+        }, "result-12")'>Run Step 12</button>
+        <div class="result" id="result-12"></div>
       </div>
 
       <div class="flow-end">

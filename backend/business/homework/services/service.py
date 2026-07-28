@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from kernel.tenant_context import TenantContext
 from kernel.audit import AuditEmitter
 from business.homework.repos.homework_repos import HomeworkRepository, SubmissionRepository, GradeRepository
+from business.homework.models.homework_models import Submission
 from business.homework.services.dtos import *
 
 logger = logging.getLogger(__name__)

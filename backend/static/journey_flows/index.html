@@ -169,8 +169,11 @@
     // Check current key status on load
     (function checkKey() {
       const status = document.getElementById('key-status');
-      if (STORE.SUPABASE_SERVICE_ROLE_KEY) {
-        status.innerHTML = '<span style="color:#16a34a;">✓ Key already set (' + STORE.SUPABASE_SERVICE_ROLE_KEY.substring(0, 20) + '...)</span>';
+      const key = STORE.SUPABASE_SERVICE_ROLE_KEY;
+      if (key && key.startsWith('eyJ') && key.length >= 150) {
+        status.innerHTML = '<span style="color:#16a34a;">✓ Key already set (length: ' + key.length + ', prefix: ' + key.substring(0, 25) + '...)</span>';
+      } else if (key) {
+        status.innerHTML = '<span style="color:#dc2626;">⚠ Stored key looks invalid (length: ' + (key?.length || 0) + '). Re-paste the service_role key below.</span>';
       } else {
         status.innerHTML = '<span style="color:#dc2626;">⚠ No key set yet. Paste it above and click Save.</span>';
       }
@@ -179,14 +182,23 @@
     function saveSupabaseKey() {
       const input = document.getElementById('supabase-key-input');
       const status = document.getElementById('key-status');
-      const key = input.value.trim();
+      // Strip ALL whitespace (JWTs have no internal whitespace; newlines from copy-paste are common)
+      const key = input.value.replace(/\s/g, '');
       if (!key) {
         status.innerHTML = '<span style="color:#dc2626;">⚠ Paste a key first</span>';
         return;
       }
+      if (!key.startsWith('eyJ')) {
+        status.innerHTML = '<span style="color:#dc2626;">⚠ Key doesn\'t start with eyJ — this doesn\'t look like a Supabase JWT key. Did you copy the right field?</span>';
+        return;
+      }
+      if (key.length < 150) {
+        status.innerHTML = '<span style="color:#dc2626;">⚠ Key is only ' + key.length + ' chars — service_role keys are usually 200+. Looks truncated.</span>';
+        return;
+      }
       STORE.SUPABASE_SERVICE_ROLE_KEY = key;
       saveStore();
-      status.innerHTML = '<span style="color:#16a34a;">✓ Saved! Key stored locally (' + key.substring(0, 20) + '...)</span>';
+      status.innerHTML = '<span style="color:#16a34a;">✓ Saved! Length: ' + key.length + ' chars, prefix: ' + key.substring(0, 25) + '...</span>';
       input.value = '';
     }
   </script>

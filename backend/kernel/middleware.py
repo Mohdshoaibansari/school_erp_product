@@ -23,7 +23,18 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from kernel.tenant_context import TenantContext, set_tenant_context
-from config import PLATFORM_PATHS
+
+# NOTE: We import PLATFORM_PATHS lazily inside dispatch() to avoid name
+# collision with the new kernel/config/ package.
+_PLATFORM_PATHS = None
+
+def _get_platform_paths():
+    global _PLATFORM_PATHS
+    if _PLATFORM_PATHS is None:
+        import importlib
+        _config = importlib.import_module("config")  # top-level config.py
+        _PLATFORM_PATHS = list(_config.PLATFORM_PATHS)
+    return _PLATFORM_PATHS
 
 logger = logging.getLogger(__name__)
 
@@ -170,7 +181,8 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
         is_auth_path = path.startswith("/api/auth/")
 
         # Check if path is in platform whitelist (no client_id required)
-        is_platform_path = any(path.startswith(p) for p in PLATFORM_PATHS)
+        platform_paths = _get_platform_paths()
+        is_platform_path = any(path.startswith(p) for p in platform_paths)
 
         logger.debug("[MW] %s %s | host=%s subdomain=%s platform=%s auth=%s",
                       request.method, path, host, subdomain, is_platform_path, is_auth_path)

@@ -9,7 +9,7 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from kernel.config.repos.configuration_repo import ConfigurationRepository
+from kernel.config.repos.configuration_repo import ConfigurationRepository, DuplicateValueError
 from kernel.config.resolver import ConfigurationCache
 from kernel.config.notifier import ConfigurationNotifier
 from kernel.tenant_context import TenantContext
@@ -140,15 +140,22 @@ class ConfigurationService:
 
         _enforce_scope(actor, scope_type, scope_id, client_id, institution_id)
 
-        v = self.repo.create_value(
+        # Platform Owner has no app_user row — pass None for updated_by
+        updated_by = None if actor.is_platform_owner or "platform_owner" in (actor.roles or []) else actor.user_id
+
+        try:
+            v = self.repo.create_value(
             key_id=key_id,
             scope_type=scope_type,
             scope_id=scope_id,
             value=value,
             client_id=client_id,
             institution_id=institution_id,
-            updated_by=actor.user_id,
+            updated_by=updated_by,
         )
+        except DuplicateValueError as e:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=409, detail=str(e))
         self.cache.add_value(v)
         self.repo.write_audit(
             key_id=k.id,

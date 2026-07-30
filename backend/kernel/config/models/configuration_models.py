@@ -173,10 +173,10 @@ class ConfigurationValue(Base):
         PgUUID(as_uuid=True), nullable=True,
     )
     client_id: Mapped[uuid.UUID | None] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("client.id"), nullable=True, index=True,
+        PgUUID(as_uuid=True), nullable=True, index=True,
     )
     institution_id: Mapped[uuid.UUID | None] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("institution.id"), nullable=True, index=True,
+        PgUUID(as_uuid=True), nullable=True, index=True,
     )
     value: Mapped[Any] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -185,8 +185,8 @@ class ConfigurationValue(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()"),
     )
-    updated_by: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("app_user.id"), nullable=False,
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("app_user.id"), nullable=True,
     )
 
     # Relationships

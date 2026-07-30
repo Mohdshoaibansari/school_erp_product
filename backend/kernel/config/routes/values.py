@@ -63,6 +63,8 @@ def create_value(
             value=body.value,
             actor=ctx,
         )
+    except HTTPException:
+        raise  # pass through 409, 403, etc.
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return _serialize_value(v)

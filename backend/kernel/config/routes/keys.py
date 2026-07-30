@@ -104,6 +104,7 @@ def create_key(
     summary="List configuration keys (paginated, filterable)",
 )
 def list_keys(
+    key: str | None = Query(default=None, description="Filter by exact key name"),
     category: str | None = Query(default=None),
     module: str | None = Query(default=None),
     is_deprecated: bool | None = Query(default=None),
@@ -115,6 +116,7 @@ def list_keys(
     _perm: None = Depends(require_permission("config.key", "list")),
 ):
     keys, total = service.repo.list_keys(
+        key=key,
         category=category,
         module=module,
         is_deprecated=is_deprecated,

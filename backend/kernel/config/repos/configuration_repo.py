@@ -23,6 +23,11 @@ from kernel.config.models.configuration_models import (
 logger = logging.getLogger(__name__)
 
 
+class DuplicateValueError(Exception):
+    """Raised when trying to create a value that already exists for the same (key, scope)."""
+    pass
+
+
 class ConfigurationRepository:
     """Sync repository for C-08 entities."""
 
@@ -35,6 +40,7 @@ class ConfigurationRepository:
 
     def list_keys(
         self,
+        key: str | None = None,
         category: str | None = None,
         module: str | None = None,
         is_deprecated: bool | None = None,
@@ -46,6 +52,8 @@ class ConfigurationRepository:
         """List keys with optional filters. Returns (results, total_count)."""
         stmt = select(ConfigurationKey)
         conditions = []
+        if key is not None:
+            conditions.append(ConfigurationKey.key == key)
         if category is not None:
             conditions.append(ConfigurationKey.category == category)
         if module is not None:
@@ -227,7 +235,7 @@ class ConfigurationRepository:
         value: Any,
         client_id: uuid.UUID | None,
         institution_id: uuid.UUID | None,
-        updated_by: uuid.UUID,
+        updated_by: uuid.UUID | None,
     ) -> ConfigurationValue:
         k = self.db.get(ConfigurationKey, key_id)
         if k is None:
@@ -250,7 +258,13 @@ class ConfigurationRepository:
             self.db.flush()
         except IntegrityError as e:
             self.db.rollback()
-            raise ValueError(f"Duplicate value for key={key_id} scope={scope_type}:{scope_id}") from e
+            # Distinguish between duplicate (UNIQUE constraint) and FK violation
+            pgcode = getattr(e.orig, 'pgcode', None) if hasattr(e, 'orig') else None
+            if pgcode == '23505':  # unique_violation
+                raise DuplicateValueError(
+                    f"Duplicate value for key={key_id} scope={scope_type}:{scope_id}"
+                ) from e
+            raise ValueError(f"Invalid value: {str(e.orig)}") from e
         return v
 
     def update_value(

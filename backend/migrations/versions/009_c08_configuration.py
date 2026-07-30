@@ -82,7 +82,7 @@ def upgrade() -> None:
             value JSONB NOT NULL,
             created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-            updated_by UUID NOT NULL REFERENCES app_user(id),
+            updated_by UUID REFERENCES app_user(id),
             CONSTRAINT uq_configuration_value_scope UNIQUE (key_id, scope_type, scope_id)
         )
     """)

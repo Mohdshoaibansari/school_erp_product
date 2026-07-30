@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 13 — Configuration Framework</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 13 — Configuration Framework (C-08)</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+
+  <div class="layout">
+    <div class="main-col container">
+
+      <div class="intro">
+        <strong>This flow:</strong> Tests the full C-08 Configuration Framework — key registry CRUD,
+        value overrides with scope inheritance (Platform → Client → Institution),
+        merge strategies (append_lists), deprecation, audit log, and authorization.
+      </div>
+
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Backend running on <code>http://127.0.0.1:8000</code>.
+        Migration 009 applied (15 seed keys). Platform Owner exists in Supabase Auth.
+      </div>
+
+      <h2>Part A — Key Registry</h2>
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">Login as Platform Owner</span></div>
+        <div class="step-desc">No Host header — platform owner is client-independent.</div>
+        <div class="step-request">POST /api/auth/login
+body: { "email":"admin@school-erp.com", "password":"Shoby@123" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/auth/login",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "email":"admin@school-erp.com", "password":"Shoby@123" }),
+          extractions: [
+            { var: "PLATFORM_TOKEN", path: "access_token" }
+          ]
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">List all seed keys (15 keys)</span></div>
+        <div class="step-desc">Verify the 15 seed keys from migration 009 are loaded.</div>
+        <div class="step-request">GET /api/v1/config/keys
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/keys",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+        <div class="note">Should return 15 keys across 5 categories: Business Rules, Display, Academic, Notifications, Platform.</div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">Filter keys by category</span></div>
+        <div class="step-desc">Filter to Business Rules only — should show 4 keys.</div>
+        <div class="step-request">GET /api/v1/config/keys?category=Business%20Rules
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/keys?category=Business%20Rules",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">Get a specific key by name</span></div>
+        <div class="step-desc">Filter by exact key name — attendance.statuses.</div>
+        <div class="step-request">GET /api/v1/config/keys?key=attendance.statuses
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/keys?key=attendance.statuses",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: [
+            { var: "ATT_STATUSES_KEY_ID", path: "items.0.id" }
+          ]
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+        <div class="note">Should return 1 key: attendance.statuses (json, append_lists).</div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div><span class="step-num">5</span><span class="step-title">Create a new key (test.newKey)</span></div>
+        <div class="step-desc">Platform Owner creates a new string key with default value.</div>
+        <div class="step-request">POST /api/v1/config/keys
+Authorization: Bearer $PLATFORM_TOKEN
+body: {
+  "key": "test.newKey",
+  "type": "string",
+  "default_value": "hello-world",
+  "category": "Platform",
+  "description": "Test key created by journey flow"
+}</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/config/keys",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "key": "test.newKey",
+            "type": "string",
+            "default_value": "hello-world",
+            "category": "Platform",
+            "description": "Test key created by journey flow"
+          }),
+          extractions: [
+            { var: "NEW_KEY_ID", path: "id" }
+          ]
+        }, "result-5")'>Run Step 5</button>
+        <div class="result" id="result-5"></div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div><span class="step-num">6</span><span class="step-title">Update key default value</span></div>
+        <div class="step-desc">Change default from "hello-world" to "updated-value".</div>
+        <div class="step-request">PATCH /api/v1/config/keys/$NEW_KEY_ID
+Authorization: Bearer $PLATFORM_TOKEN
+body: { "default_value": "updated-value", "description": "Updated by journey flow" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "PATCH",
+          url: "http://127.0.0.1:8000/api/v1/config/keys/$NEW_KEY_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "default_value": "updated-value", "description": "Updated by journey flow" }),
+          extractions: []
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+      </div>
+
+      <h2>Part B — Resolution & Scope Inheritance</h2>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div><span class="step-num">7</span><span class="step-title">Resolve key (platform default)</span></div>
+        <div class="step-desc">No scope override — should return platform default "updated-value".</div>
+        <div class="step-request">GET /api/v1/config/resolve/test.newKey
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/resolve/test.newKey",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-7")'>Run Step 7</button>
+        <div class="result" id="result-7"></div>
+        <div class="note">Should return: {"key":"test.newKey", "resolved_value":"updated-value", "source_scope":"platform:default"}</div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div><span class="step-num">8</span><span class="step-title">Resolve attendance.statuses (append_lists)</span></div>
+        <div class="step-desc">Should return platform default ["present","absent"].</div>
+        <div class="step-request">GET /api/v1/config/resolve/attendance.statuses
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/resolve/attendance.statuses",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-8")'>Run Step 8</button>
+        <div class="result" id="result-8"></div>
+        <div class="note">Should return: {"resolved_value":["present","absent"], "source_scope":"platform:default"}</div>
+      </div>
+
+      <h2>Part C — Value Overrides</h2>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div><span class="step-num">9</span><span class="step-title">Create institution-scope value override</span></div>
+        <div class="step-desc">Override test.newKey at institution scope. Uses the institution from the Client Director flow (update INST_ID if needed).</div>
+        <div class="step-request">POST /api/v1/config/values
+Authorization: Bearer $PLATFORM_TOKEN
+body: {
+  "key_id": "$NEW_KEY_ID",
+  "scope_type": "institution",
+  "scope_id": "$INST_ID",
+  "value": "institution-override"
+}</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/config/values",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "key_id": "$NEW_KEY_ID",
+            "scope_type": "institution",
+            "scope_id": "$INST_ID",
+            "value": "institution-override"
+          }),
+          extractions: [
+            { var: "INST_VALUE_ID", path: "id" }
+          ]
+        }, "result-9")'>Run Step 9</button>
+        <div class="result" id="result-9"></div>
+        <div class="note">If INST_ID is not set, run Flow 2 (Client Director) first to create an institution.</div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div><span class="step-num">10</span><span class="step-title">Resolve with institution scope</span></div>
+        <div class="step-desc">Should return "institution-override" (not the platform default).</div>
+        <div class="step-request">GET /api/v1/config/resolve/test.newKey?institution_id=$INST_ID
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/resolve/test.newKey?institution_id=$INST_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-10")'>Run Step 10</button>
+        <div class="result" id="result-10"></div>
+        <div class="note">Should return: {"resolved_value":"institution-override", "source_scope":"institution:$INST_ID"}</div>
+      </div>
+
+      <!-- Step 11 -->
+      <div class="step">
+        <div><span class="step-num">11</span><span class="step-title">Resolve without scope (should still be platform default)</span></div>
+        <div class="step-desc">No scope — the override should NOT affect the platform default.</div>
+        <div class="step-request">GET /api/v1/config/resolve/test.newKey
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/resolve/test.newKey",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-11")'>Run Step 11</button>
+        <div class="result" id="result-11"></div>
+        <div class="note">Should return: {"resolved_value":"updated-value", "source_scope":"platform:default"}</div>
+      </div>
+
+      <!-- Step 12 -->
+      <div class="step">
+        <div><span class="step-num">12</span><span class="step-title">Create client-scope value override</span></div>
+        <div class="step-desc">Override test.newKey at client scope. Uses CLIENT_ID from Flow 1 or Flow 2.</div>
+        <div class="step-request">POST /api/v1/config/values
+Authorization: Bearer $PLATFORM_TOKEN
+body: {
+  "key_id": "$NEW_KEY_ID",
+  "scope_type": "client",
+  "scope_id": "$CLIENT_ID",
+  "value": "client-override"
+}</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/config/values",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "key_id": "$NEW_KEY_ID",
+            "scope_type": "client",
+            "scope_id": "$CLIENT_ID",
+            "value": "client-override"
+          }),
+          extractions: [
+            { var: "CLIENT_VALUE_ID", path: "id" }
+          ]
+        }, "result-12")'>Run Step 12</button>
+        <div class="result" id="result-12"></div>
+      </div>
+
+      <!-- Step 13 -->
+      <div class="step">
+        <div><span class="step-num">13</span><span class="step-title">Resolve with client scope (should return client override)</span></div>
+        <div class="step-desc">Client scope exists — should return "client-override".</div>
+        <div class="step-request">GET /api/v1/config/resolve/test.newKey?client_id=$CLIENT_ID
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/resolve/test.newKey?client_id=$CLIENT_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-13")'>Run Step 13</button>
+        <div class="result" id="result-13"></div>
+      </div>
+
+      <!-- Step 14 -->
+      <div class="step">
+        <div><span class="step-num">14</span><span class="step-title">Resolve with both scopes (institution takes precedence)</span></div>
+        <div class="step-desc">Both client and institution scopes — institution should win.</div>
+        <div class="step-request">GET /api/v1/config/resolve/test.newKey?institution_id=$INST_ID&client_id=$CLIENT_ID
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/resolve/test.newKey?institution_id=$INST_ID&client_id=$CLIENT_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-14")'>Run Step 14</button>
+        <div class="result" id="result-14"></div>
+        <div class="note">Should return: {"resolved_value":"institution-override", "source_scope":"institution:$INST_ID"}</div>
+      </div>
+
+      <h2>Part D — Deprecation & Edge Cases</h2>
+
+      <!-- Step 15 -->
+      <div class="step">
+        <div><span class="step-num">15</span><span class="step-title">Deprecate the test key</span></div>
+        <div class="step-desc">Mark test.newKey as deprecated with a replacement key.</div>
+        <div class="step-request">PATCH /api/v1/config/keys/$NEW_KEY_ID
+Authorization: Bearer $PLATFORM_TOKEN
+body: { "is_deprecated": true, "replacement_key": "test.replacementKey" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "PATCH",
+          url: "http://127.0.0.1:8000/api/v1/config/keys/$NEW_KEY_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "is_deprecated": true, "replacement_key": "test.replacementKey" }),
+          extractions: []
+        }, "result-15")'>Run Step 15</button>
+        <div class="result" id="result-15"></div>
+      </div>
+
+      <!-- Step 16 -->
+      <div class="step">
+        <div><span class="step-num">16</span><span class="step-title">Try to create value for deprecated key (expect 409)</span></div>
+        <div class="step-desc">Creating new overrides for deprecated keys is blocked.</div>
+        <div class="step-request">POST /api/v1/config/values
+Authorization: Bearer $PLATFORM_TOKEN
+body: {
+  "key_id": "$NEW_KEY_ID",
+  "scope_type": "institution",
+  "scope_id": "$INST_ID",
+  "value": "should-fail"
+}</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/config/values",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "key_id": "$NEW_KEY_ID",
+            "scope_type": "institution",
+            "scope_id": "$INST_ID",
+            "value": "should-fail"
+          }),
+          extractions: []
+        }, "result-16")'>Run Step 16</button>
+        <div class="result" id="result-16"></div>
+        <div class="note">Should return 409: "Key 'test.newKey' is deprecated — cannot create new value overrides"</div>
+      </div>
+
+      <!-- Step 17 -->
+      <div class="step">
+        <div><span class="step-num">17</span><span class="step-title">Try hard delete (expect 405)</span></div>
+        <div class="step-desc">Hard delete is not supported — soft delete only via PATCH.</div>
+        <div class="step-request">DELETE /api/v1/config/keys/$NEW_KEY_ID
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "DELETE",
+          url: "http://127.0.0.1:8000/api/v1/config/keys/$NEW_KEY_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-17")'>Run Step 17</button>
+        <div class="result" id="result-17"></div>
+        <div class="note">Should return 405: "Hard delete is not supported."</div>
+      </div>
+
+      <h2>Part E — Audit Log</h2>
+
+      <!-- Step 18 -->
+      <div class="step">
+        <div><span class="step-num">18</span><span class="step-title">View audit log for test.newKey</span></div>
+        <div class="step-desc">Should show: key_created, key_updated, value_created (institution), value_created (client), key_deprecated.</div>
+        <div class="step-request">GET /api/v1/config/audit?key=test.newKey
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/audit?key=test.newKey",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-18")'>Run Step 18</button>
+        <div class="result" id="result-18"></div>
+      </div>
+
+      <!-- Step 19 -->
+      <div class="step">
+        <div><span class="step-num">19</span><span class="step-title">View full audit log (all keys)</span></div>
+        <div class="step-desc">Should show all audit entries across all keys.</div>
+        <div class="step-request">GET /api/v1/config/audit?page_size=10
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/audit?page_size=10",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-19")'>Run Step 19</button>
+        <div class="result" id="result-19"></div>
+      </div>
+
+      <h2>Part F — No Auth</h2>
+
+      <!-- Step 20 -->
+      <div class="step">
+        <div><span class="step-num">20</span><span class="step-title">Access without token (expect 401/403)</span></div>
+        <div class="step-desc">Unauthenticated requests should be rejected.</div>
+        <div class="step-request">GET /api/v1/config/keys
+(no Authorization header)</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/keys",
+          headers: {},
+          extractions: []
+        }, "result-20")'>Run Step 20</button>
+        <div class="result" id="result-20"></div>
+        <div class="note">Should return 401 or 403.</div>
+      </div>
+
+      <h2>Part G — Cleanup</h2>
+
+      <!-- Step 21 -->
+      <div class="step">
+        <div><span class="step-num">21</span><span class="step-title">Delete institution override</span></div>
+        <div class="step-desc">Clean up the test.newKey institution override.</div>
+        <div class="step-request">DELETE /api/v1/config/values/$INST_VALUE_ID
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "DELETE",
+          url: "http://127.0.0.1:8000/api/v1/config/values/$INST_VALUE_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-21")'>Run Step 21</button>
+        <div class="result" id="result-21"></div>
+      </div>
+
+      <!-- Step 22 -->
+      <div class="step">
+        <div><span class="step-num">22</span><span class="step-title">Delete client override</span></div>
+        <div class="step-desc">Clean up the test.newKey client override.</div>
+        <div class="step-request">DELETE /api/v1/config/values/$CLIENT_VALUE_ID
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "DELETE",
+          url: "http://127.0.0.1:8000/api/v1/config/values/$CLIENT_VALUE_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-22")'>Run Step 22</button>
+        <div class="result" id="result-22"></div>
+      </div>
+
+    </div>
+
+    <!-- Right sidebar: env var store -->
+    <div class="side-col">
+      <div id="store-panel" class="container"></div>
+    </div>
+  </div>
+
+  <script src="shared.js"></script>
+</body>
+</html>

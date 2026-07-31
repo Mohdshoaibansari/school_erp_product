@@ -105,7 +105,18 @@ This invariant is non-negotiable: `docs/` is always the decisional input; OpenSp
 
 ---
 
-## 8. Current decisional state
+## 8. Config-First Module Development
+
+- **Before building a new business module**, first seed its required config keys in C-08 via a new Alembic migration.
+- Modules must read from `config.get(key, institution_id=...)` at runtime, never hardcode values that should be configurable.
+- Each module's `manifest.py` should document which config keys it consumes (add a comment block listing the keys).
+- Config keys are the source of truth for module behavior; code defaults (the `or <fallback>` in config.get calls) are fallbacks only.
+- When a new module needs a new config key, add it via migration (not by editing existing seed data).
+- Config key naming convention: `<module>.<settingName>` (e.g., `homework.lateSubmissionPolicy`, `fee.lateFeePercentage`).
+
+---
+
+## 9. Current decisional state
 
 | Capability | ADR | Status | Next |
 |---|---|---|---|

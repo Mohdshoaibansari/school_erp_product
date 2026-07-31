@@ -68,11 +68,28 @@ class HomeworkService:
     # -- Submission --
     def submit(self, ctx: TenantContext, dto: SubmissionCreateDTO) -> SubmissionDTO:
         logger.info("[HOMEWORK] Submit: homework=%s student=%s", dto.homework_id, ctx.user_id)
+        from kernel.config.resolver import config
         with self._session_factory() as s:
             hw = self._hw_repo.get(s, ctx, dto.homework_id)
             if not hw: raise ValueError("Homework not found")
-            if hw.status != "active": raise ValueError("Homework is closed")
-            status = "late" if datetime.utcnow().date() > hw.due_date else "submitted"
+
+            # Read config: which statuses accept submissions?
+            closed_statuses = config.get('homework.closedStatusValues', institution_id=str(ctx.institution_id)) or ["active"]
+            if hw.status not in closed_statuses:
+                raise ValueError("Homework is closed")
+
+            # Read config: late submission policy
+            allow_late = config.get('homework.allowLateSubmission', institution_id=str(ctx.institution_id))
+            late_policy = config.get('homework.lateSubmissionPolicy', institution_id=str(ctx.institution_id)) or "submitted"
+
+            is_late = datetime.utcnow().date() > hw.due_date
+            if is_late:
+                if not allow_late and late_policy == "rejected":
+                    raise ValueError("Homework submission deadline has passed")
+                status = "late" if late_policy == "late" else "submitted"
+            else:
+                status = "submitted"
+
             r = self._sub_repo.create(s, ctx, dto, status); s.commit()
             logger.info("[HOMEWORK] Submission created: id=%s status=%s", r.id, status)
             if self._audit: self._audit.emit(action="submission_created", client_id=ctx.client_id, institution_id=ctx.institution_id, actor=ctx.user_id or "system", payload={"submission_id": str(r.id), "homework_id": str(dto.homework_id), "student_id": str(r.student_id), "status": status})

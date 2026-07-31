@@ -127,7 +127,8 @@ class ConfigurationCache:
         self._keys_by_name: dict[str, Any] = {}
         # (scope_type, scope_id, key_id) -> ConfigurationValue
         self._values: dict[tuple[str, str | None, str], Any] = {}
-        # 90-day auto-hide threshold (per PRD D13)
+        # Auto-hide threshold — defaults to 90 days, can be overridden by platform.configDeprecatedHideDays
+        self._auto_hide_threshold_days = 90
         self._auto_hide_threshold = timedelta(days=90)
         self._loaded = False
 
@@ -195,6 +196,15 @@ class ConfigurationCache:
     def get_value(self, key_id: str, scope_type: str, scope_id: str | None) -> Any | None:
         return self._values.get((scope_type, scope_id, key_id))
 
+    def _get_value_internal(self, key_name: str) -> Any | None:
+        """Get the platform default value for a key by name (no scope walk).
+        Used internally by the cache itself for config-driven behavior.
+        """
+        k = self._keys_by_name.get(key_name)
+        if k is None:
+            return None
+        return k.default_value
+
     def list_keys_for_filter(
         self,
         category: str | None = None,
@@ -215,9 +225,13 @@ class ConfigurationCache:
                 continue
             if is_feature_toggle is not None and k.is_feature_toggle != is_feature_toggle:
                 continue
-            # 90-day auto-hide: deprecated keys older than 90 days are hidden
+            # Auto-hide: deprecated keys older than threshold are hidden
             if not include_deprecated and k.is_deprecated:
-                if k.deprecated_at and (now - k.deprecated_at) > self._auto_hide_threshold:
+                # Dynamic threshold from platform.configDeprecatedHideDays
+                threshold_val = self._get_value_internal('platform.configDeprecatedHideDays')
+                threshold_days = int(threshold_val) if threshold_val else 90
+                threshold = timedelta(days=threshold_days)
+                if k.deprecated_at and (now - k.deprecated_at) > threshold:
                     continue
             results.append(k)
         return results

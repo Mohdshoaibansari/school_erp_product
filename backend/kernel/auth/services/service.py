@@ -114,18 +114,21 @@ class AuthService:
             from jose import jwt
             jwt_secret = os.environ.get("SUPABASE_JWT_SECRET", "test-secret-for-c01")
             now = datetime.now(timezone.utc)
+            from kernel.config.resolver import config
+            jwt_expiry = int(config.get('auth.jwtExpirySeconds') or 3600)
+
             platform_jwt = jwt.encode({
                 "sub": str(user_id),
                 "is_platform_owner": True,
                 "iat": now,
-                "exp": now + timedelta(seconds=3600),
+                "exp": now + timedelta(seconds=jwt_expiry),
             }, jwt_secret, algorithm="HS256")
 
             return {
                 "access_token": platform_jwt,
                 "refresh_token": "",  # Platform owner doesn't use refresh
                 "token_type": "bearer",
-                "expires_in": 3600,
+                "expires_in": jwt_expiry,
                 "is_platform_owner": True,
             }
 
@@ -174,12 +177,15 @@ class AuthService:
                 user_id=user_id, ip_address=ip_address, user_agent=user_agent,
             )
 
+            from kernel.config.resolver import config
+            jwt_expiry = int(config.get('auth.jwtExpirySeconds') or 3600)
+
             logger.info("[AUTH] Login success: user_id=%s email=%s", user_id, email)
             return {
                 "access_token": result["access_token"],
                 "refresh_token": result["refresh_token"],
                 "token_type": "bearer",
-                "expires_in": 3600,
+                "expires_in": jwt_expiry,
             }
 
     async def refresh(
@@ -208,11 +214,14 @@ class AuthService:
             ip_address=ip_address, user_agent=user_agent,
         )
 
+        from kernel.config.resolver import config
+        jwt_expiry = int(config.get('auth.jwtExpirySeconds') or 3600)
+
         return {
             "access_token": result["access_token"],
             "refresh_token": result["refresh_token"],
             "token_type": "bearer",
-            "expires_in": 3600,
+            "expires_in": jwt_expiry,
         }
 
     async def logout(
@@ -408,11 +417,14 @@ class AuthService:
                 user_id=user_id, ip_address=ip_address, user_agent=user_agent,
             )
 
+            from kernel.config.resolver import config
+            jwt_expiry = int(config.get('auth.jwtExpirySeconds') or 3600)
+
             return {
                 "access_token": result["access_token"],
                 "refresh_token": result["refresh_token"],
                 "token_type": "bearer",
-                "expires_in": 3600,
+                "expires_in": jwt_expiry,
             }
 
     async def request_password_reset(
@@ -426,7 +438,8 @@ class AuthService:
         """
         logger.info("[AUTH] Password reset request: email=%s", email)
         # Build redirect URL for frontend
-        redirect_to = "http://localhost:3000/reset-password"  # TODO: make configurable
+        from kernel.config.resolver import config
+        redirect_to = config.get('auth.passwordResetRedirectUrl') or "http://localhost:3000/reset-password"
 
         try:
             await self._supabase.reset_password_for_email(email, redirect_to)

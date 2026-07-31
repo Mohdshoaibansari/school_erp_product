@@ -17,7 +17,7 @@ from jose import JWTError, jwt
 INVITE_JWT_SECRET = os.environ.get("APP_INVITE_JWT_SECRET", "test-invite-secret-for-c03")
 INVITE_JWT_ALGORITHM = "HS256"
 INVITE_JWT_ISSUER = "school-erp/invite"
-INVITE_JWT_EXPIRY_DAYS = 7
+# INVITE_JWT_EXPIRY_DAYS is now read from config at runtime (auth.inviteExpiryDays)
 
 
 class InvalidInviteTokenError(Exception):
@@ -35,10 +35,13 @@ def mint_invite_token(user_id: uuid.UUID, email: str) -> str:
     Returns:
         JWT string signed with APP_INVITE_JWT_SECRET.
     """
+    from kernel.config.resolver import config
+    invite_expiry_days = int(config.get('auth.inviteExpiryDays') or 7)
+
     payload = {
         "sub": str(user_id),
         "email": email,
-        "exp": datetime.now(timezone.utc) + timedelta(days=INVITE_JWT_EXPIRY_DAYS),
+        "exp": datetime.now(timezone.utc) + timedelta(days=invite_expiry_days),
         "iat": datetime.now(timezone.utc),
         "iss": INVITE_JWT_ISSUER,
     }

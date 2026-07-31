@@ -18,14 +18,19 @@
         <strong>This flow:</strong> Tests the full C-08 Configuration Framework — key registry CRUD,
         value overrides with scope inheritance (Platform → Client → Institution),
         merge strategies (append_lists), deprecation, audit log, and authorization.
+        <br><br>
+        <strong>Real-world scenario:</strong> A school chain wants different attendance statuses, late fee policies,
+        and homework submission rules for each school. The Platform Owner sets defaults, the Client Director overrides
+        for their chain, and each Institute Admin fine-tunes for their school.
       </div>
 
       <div class="prereq">
         <strong>Prerequisites:</strong> Backend running on <code>http://127.0.0.1:8000</code>.
-        Migration 009 applied (15 seed keys). Platform Owner exists in Supabase Auth.
+        Migrations 009 + 010 applied (21 seed keys). Platform Owner exists in Supabase Auth.
+        Run Flow 2 first to create a Client + Institution + Client Director if you haven't already.
       </div>
 
-      <h2>Part A — Key Registry</h2>
+      <h2>Part A — Platform Owner: Set Global Defaults</h2>
 
       <!-- Step 1 -->
       <div class="step">
@@ -47,8 +52,8 @@ body: { "email":"admin@school-erp.com", "password":"Shoby@123" }</div>
 
       <!-- Step 2 -->
       <div class="step">
-        <div><span class="step-num">2</span><span class="step-title">List all seed keys (15 keys)</span></div>
-        <div class="step-desc">Verify the 15 seed keys from migration 009 are loaded.</div>
+        <div><span class="step-num">2</span><span class="step-title">List all 21 seed keys</span></div>
+        <div class="step-desc">Verify 21 keys across 7 categories (15 original + 6 from migration 010).</div>
         <div class="step-request">GET /api/v1/config/keys
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
@@ -58,112 +63,526 @@ Authorization: Bearer $PLATFORM_TOKEN</div>
           extractions: []
         }, "result-2")'>Run Step 2</button>
         <div class="result" id="result-2"></div>
-        <div class="note">Should return 15 keys across 5 categories: Business Rules, Display, Academic, Notifications, Platform.</div>
+        <div class="note">Should return 21 keys. New keys include auth.jwtExpirySeconds, auth.inviteExpiryDays, auth.passwordResetRedirectUrl, homework.lateSubmissionPolicy, homework.closedStatusValues, platform.configDeprecatedHideDays.</div>
       </div>
 
       <!-- Step 3 -->
       <div class="step">
-        <div><span class="step-num">3</span><span class="step-title">Filter keys by category</span></div>
-        <div class="step-desc">Filter to Business Rules only — should show 4 keys.</div>
-        <div class="step-request">GET /api/v1/config/keys?category=Business%20Rules
+        <div><span class="step-num">3</span><span class="step-title">Set auth.jwtExpirySeconds = 7200 (2 hours)</span></div>
+        <div class="step-desc">Platform Owner changes JWT expiry from 1 hour to 2 hours globally. All institutions inherit this unless they override.</div>
+        <div class="step-request">GET /api/v1/config/keys?key=auth.jwtExpirySeconds
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/keys?category=Business%20Rules",
+          url: "http://127.0.0.1:8000/api/v1/config/keys?key=auth.jwtExpirySeconds",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: [
+            { var: "JWT_KEY_ID", path: "items.0.id" }
+          ]
+        }, "result-3a")'>Get Key ID</button>
+        <div class="result" id="result-3a"></div>
+
+        <div class="step-request">PATCH /api/v1/config/keys/$JWT_KEY_ID
+Authorization: Bearer $PLATFORM_TOKEN
+body: { "default_value": 7200 }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "PATCH",
+          url: "http://127.0.0.1:8000/api/v1/config/keys/$JWT_KEY_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "default_value": 7200 }),
           extractions: []
-        }, "result-3")'>Run Step 3</button>
-        <div class="result" id="result-3"></div>
+        }, "result-3b")'>Update Default</button>
+        <div class="result" id="result-3b"></div>
+        <div class="note">All institutions now get 7200s (2h) JWT expiry unless overridden.</div>
       </div>
 
       <!-- Step 4 -->
       <div class="step">
-        <div><span class="step-num">4</span><span class="step-title">Get a specific key by name</span></div>
-        <div class="step-desc">Filter by exact key name — attendance.statuses.</div>
-        <div class="step-request">GET /api/v1/config/keys?key=attendance.statuses
+        <div><span class="step-num">4</span><span class="step-title">Set auth.passwordResetRedirectUrl for production</span></div>
+        <div class="step-desc">Platform Owner sets the password reset URL to the production frontend.</div>
+        <div class="step-request">GET /api/v1/config/keys?key=auth.passwordResetRedirectUrl
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/keys?key=attendance.statuses",
+          url: "http://127.0.0.1:8000/api/v1/config/keys?key=auth.passwordResetRedirectUrl",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: [
-            { var: "ATT_STATUSES_KEY_ID", path: "items.0.id" }
+            { var: "RESET_URL_KEY_ID", path: "items.0.id" }
           ]
-        }, "result-4")'>Run Step 4</button>
-        <div class="result" id="result-4"></div>
-        <div class="note">Should return 1 key: attendance.statuses (json, append_lists).</div>
+        }, "result-4a")'>Get Key ID</button>
+        <div class="result" id="result-4a"></div>
+
+        <div class="step-request">PATCH /api/v1/config/keys/$RESET_URL_KEY_ID
+Authorization: Bearer $PLATFORM_TOKEN
+body: { "default_value": "https://school-erp.com/reset-password" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "PATCH",
+          url: "http://127.0.0.1:8000/api/v1/config/keys/$RESET_URL_KEY_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "default_value": "https://school-erp.com/reset-password" }),
+          extractions: []
+        }, "result-4b")'>Update Default</button>
+        <div class="result" id="result-4b"></div>
       </div>
 
       <!-- Step 5 -->
       <div class="step">
-        <div><span class="step-num">5</span><span class="step-title">Create a new key (test.newKey)</span></div>
-        <div class="step-desc">Platform Owner creates a new string key with default value.</div>
-        <div class="step-request">POST /api/v1/config/keys
-Authorization: Bearer $PLATFORM_TOKEN
-body: {
-  "key": "test.newKey",
-  "type": "string",
-  "default_value": "hello-world",
-  "category": "Platform",
-  "description": "Test key created by journey flow"
-}</div>
+        <div><span class="step-num">5</span><span class="step-title">Set homework.lateSubmissionPolicy = "submitted" (lenient)</span></div>
+        <div class="step-desc">Platform default: all submissions treated as on-time (no late penalty). Schools can override to "late" or "rejected".</div>
+        <div class="step-request">GET /api/v1/config/keys?key=homework.lateSubmissionPolicy
+Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
-          method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/config/keys",
-          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({
-            "key": "test.newKey",
-            "type": "string",
-            "default_value": "hello-world",
-            "category": "Platform",
-            "description": "Test key created by journey flow"
-          }),
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/keys?key=homework.lateSubmissionPolicy",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: [
-            { var: "NEW_KEY_ID", path: "id" }
+            { var: "LATE_POLICY_KEY_ID", path: "items.0.id" }
           ]
-        }, "result-5")'>Run Step 5</button>
-        <div class="result" id="result-5"></div>
+        }, "result-5a")'>Get Key ID</button>
+        <div class="result" id="result-5a"></div>
+
+        <div class="step-request">Resolve default value
+GET /api/v1/config/resolve/homework.lateSubmissionPolicy
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/resolve/homework.lateSubmissionPolicy",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-5b")'>Resolve</button>
+        <div class="result" id="result-5b"></div>
+        <div class="note">Default is "submitted" — all homework is treated as on-time. Schools can override to "late" (mark as late) or "rejected" (block after deadline).</div>
       </div>
 
       <!-- Step 6 -->
       <div class="step">
-        <div><span class="step-num">6</span><span class="step-title">Update key default value</span></div>
-        <div class="step-desc">Change default from "hello-world" to "updated-value".</div>
-        <div class="step-request">PATCH /api/v1/config/keys/$NEW_KEY_ID
-Authorization: Bearer $PLATFORM_TOKEN
-body: { "default_value": "updated-value", "description": "Updated by journey flow" }</div>
-        <button class="run-btn" onclick='runStep({
-          method: "PATCH",
-          url: "http://127.0.0.1:8000/api/v1/config/keys/$NEW_KEY_ID",
-          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "default_value": "updated-value", "description": "Updated by journey flow" }),
-          extractions: []
-        }, "result-6")'>Run Step 6</button>
-        <div class="result" id="result-6"></div>
-      </div>
-
-      <h2>Part B — Resolution & Scope Inheritance</h2>
-
-      <!-- Step 7 -->
-      <div class="step">
-        <div><span class="step-num">7</span><span class="step-title">Resolve key (platform default)</span></div>
-        <div class="step-desc">No scope override — should return platform default "updated-value".</div>
-        <div class="step-request">GET /api/v1/config/resolve/test.newKey
+        <div><span class="step-num">6</span><span class="step-title">Verify auth.jwtExpirySeconds resolves to 7200</span></div>
+        <div class="step-desc">Confirm the platform default was updated.</div>
+        <div class="step-request">GET /api/v1/config/resolve/auth.jwtExpirySeconds
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/resolve/test.newKey",
+          url: "http://127.0.0.1:8000/api/v1/config/resolve/auth.jwtExpirySeconds",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: []
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+        <div class="note">Should return: {"resolved_value": 7200, "source_scope": "platform:default"}</div>
+      </div>
+
+      <h2>Part B — Client Director: Override for School Chain</h2>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div><span class="step-num">7</span><span class="step-title">Login as Client Director</span></div>
+        <div class="step-desc">Client Director manages all institutions under their client. Uses Host header for tenant resolution.</div>
+        <div class="step-request">POST /api/auth/login
+body: { "email":"shoby.ansari586@gmail.com", "password":"Admin@123" }
+Host: meerutpublic.localhost</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "meerutpublic.localhost" },
+          body: JSON.stringify({ "email":"shoby.ansari586@gmail.com", "password":"Admin@123" }),
+          extractions: [
+            { var: "CD_TOKEN", path: "access_token" },
+            { var: "CD_USER_ID", path: "user.id" }
+          ]
         }, "result-7")'>Run Step 7</button>
         <div class="result" id="result-7"></div>
-        <div class="note">Should return: {"key":"test.newKey", "resolved_value":"updated-value", "source_scope":"platform:default"}</div>
+        <div class="note">After this, use $CD_TOKEN with Host: meerutpublic.localhost for Client Director actions.</div>
       </div>
 
       <!-- Step 8 -->
       <div class="step">
-        <div><span class="step-num">8</span><span class="step-title">Resolve attendance.statuses (append_lists)</span></div>
-        <div class="step-desc">Should return platform default ["present","absent"].</div>
+        <div><span class="step-num">8</span><span class="step-title">Get the client ID for the school chain</span></div>
+        <div class="step-desc">Client Director needs the client_id to set client-scope overrides.</div>
+        <div class="step-request">GET /api/v1/platform/clients
+Authorization: Bearer $CD_TOKEN
+Host: meerutpublic.localhost</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
+          extractions: [
+            { var: "CLIENT_ID", path: "0.id" }
+          ]
+        }, "result-8")'>Run Step 8</button>
+        <div class="result" id="result-8"></div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div><span class="step-num">9</span><span class="step-title">Get an institution ID for the school</span></div>
+        <div class="step-desc">Client Director lists institutions to get an institution_id for overrides.</div>
+        <div class="step-request">GET /api/v1/institutions
+Authorization: Bearer $CD_TOKEN
+Host: meerutpublic.localhost</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/institutions",
+          headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
+          extractions: [
+            { var: "INST_ID", path: "0.id" }
+          ]
+        }, "result-9")'>Run Step 9</button>
+        <div class="result" id="result-9"></div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div><span class="step-num">10</span><span class="step-title">Override attendance.statuses for the school chain</span></div>
+        <div class="step-desc">Client Director wants all schools in the chain to have ["present","absent","half_day","leave"].<br>
+        Uses append_lists merge — adds to the platform default.</div>
+        <div class="step-request">GET /api/v1/config/keys?key=attendance.statuses
+Authorization: Bearer $CD_TOKEN
+Host: meerutpublic.localhost</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/keys?key=attendance.statuses",
+          headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
+          extractions: [
+            { var: "ATT_KEY_ID", path: "items.0.id" }
+          ]
+        }, "result-10a")'>Get Key ID</button>
+        <div class="result" id="result-10a"></div>
+
+        <div class="step-request">POST /api/v1/config/values
+Authorization: Bearer $CD_TOKEN
+Host: meerutpublic.localhost
+body: { "key_id":"$ATT_KEY_ID", "scope_type":"client", "scope_id":"$CLIENT_ID", "value":["half_day","leave"] }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/config/values",
+          headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost", "Content-Type": "application/json" },
+          body: JSON.stringify({ "key_id": "$ATT_KEY_ID", "scope_type": "client", "scope_id": "$CLIENT_ID", "value": ["half_day","leave"] }),
+          extractions: [
+            { var: "CLIENT_ATT_VALUE_ID", path: "id" }
+          ]
+        }, "result-10b")'>Create Override</button>
+        <div class="result" id="result-10b"></div>
+        <div class="note">With append_lists merge: platform ["present","absent"] + client ["half_day","leave"] = ["present","absent","half_day","leave"].</div>
+      </div>
+
+      <!-- Step 11 -->
+      <div class="step">
+        <div><span class="step-num">11</span><span class="step-title">Override homework.lateSubmissionPolicy = "late" for the chain</span></div>
+        <div class="step-desc">Client Director wants all schools to mark late submissions as "late" (not just "submitted").</div>
+        <div class="step-request">POST /api/v1/config/values
+Authorization: Bearer $CD_TOKEN
+Host: meerutpublic.localhost
+body: { "key_id":"$LATE_POLICY_KEY_ID", "scope_type":"client", "scope_id":"$CLIENT_ID", "value":"late" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/config/values",
+          headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost", "Content-Type": "application/json" },
+          body: JSON.stringify({ "key_id": "$LATE_POLICY_KEY_ID", "scope_type": "client", "scope_id": "$CLIENT_ID", "value": "late" }),
+          extractions: [
+            { var: "CLIENT_LATE_POLICY_VALUE_ID", path: "id" }
+          ]
+        }, "result-11")'>Run Step 11</button>
+        <div class="result" id="result-11"></div>
+        <div class="note">All schools in this chain now mark late homework as "late" instead of "submitted".</div>
+      </div>
+
+      <!-- Step 12 -->
+      <div class="step">
+        <div><span class="step-num">12</span><span class="step-title">Resolve attendance.statuses for an institution (inherits client)</span></div>
+        <div class="step-desc">Resolve for a specific institution — should inherit the client override (append_lists).</div>
+        <div class="step-request">GET /api/v1/config/resolve/attendance.statuses?institution_id=$INST_ID&client_id=$CLIENT_ID
+Authorization: Bearer $CD_TOKEN
+Host: meerutpublic.localhost</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/resolve/attendance.statuses?institution_id=$INST_ID&client_id=$CLIENT_ID",
+          headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
+          extractions: []
+        }, "result-12")'>Run Step 12</button>
+        <div class="result" id="result-12"></div>
+        <div class="note">Should return: ["present","absent","half_day","leave"] (platform + client merged via append_lists).</div>
+      </div>
+
+      <!-- Step 13 -->
+      <div class="step">
+        <div><span class="step-num">13</span><span class="step-title">Resolve homework.lateSubmissionPolicy for an institution</span></div>
+        <div class="step-desc">Inherits the client override "late" (not the platform default "submitted").</div>
+        <div class="step-request">GET /api/v1/config/resolve/homework.lateSubmissionPolicy?institution_id=$INST_ID&client_id=$CLIENT_ID
+Authorization: Bearer $CD_TOKEN
+Host: meerutpublic.localhost</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/resolve/homework.lateSubmissionPolicy?institution_id=$INST_ID&client_id=$CLIENT_ID",
+          headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
+          extractions: []
+        }, "result-13")'>Run Step 13</button>
+        <div class="result" id="result-13"></div>
+        <div class="note">Should return: {"resolved_value":"late", "source_scope":"client:$CLIENT_ID"}</div>
+      </div>
+
+      <h2>Part C — Institute Admin: Fine-Tune for Their School</h2>
+
+      <!-- Step 14 -->
+      <div class="step">
+        <div><span class="step-num">14</span><span class="step-title">Login as Institute Admin</span></div>
+        <div class="step-desc">Admin of a specific school. Uses Host header for tenant resolution.</div>
+        <div class="step-request">POST /api/auth/login
+body: { "email":"admin@test-school.com", "password":"Admin@123" }
+Host: test-school.localhost</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "test-school.localhost" },
+          body: JSON.stringify({ "email":"admin@test-school.com", "password":"Admin@123" }),
+          extractions: [
+            { var: "ADMIN_TOKEN", path: "access_token" },
+            { var: "ADMIN_INST_ID", path: "user.institution_id" }
+          ]
+        }, "result-14")'>Run Step 14</button>
+        <div class="result" id="result-14"></div>
+        <div class="note">After this, use $ADMIN_TOKEN with Host: test-school.localhost for Institute Admin actions.</div>
+      </div>
+
+      <!-- Step 15 -->
+      <div class="step">
+        <div><span class="step-num">15</span><span class="step-title">Admin overrides homework.closedStatusValues for their school</span></div>
+        <div class="step-desc">This school wants to accept submissions even for "closed" homework (grace period).<br>
+        Sets closedStatusValues = ["active", "closed"].</div>
+        <div class="step-request">GET /api/v1/config/keys?key=homework.closedStatusValues
+Authorization: Bearer $ADMIN_TOKEN
+Host: test-school.localhost</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/keys?key=homework.closedStatusValues",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
+          extractions: [
+            { var: "CLOSED_KEY_ID", path: "items.0.id" }
+          ]
+        }, "result-15a")'>Get Key ID</button>
+        <div class="result" id="result-15a"></div>
+
+        <div class="step-request">POST /api/v1/config/values
+Authorization: Bearer $ADMIN_TOKEN
+Host: test-school.localhost
+body: { "key_id":"$CLOSED_KEY_ID", "scope_type":"institution", "scope_id":"$ADMIN_INST_ID", "value":["active","closed"] }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/config/values",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost", "Content-Type": "application/json" },
+          body: JSON.stringify({ "key_id": "$CLOSED_KEY_ID", "scope_type": "institution", "scope_id": "$ADMIN_INST_ID", "value": ["active","closed"] }),
+          extractions: [
+            { var: "INST_CLOSED_VALUE_ID", path: "id" }
+          ]
+        }, "result-15b")'>Create Override</button>
+        <div class="result" id="result-15b"></div>
+        <div class="note">This school can now submit homework even when status is "closed". Other schools still require "active".</div>
+      </div>
+
+      <!-- Step 16 -->
+      <div class="step">
+        <div><span class="step-num">16</span><span class="step-title">Admin overrides attendance.statuses for their school only</span></div>
+        <div class="step-desc">This school wants an extra status: "excused". Sets institution override to ["excused"].<br>
+        With append_lists: platform ["present","absent"] + client ["half_day","leave"] + institution ["excused"] = all 5.</div>
+        <div class="step-request">POST /api/v1/config/values
+Authorization: Bearer $ADMIN_TOKEN
+Host: test-school.localhost
+body: { "key_id":"$ATT_KEY_ID", "scope_type":"institution", "scope_id":"$ADMIN_INST_ID", "value":["excused"] }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8000/api/v1/config/values",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost", "Content-Type": "application/json" },
+          body: JSON.stringify({ "key_id": "$ATT_KEY_ID", "scope_type": "institution", "scope_id": "$ADMIN_INST_ID", "value": ["excused"] }),
+          extractions: [
+            { var: "INST_ATT_VALUE_ID", path: "id" }
+          ]
+        }, "result-16")'>Run Step 16</button>
+        <div class="result" id="result-16"></div>
+        <div class="note">append_lists merges: ["present","absent"] + ["half_day","leave"] + ["excused"] = ["present","absent","half_day","leave","excused"].</div>
+      </div>
+
+      <!-- Step 17 -->
+      <div class="step">
+        <div><span class="step-num">17</span><span class="step-title">Resolve attendance.statuses for this school (full chain)</span></div>
+        <div class="step-desc">Should show all 5 statuses: platform + client + institution merged via append_lists.</div>
+        <div class="step-request">GET /api/v1/config/resolve/attendance.statuses?institution_id=$ADMIN_INST_ID
+Authorization: Bearer $ADMIN_TOKEN
+Host: test-school.localhost</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/resolve/attendance.statuses?institution_id=$ADMIN_INST_ID",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
+          extractions: []
+        }, "result-17")'>Run Step 17</button>
+        <div class="result" id="result-17"></div>
+        <div class="note">Should return: ["present","absent","half_day","leave","excused"] — all 3 scopes merged.</div>
+      </div>
+
+      <!-- Step 18 -->
+      <div class="step">
+        <div><span class="step-num">18</span><span class="step-title">Resolve homework.closedStatusValues for this school</span></div>
+        <div class="step-desc">Should return ["active","closed"] (institution override, not platform default).</div>
+        <div class="step-request">GET /api/v1/config/resolve/homework.closedStatusValues?institution_id=$ADMIN_INST_ID
+Authorization: Bearer $ADMIN_TOKEN
+Host: test-school.localhost</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/resolve/homework.closedStatusValues?institution_id=$ADMIN_INST_ID",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
+          extractions: []
+        }, "result-18")'>Run Step 18</button>
+        <div class="result" id="result-18"></div>
+        <div class="note">Should return: ["active","closed"] — institution override.</div>
+      </div>
+
+      <h2>Part D — Scope Precedence & Fallback</h2>
+
+      <!-- Step 19 -->
+      <div class="step">
+        <div><span class="step-num">19</span><span class="step-title">Resolve auth.jwtExpirySeconds (always platform default)</span></div>
+        <div class="step-desc">No institution or client override exists — falls back to platform default 7200.</div>
+        <div class="step-request">GET /api/v1/config/resolve/auth.jwtExpirySeconds?institution_id=$ADMIN_INST_ID
+Authorization: Bearer $ADMIN_TOKEN
+Host: test-school.localhost</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/resolve/auth.jwtExpirySeconds?institution_id=$ADMIN_INST_ID",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
+          extractions: []
+        }, "result-19")'>Run Step 19</button>
+        <div class="result" id="result-19"></div>
+        <div class="note">Should return: {"resolved_value":7200, "source_scope":"platform:default"}</div>
+      </div>
+
+      <!-- Step 20 -->
+      <div class="step">
+        <div><span class="step-num">20</span><span class="step-title">Resolve auth.passwordResetRedirectUrl (platform default)</span></div>
+        <div class="step-desc">No override — falls back to platform default "https://school-erp.com/reset-password".</div>
+        <div class="step-request">GET /api/v1/config/resolve/auth.passwordResetRedirectUrl
+Authorization: Bearer $ADMIN_TOKEN
+Host: test-school.localhost</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/resolve/auth.passwordResetRedirectUrl",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
+          extractions: []
+        }, "result-20")'>Run Step 20</button>
+        <div class="result" id="result-20"></div>
+        <div class="note">Should return: "https://school-erp.com/reset-password" | platform:default</div>
+      </div>
+
+      <!-- Step 21 -->
+      <div class="step">
+        <div><span class="step-num">21</span><span class="step-title">Resolve homework.lateSubmissionPolicy (client override)</span></div>
+        <div class="step-desc">This school's client set "late" — should inherit from client scope, not platform.</div>
+        <div class="step-request">GET /api/v1/config/resolve/homework.lateSubmissionPolicy?institution_id=$ADMIN_INST_ID
+Authorization: Bearer $ADMIN_TOKEN
+Host: test-school.localhost</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/resolve/homework.lateSubmissionPolicy?institution_id=$ADMIN_INST_ID",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
+          extractions: []
+        }, "result-21")'>Run Step 21</button>
+        <div class="result" id="result-21"></div>
+        <div class="note">Should return: "late" | client:$CLIENT_ID (inherited from client scope, not platform).</div>
+      </div>
+
+      <h2>Part E — Audit & Cleanup</h2>
+
+      <!-- Step 22 -->
+      <div class="step">
+        <div><span class="step-num">22</span><span class="step-title">View audit log (all config changes)</span></div>
+        <div class="step-desc">Shows all config changes across all scopes — who changed what, when.</div>
+        <div class="step-request">GET /api/v1/config/audit?page_size=15
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/audit?page_size=15",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-22")'>Run Step 22</button>
+        <div class="result" id="result-22"></div>
+        <div class="note">Should show: key_created (seeds), key_updated (PO changed defaults), value_created (CD overrides, Admin overrides).</div>
+      </div>
+
+      <!-- Step 23 -->
+      <div class="step">
+        <div><span class="step-num">23</span><span class="step-title">View audit for attendance.statuses only</span></div>
+        <div class="step-desc">Filter by key to see the chain of overrides for attendance statuses.</div>
+        <div class="step-request">GET /api/v1/config/audit?key=attendance.statuses
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8000/api/v1/config/audit?key=attendance.statuses",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-23")'>Run Step 23</button>
+        <div class="result" id="result-23"></div>
+      </div>
+
+      <!-- Step 24 -->
+      <div class="step">
+        <div><span class="step-num">24</span><span class="step-title">Cleanup: Delete institution attendance override</span></div>
+        <div class="step-desc">Remove the institution-specific "excused" status.</div>
+        <div class="step-request">DELETE /api/v1/config/values/$INST_ATT_VALUE_ID
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "DELETE",
+          url: "http://127.0.0.1:8000/api/v1/config/values/$INST_ATT_VALUE_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-24")'>Run Step 24</button>
+        <div class="result" id="result-24"></div>
+      </div>
+
+      <!-- Step 25 -->
+      <div class="step">
+        <div><span class="step-num">25</span><span class="step-title">Cleanup: Delete client attendance override</span></div>
+        <div class="step-desc">Remove the client-wide "half_day,leave" statuses.</div>
+        <div class="step-request">DELETE /api/v1/config/values/$CLIENT_ATT_VALUE_ID
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "DELETE",
+          url: "http://127.0.0.1:8000/api/v1/config/values/$CLIENT_ATT_VALUE_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-25")'>Run Step 25</button>
+        <div class="result" id="result-25"></div>
+      </div>
+
+      <!-- Step 26 -->
+      <div class="step">
+        <div><span class="step-num">26</span><span class="step-title">Cleanup: Delete client lateSubmissionPolicy override</span></div>
+        <div class="step-desc">Remove the client-wide "late" policy.</div>
+        <div class="step-request">DELETE /api/v1/config/values/$CLIENT_LATE_POLICY_VALUE_ID
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "DELETE",
+          url: "http://127.0.0.1:8000/api/v1/config/values/$CLIENT_LATE_POLICY_VALUE_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-26")'>Run Step 26</button>
+        <div class="result" id="result-26"></div>
+      </div>
+
+      <!-- Step 27 -->
+      <div class="step">
+        <div><span class="step-num">27</span><span class="step-title">Cleanup: Delete institution homework.closedStatusValues override</span></div>
+        <div class="step-desc">Remove the institution-specific ["active","closed"] override.</div>
+        <div class="step-request">DELETE /api/v1/config/values/$INST_CLOSED_VALUE_ID
+Authorization: Bearer $PLATFORM_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "DELETE",
+          url: "http://127.0.0.1:8000/api/v1/config/values/$INST_CLOSED_VALUE_ID",
+          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
+          extractions: []
+        }, "result-27")'>Run Step 27</button>
+        <div class="result" id="result-27"></div>
+      </div>
+
+      <!-- Step 28 -->
+      <div class="step">
+        <div><span class="step-num">28</span><span class="step-title">Verify: attendance.statuses back to platform default</span></div>
+        <div class="step-desc">After cleanup, should return ["present","absent"] (platform default only).</div>
         <div class="step-request">GET /api/v1/config/resolve/attendance.statuses
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
@@ -171,278 +590,9 @@ Authorization: Bearer $PLATFORM_TOKEN</div>
           url: "http://127.0.0.1:8000/api/v1/config/resolve/attendance.statuses",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: []
-        }, "result-8")'>Run Step 8</button>
-        <div class="result" id="result-8"></div>
-        <div class="note">Should return: {"resolved_value":["present","absent"], "source_scope":"platform:default"}</div>
-      </div>
-
-      <h2>Part C — Value Overrides</h2>
-
-      <!-- Step 9 -->
-      <div class="step">
-        <div><span class="step-num">9</span><span class="step-title">Create institution-scope value override</span></div>
-        <div class="step-desc">Override test.newKey at institution scope. Uses the institution from the Client Director flow (update INST_ID if needed).</div>
-        <div class="step-request">POST /api/v1/config/values
-Authorization: Bearer $PLATFORM_TOKEN
-body: {
-  "key_id": "$NEW_KEY_ID",
-  "scope_type": "institution",
-  "scope_id": "$INST_ID",
-  "value": "institution-override"
-}</div>
-        <button class="run-btn" onclick='runStep({
-          method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/config/values",
-          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({
-            "key_id": "$NEW_KEY_ID",
-            "scope_type": "institution",
-            "scope_id": "$INST_ID",
-            "value": "institution-override"
-          }),
-          extractions: [
-            { var: "INST_VALUE_ID", path: "id" }
-          ]
-        }, "result-9")'>Run Step 9</button>
-        <div class="result" id="result-9"></div>
-        <div class="note">If INST_ID is not set, run Flow 2 (Client Director) first to create an institution.</div>
-      </div>
-
-      <!-- Step 10 -->
-      <div class="step">
-        <div><span class="step-num">10</span><span class="step-title">Resolve with institution scope</span></div>
-        <div class="step-desc">Should return "institution-override" (not the platform default).</div>
-        <div class="step-request">GET /api/v1/config/resolve/test.newKey?institution_id=$INST_ID
-Authorization: Bearer $PLATFORM_TOKEN</div>
-        <button class="run-btn" onclick='runStep({
-          method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/resolve/test.newKey?institution_id=$INST_ID",
-          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
-          extractions: []
-        }, "result-10")'>Run Step 10</button>
-        <div class="result" id="result-10"></div>
-        <div class="note">Should return: {"resolved_value":"institution-override", "source_scope":"institution:$INST_ID"}</div>
-      </div>
-
-      <!-- Step 11 -->
-      <div class="step">
-        <div><span class="step-num">11</span><span class="step-title">Resolve without scope (should still be platform default)</span></div>
-        <div class="step-desc">No scope — the override should NOT affect the platform default.</div>
-        <div class="step-request">GET /api/v1/config/resolve/test.newKey
-Authorization: Bearer $PLATFORM_TOKEN</div>
-        <button class="run-btn" onclick='runStep({
-          method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/resolve/test.newKey",
-          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
-          extractions: []
-        }, "result-11")'>Run Step 11</button>
-        <div class="result" id="result-11"></div>
-        <div class="note">Should return: {"resolved_value":"updated-value", "source_scope":"platform:default"}</div>
-      </div>
-
-      <!-- Step 12 -->
-      <div class="step">
-        <div><span class="step-num">12</span><span class="step-title">Create client-scope value override</span></div>
-        <div class="step-desc">Override test.newKey at client scope. Uses CLIENT_ID from Flow 1 or Flow 2.</div>
-        <div class="step-request">POST /api/v1/config/values
-Authorization: Bearer $PLATFORM_TOKEN
-body: {
-  "key_id": "$NEW_KEY_ID",
-  "scope_type": "client",
-  "scope_id": "$CLIENT_ID",
-  "value": "client-override"
-}</div>
-        <button class="run-btn" onclick='runStep({
-          method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/config/values",
-          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({
-            "key_id": "$NEW_KEY_ID",
-            "scope_type": "client",
-            "scope_id": "$CLIENT_ID",
-            "value": "client-override"
-          }),
-          extractions: [
-            { var: "CLIENT_VALUE_ID", path: "id" }
-          ]
-        }, "result-12")'>Run Step 12</button>
-        <div class="result" id="result-12"></div>
-      </div>
-
-      <!-- Step 13 -->
-      <div class="step">
-        <div><span class="step-num">13</span><span class="step-title">Resolve with client scope (should return client override)</span></div>
-        <div class="step-desc">Client scope exists — should return "client-override".</div>
-        <div class="step-request">GET /api/v1/config/resolve/test.newKey?client_id=$CLIENT_ID
-Authorization: Bearer $PLATFORM_TOKEN</div>
-        <button class="run-btn" onclick='runStep({
-          method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/resolve/test.newKey?client_id=$CLIENT_ID",
-          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
-          extractions: []
-        }, "result-13")'>Run Step 13</button>
-        <div class="result" id="result-13"></div>
-      </div>
-
-      <!-- Step 14 -->
-      <div class="step">
-        <div><span class="step-num">14</span><span class="step-title">Resolve with both scopes (institution takes precedence)</span></div>
-        <div class="step-desc">Both client and institution scopes — institution should win.</div>
-        <div class="step-request">GET /api/v1/config/resolve/test.newKey?institution_id=$INST_ID&client_id=$CLIENT_ID
-Authorization: Bearer $PLATFORM_TOKEN</div>
-        <button class="run-btn" onclick='runStep({
-          method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/resolve/test.newKey?institution_id=$INST_ID&client_id=$CLIENT_ID",
-          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
-          extractions: []
-        }, "result-14")'>Run Step 14</button>
-        <div class="result" id="result-14"></div>
-        <div class="note">Should return: {"resolved_value":"institution-override", "source_scope":"institution:$INST_ID"}</div>
-      </div>
-
-      <h2>Part D — Deprecation & Edge Cases</h2>
-
-      <!-- Step 15 -->
-      <div class="step">
-        <div><span class="step-num">15</span><span class="step-title">Deprecate the test key</span></div>
-        <div class="step-desc">Mark test.newKey as deprecated with a replacement key.</div>
-        <div class="step-request">PATCH /api/v1/config/keys/$NEW_KEY_ID
-Authorization: Bearer $PLATFORM_TOKEN
-body: { "is_deprecated": true, "replacement_key": "test.replacementKey" }</div>
-        <button class="run-btn" onclick='runStep({
-          method: "PATCH",
-          url: "http://127.0.0.1:8000/api/v1/config/keys/$NEW_KEY_ID",
-          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "is_deprecated": true, "replacement_key": "test.replacementKey" }),
-          extractions: []
-        }, "result-15")'>Run Step 15</button>
-        <div class="result" id="result-15"></div>
-      </div>
-
-      <!-- Step 16 -->
-      <div class="step">
-        <div><span class="step-num">16</span><span class="step-title">Try to create value for deprecated key (expect 409)</span></div>
-        <div class="step-desc">Creating new overrides for deprecated keys is blocked.</div>
-        <div class="step-request">POST /api/v1/config/values
-Authorization: Bearer $PLATFORM_TOKEN
-body: {
-  "key_id": "$NEW_KEY_ID",
-  "scope_type": "institution",
-  "scope_id": "$INST_ID",
-  "value": "should-fail"
-}</div>
-        <button class="run-btn" onclick='runStep({
-          method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/config/values",
-          headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({
-            "key_id": "$NEW_KEY_ID",
-            "scope_type": "institution",
-            "scope_id": "$INST_ID",
-            "value": "should-fail"
-          }),
-          extractions: []
-        }, "result-16")'>Run Step 16</button>
-        <div class="result" id="result-16"></div>
-        <div class="note">Should return 409: "Key 'test.newKey' is deprecated — cannot create new value overrides"</div>
-      </div>
-
-      <!-- Step 17 -->
-      <div class="step">
-        <div><span class="step-num">17</span><span class="step-title">Try hard delete (expect 405)</span></div>
-        <div class="step-desc">Hard delete is not supported — soft delete only via PATCH.</div>
-        <div class="step-request">DELETE /api/v1/config/keys/$NEW_KEY_ID
-Authorization: Bearer $PLATFORM_TOKEN</div>
-        <button class="run-btn" onclick='runStep({
-          method: "DELETE",
-          url: "http://127.0.0.1:8000/api/v1/config/keys/$NEW_KEY_ID",
-          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
-          extractions: []
-        }, "result-17")'>Run Step 17</button>
-        <div class="result" id="result-17"></div>
-        <div class="note">Should return 405: "Hard delete is not supported."</div>
-      </div>
-
-      <h2>Part E — Audit Log</h2>
-
-      <!-- Step 18 -->
-      <div class="step">
-        <div><span class="step-num">18</span><span class="step-title">View audit log for test.newKey</span></div>
-        <div class="step-desc">Should show: key_created, key_updated, value_created (institution), value_created (client), key_deprecated.</div>
-        <div class="step-request">GET /api/v1/config/audit?key=test.newKey
-Authorization: Bearer $PLATFORM_TOKEN</div>
-        <button class="run-btn" onclick='runStep({
-          method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/audit?key=test.newKey",
-          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
-          extractions: []
-        }, "result-18")'>Run Step 18</button>
-        <div class="result" id="result-18"></div>
-      </div>
-
-      <!-- Step 19 -->
-      <div class="step">
-        <div><span class="step-num">19</span><span class="step-title">View full audit log (all keys)</span></div>
-        <div class="step-desc">Should show all audit entries across all keys.</div>
-        <div class="step-request">GET /api/v1/config/audit?page_size=10
-Authorization: Bearer $PLATFORM_TOKEN</div>
-        <button class="run-btn" onclick='runStep({
-          method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/audit?page_size=10",
-          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
-          extractions: []
-        }, "result-19")'>Run Step 19</button>
-        <div class="result" id="result-19"></div>
-      </div>
-
-      <h2>Part F — No Auth</h2>
-
-      <!-- Step 20 -->
-      <div class="step">
-        <div><span class="step-num">20</span><span class="step-title">Access without token (expect 401/403)</span></div>
-        <div class="step-desc">Unauthenticated requests should be rejected.</div>
-        <div class="step-request">GET /api/v1/config/keys
-(no Authorization header)</div>
-        <button class="run-btn" onclick='runStep({
-          method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/keys",
-          headers: {},
-          extractions: []
-        }, "result-20")'>Run Step 20</button>
-        <div class="result" id="result-20"></div>
-        <div class="note">Should return 401 or 403.</div>
-      </div>
-
-      <h2>Part G — Cleanup</h2>
-
-      <!-- Step 21 -->
-      <div class="step">
-        <div><span class="step-num">21</span><span class="step-title">Delete institution override</span></div>
-        <div class="step-desc">Clean up the test.newKey institution override.</div>
-        <div class="step-request">DELETE /api/v1/config/values/$INST_VALUE_ID
-Authorization: Bearer $PLATFORM_TOKEN</div>
-        <button class="run-btn" onclick='runStep({
-          method: "DELETE",
-          url: "http://127.0.0.1:8000/api/v1/config/values/$INST_VALUE_ID",
-          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
-          extractions: []
-        }, "result-21")'>Run Step 21</button>
-        <div class="result" id="result-21"></div>
-      </div>
-
-      <!-- Step 22 -->
-      <div class="step">
-        <div><span class="step-num">22</span><span class="step-title">Delete client override</span></div>
-        <div class="step-desc">Clean up the test.newKey client override.</div>
-        <div class="step-request">DELETE /api/v1/config/values/$CLIENT_VALUE_ID
-Authorization: Bearer $PLATFORM_TOKEN</div>
-        <button class="run-btn" onclick='runStep({
-          method: "DELETE",
-          url: "http://127.0.0.1:8000/api/v1/config/values/$CLIENT_VALUE_ID",
-          headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
-          extractions: []
-        }, "result-22")'>Run Step 22</button>
-        <div class="result" id="result-22"></div>
+        }, "result-28")'>Run Step 28</button>
+        <div class="result" id="result-28"></div>
+        <div class="note">Should return: ["present","absent"] | platform:default</div>
       </div>
 
     </div>

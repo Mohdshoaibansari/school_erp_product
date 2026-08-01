@@ -185,3 +185,47 @@ class UserLifecycleEventDTO(BaseModel):
     reason: str | None
     actor: str
     entered_at: datetime
+
+
+# ============================================================
+# ClientUser DTOs (client-user-bootstrap)
+# ============================================================
+
+class ClientUserCreateDTO(BaseModel):
+    """Request body for creating a ClientUser (PO bootstrap)."""
+
+    email: str
+    name: str
+    role_id: uuid.UUID
+    user_category_id: uuid.UUID
+    client_id: uuid.UUID | None = None  # As body param for PO who has no client_id in TenantContext
+
+
+class ClientUserUpdateDTO(BaseModel):
+    """Request body for updating a ClientUser (name, email)."""
+
+    name: str | None = None
+    email: str | None = None
+
+
+class ClientUserDTO(BaseModel):
+    """Response DTO for a ClientUser."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    client_id: uuid.UUID
+    email: str
+    name: str
+    user_category_id: uuid.UUID
+    role_id: uuid.UUID
+    lifecycle_status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ClientUserTransitionDTO(BaseModel):
+    """Request body for transitioning a ClientUser lifecycle."""
+
+    new_state: str
+    reason: str | None = None

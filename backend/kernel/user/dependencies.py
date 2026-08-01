@@ -66,3 +66,24 @@ def reset_service_singleton() -> None:
     _service = None
     _session_factory = None
     _supabase_client = None
+
+
+# ============================================================
+# ClientUser service (client-user-bootstrap)
+# ============================================================
+
+_client_user_service = None
+
+
+def get_client_user_service():
+    """Return the module-scoped ClientUserService singleton."""
+    global _client_user_service
+    if _client_user_service is None:
+        from kernel.user.services.client_user_service import ClientUserService
+        from kernel.user.repos.client_user_repo import ClientUserRepository
+        _client_user_service = ClientUserService(
+            repo=ClientUserRepository(),
+            supabase_auth=_supabase_client,
+            session_factory=get_db_session_factory(),
+        )
+    return _client_user_service

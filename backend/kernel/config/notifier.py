@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import select
 import threading
 import time
 from typing import Any
@@ -57,13 +58,22 @@ class ConfigurationNotifier:
     def stop(self) -> None:
         """Stop the LISTEN background thread."""
         self._running = False
+        # Wake up the poll() by cancelling the connection from this thread.
+        # This causes poll() to raise an exception, the loop catches it and exits.
+        if self._listen_conn is not None:
+            try:
+                self._listen_conn.cancel()  # interrupt any pending blocking call
+            except Exception:
+                pass
+        if self._listener_thread is not None:
+            self._listener_thread.join(timeout=3)
+            if self._listener_thread.is_alive():
+                logger.warning("[C-08 notifier] listener thread did not stop within 3s")
         if self._listen_conn is not None:
             try:
                 self._listen_conn.close()
             except Exception:
                 pass
-        if self._listener_thread is not None:
-            self._listener_thread.join(timeout=2)
         logger.info("[C-08 notifier] Stopped")
 
     def _listen_loop(self) -> None:
@@ -93,12 +103,20 @@ class ConfigurationNotifier:
             logger.warning("[C-08 notifier] LISTEN setup failed: %s", e)
             return
 
+        import select
+
         from kernel.config.resolver import config as cfg
 
         while self._running:
             try:
                 if self._listen_conn is None:
                     break
+                # Use select() with timeout so we check self._running every second.
+                # Without this, poll() blocks forever and stop() can't shut us down.
+                if hasattr(select, 'select'):
+                    ready = select.select([self._listen_conn], [], [], 1.0)
+                    if not ready[0]:
+                        continue  # timeout, loop back to check self._running
                 self._listen_conn.poll()
                 notifies = self._listen_conn.notifies
                 if notifies:

@@ -29,9 +29,10 @@ class TenantInstitutionManifest(ManifestBase):
         app.add_middleware(SubdomainJWTMiddleware)
 
         # Register routers (7.3–7.7)
-        from business.tenant_institution.routes import platform_router, client_portal_router
+        from business.tenant_institution.routes import platform_router, client_portal_router, client_users_router
         app.include_router(platform_router)
         app.include_router(client_portal_router)
+        app.include_router(client_users_router)
 
     def register_casbin_policies(self, enforcer) -> None:
         # 12.1 (section 12): register the D11 tiered-delegation matrix as Casbin

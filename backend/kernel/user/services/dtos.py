@@ -48,7 +48,7 @@ class UserCreateDTO(BaseModel):
     email: str = Field(..., min_length=1, max_length=255)
     name: str = Field(..., min_length=1, max_length=255)
     user_category_id: uuid.UUID
-    institution_id: uuid.UUID | None = None  # Optional — client-level users have no institution
+    institution_id: uuid.UUID  # Required — every app_user row belongs to exactly one institution (D13)
 
 
 class UserUpdateDTO(BaseModel):

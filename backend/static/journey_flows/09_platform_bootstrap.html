@@ -31,7 +31,8 @@
           url: "http://127.0.0.1:8000/api/auth/login",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ "email":"admin@school-erp.com", "password":"Shoby@123" }),
-          extractions: [{ var: "BOOT_PLATFORM_TOKEN", path: "access_token" }]
+          extractions: [{ var: "BOOT_PLATFORM_TOKEN", path: "access_token" }],
+          fetchLookups: ["roles", "legal-entity-types", "user-categories"]
         }, "result-1")'>Run Step 1</button>
         <div class="result" id="result-1"></div>
       </div>
@@ -47,7 +48,7 @@
             "legal_name":"Sunrise International Education Trust",
             "slug":"sunrise",
             "primary_contact_email":"director@sunrise.edu",
-            "legal_entity_type_id":"3eb76a18-6b85-434d-b2de-435ce4c04ba5"
+            "legal_entity_type_id":"$LOOKUP.legal-entity-types.Trust"
           }),
           extractions: [{ var: "BOOT_CLIENT_ID", path: "id" }, { var: "BOOT_CLIENT_SLUG", path: "slug" }]
         }, "result-2")'>Run Step 2</button>
@@ -88,7 +89,7 @@
           method: "POST",
           url: "$SUPABASE_URL/rest/v1/app_user",
           headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
-          body: JSON.stringify({ "id":"$BOOT_DIRECTOR_ID", "client_id":"$BOOT_CLIENT_ID", "email":"director@sunrise.edu", "name":"Sunrise Director", "user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24", "lifecycle_status":"active" }),
+          body: JSON.stringify({ "id":"$BOOT_DIRECTOR_ID", "client_id":"$BOOT_CLIENT_ID", "email":"director@sunrise.edu", "name":"Sunrise Director", "user_category_id":"$LOOKUP.user-categories.Executive Leadership", "lifecycle_status":"active" }),
           extractions: []
         }, "result-5a")'>Run Step 5a — app_user</button>
         <div class="result" id="result-5a"></div>
@@ -99,7 +100,7 @@
             method: "POST",
             url: "$SUPABASE_URL/rest/v1/role_assignment",
             headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
-            body: JSON.stringify({ "id":"$BOOT_ASSIGN_ID", "client_id":"$BOOT_CLIENT_ID", "user_id":"$BOOT_DIRECTOR_ID", "role_id":"0b542f1d-4fa3-4771-8526-af7febba2aa0", "scope":"client" }),
+            body: JSON.stringify({ "id":"$BOOT_ASSIGN_ID", "client_id":"$BOOT_CLIENT_ID", "user_id":"$BOOT_DIRECTOR_ID", "role_id":"$LOOKUP.roles.client_director", "scope":"client" }),
             extractions: []
           }, "result-5b");
         '>Run Step 5b — role</button>
@@ -155,7 +156,7 @@
           method: "POST",
           url: "http://127.0.0.1:8000/api/v1/users",
           headers: { "Authorization": "Bearer $BOOT_DIRECTOR_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "email":"admin@sunrise.edu", "name":"Sunrise Admin", "user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24", "institution_id":"$BOOT_INST_ID" }),
+          body: JSON.stringify({ "email":"admin@sunrise.edu", "name":"Sunrise Admin", "user_category_id":"$LOOKUP.user-categories.Executive Leadership", "institution_id":"$BOOT_INST_ID" }),
           extractions: [{ var: "BOOT_ADMIN_ID", path: "id" }]
         }, "result-9a")'>Run Step 9a — Create</button>
         <div class="result" id="result-9a"></div>
@@ -163,7 +164,7 @@
           method: "POST",
           url: "http://127.0.0.1:8000/api/v1/users/$BOOT_ADMIN_ID/roles",
           headers: { "Authorization": "Bearer $BOOT_DIRECTOR_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "role_id":"70343690-695e-46a0-992c-c6eed7fb0c57" }),
+          body: JSON.stringify({ "role_id":"$LOOKUP.roles.Admin" }),,
           extractions: []
         }, "result-9b")'>Run Step 9b — Assign Admin Role</button>
         <div class="result" id="result-9b"></div>

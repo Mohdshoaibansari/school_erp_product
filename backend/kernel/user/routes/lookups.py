@@ -33,6 +33,13 @@ class OrgUnitTypeLookupDTO(BaseModel):
 
     model_config = {"from_attributes": True}
 
+class LegalEntityTypeLookupDTO(BaseModel):
+    """Minimal DTO for legal entity type dropdown."""
+    id: str
+    name: str
+
+    model_config = {"from_attributes": True}
+
 
 @router.get("/user-categories", response_model=list[UserCategoryDTO], summary="List user categories")
 def list_user_categories(
@@ -92,5 +99,23 @@ def list_org_unit_types(
         result = session.execute(text("SELECT id, name FROM org_unit_type ORDER BY name"))
         return [
             OrgUnitTypeLookupDTO(id=str(row[0]), name=row[1])
+            for row in result.fetchall()
+        ]
+
+@router.get("/legal-entity-types", response_model=list[LegalEntityTypeLookupDTO], summary="List legal entity types")
+def list_legal_entity_types(
+    _authz: None = Depends(require_permission("client", "read")),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> list[LegalEntityTypeLookupDTO]:
+    """List all LegalEntityType values available for client creation.
+
+    Accessible to any authenticated user — needed for client creation UI.
+    Uses raw SQL to avoid kernel→business import.
+    """
+    session_factory = get_db_session_factory()
+    with session_factory() as session:
+        result = session.execute(text("SELECT id, name FROM legal_entity_type ORDER BY name"))
+        return [
+            LegalEntityTypeLookupDTO(id=str(row[0]), name=row[1])
             for row in result.fetchall()
         ]

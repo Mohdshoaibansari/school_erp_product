@@ -69,7 +69,7 @@
           method: "POST",
           url: "http://127.0.0.1:8000/api/v1/platform/clients",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "display_name":"Hack", "slug":"hack", "primary_contact_email":"hack@hack.com", "legal_entity_type_id":"a3b63601-71b4-4863-9ce5-8915d116ec60" }),
+          body: JSON.stringify({ "display_name":"Hack", "slug":"hack", "primary_contact_email":"hack@hack.com", "legal_entity_type_id":"$LOOKUP.legal-entity-types.Pvt Ltd" }),
           extractions: []
         }, "result-4")'>Run Step 4</button>
         <div class="result" id="result-4"></div>
@@ -119,7 +119,7 @@
           method: "POST",
           url: "http://127.0.0.1:8000/api/v1/users",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "email":"admin@greenwoodhigh.com", "name":"Dup", "user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24", "institution_id":"$INST_ID" }),
+          body: JSON.stringify({ "email":"admin@greenwoodhigh.com", "name":"Dup", "user_category_id":"$LOOKUP.user-categories.Executive Leadership", "institution_id":"$INST_ID" }),
           extractions: []
         }, "result-8")'>Run Step 8</button>
         <div class="result" id="result-8"></div>
@@ -132,7 +132,7 @@
           method: "POST",
           url: "http://127.0.0.1:8000/api/v1/platform/clients",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "display_name":"No Slug", "primary_contact_email":"x@y.com", "legal_entity_type_id":"a3b63601-71b4-4863-9ce5-8915d116ec60" }),
+          body: JSON.stringify({ "display_name":"No Slug", "primary_contact_email":"x@y.com", "legal_entity_type_id":"$LOOKUP.legal-entity-types.Pvt Ltd" }),
           extractions: []
         }, "result-9")'>Run Step 9</button>
         <div class="result" id="result-9"></div>
@@ -145,7 +145,7 @@
           method: "POST",
           url: "http://127.0.0.1:8000/api/v1/platform/clients",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "display_name":"Admin Client", "slug":"admin", "primary_contact_email":"x@y.com", "legal_entity_type_id":"a3b63601-71b4-4863-9ce5-8915d116ec60" }),
+          body: JSON.stringify({ "display_name":"Admin Client", "slug":"admin", "primary_contact_email":"x@y.com", "legal_entity_type_id":"$LOOKUP.legal-entity-types.Pvt Ltd" }),,
           extractions: []
         }, "result-10")'>Run Step 10</button>
         <div class="result" id="result-10"></div>

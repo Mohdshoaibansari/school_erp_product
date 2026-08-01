@@ -43,7 +43,8 @@ body: { "email":"admin@school-erp.com", "password":"Shoby@123" }</div>
           extractions: [
             { var: "PLATFORM_TOKEN", path: "access_token" },
             { var: "PLATFORM_USER_ID", path: "user.id" }
-          ]
+          ],
+          fetchLookups: ["roles", "legal-entity-types", "user-categories"]
         }, "result-1")'>Run Step 1</button>
         <div class="result" id="result-1"></div>
       </div>
@@ -73,7 +74,7 @@ body: {
   "legal_name":"Greenwood Academy Pvt Ltd",
   "slug":"greenwood",
   "primary_contact_email":"director@greenwood.com",
-  "legal_entity_type_id":"a3b63601-71b4-4863-9ce5-8915d116ec60"
+  "legal_entity_type_id":"$LOOKUP.legal-entity-types.Pvt Ltd"
 }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
@@ -84,7 +85,7 @@ body: {
             "legal_name":"Greenwood Academy Pvt Ltd",
             "slug":"greenwood",
             "primary_contact_email":"director@greenwood.com",
-            "legal_entity_type_id":"a3b63601-71b4-4863-9ce5-8915d116ec60"
+            "legal_entity_type_id":"$LOOKUP.legal-entity-types.Pvt Ltd"
           }),
           extractions: [
             { var: "CLIENT_ID", path: "id" },
@@ -160,11 +161,8 @@ body: { "id":"$DIRECTOR_ID", "email":"director@greenwood.com", "password":"Direc
         <div class="step-desc">No <code>institution_id</code> — Client Director manages the whole client.</div>
         <div class="step-request">POST {SUPABASE_URL}/rest/v1/app_user
 body: {
-  "id":"$DIRECTOR_ID",
-  "client_id":"$CLIENT_ID",
-  "email":"director@greenwood.com",
-  "name":"Greenwood Director",
-  "user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24",
+  ...
+  "user_category_id":"$LOOKUP.user-categories.Executive Leadership",
   "lifecycle_status":"active"
 }</div>
         <button class="run-btn" onclick='runStep({
@@ -180,12 +178,13 @@ body: {
             "client_id": "$CLIENT_ID",
             "email": "director@greenwood.com",
             "name": "Greenwood Director",
-            "user_category_id": "20a3b37b-56be-4573-a7ee-b2c5b016fc24",
+            "user_category_id": "$LOOKUP.user-categories.Executive Leadership",
             "lifecycle_status": "active"
           }),
           extractions: []
         }, "result-7")'>Run Step 7</button>
         <div class="result" id="result-7"></div>
+        <div class="note"><strong>user_category_id</strong> resolved at runtime from /api/v1/lookups/user-categories.</div>
       </div>
 
       <div class="step">
@@ -196,7 +195,7 @@ body: {
   "id":"<new uuid>",
   "client_id":"$CLIENT_ID",
   "user_id":"$DIRECTOR_ID",
-  "role_id":"0b542f1d-4fa3-4771-8526-af7febba2aa0",
+  "role_id":"$LOOKUP.roles.client_director",
   "scope":"client"
 }</div>
         <button class="run-btn" onclick='
@@ -214,13 +213,14 @@ body: {
               "id": "$ASSIGN_ID",
               "client_id": "$CLIENT_ID",
               "user_id": "$DIRECTOR_ID",
-              "role_id": "0b542f1d-4fa3-4771-8526-af7febba2aa0",
+              "role_id": "$LOOKUP.roles.client_director",
               "scope": "client"
             }),
             extractions: []
           }, "result-8");
         '>Run Step 8</button>
         <div class="result" id="result-8"></div>
+        <div class="note"><strong>role_id</strong> resolved at runtime from /api/v1/lookups/roles.</div>
       </div>
 
       <div class="step">

@@ -52,7 +52,7 @@
           method: "POST",
           url: "$SUPABASE_URL/rest/v1/app_user",
           headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
-          body: JSON.stringify({ "id":"$PARENT_ID", "client_id":"$CLIENT_ID", "institution_id":"$INST_ID", "email":"parent@greenwoodhigh.com", "name":"Parent User", "user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24", "lifecycle_status":"active" }),
+          body: JSON.stringify({ "id":"$PARENT_ID", "client_id":"$CLIENT_ID", "institution_id":"$INST_ID", "email":"parent@greenwoodhigh.com", "name":"Parent User", "user_category_id":"$LOOKUP.user-categories.Executive Leadership", "lifecycle_status":"active" }),
           extractions: []
         }, "result-1b")'>Run Step 1b — Insert app_user</button>
         <div class="result" id="result-1b"></div>
@@ -60,11 +60,11 @@
           method: "POST",
           url: "$SUPABASE_URL/rest/v1/role_assignment",
           headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
-          body: JSON.stringify({ "id":"$PARENT_ASSIGN_ID", "client_id":"$CLIENT_ID", "user_id":"$PARENT_ID", "role_id":"fffd68f6-dba8-4410-8d92-868692ce4222", "scope":"institution" }),
+          body: JSON.stringify({ "id":"$PARENT_ASSIGN_ID", "client_id":"$CLIENT_ID", "user_id":"$PARENT_ID", "role_id":"$LOOKUP.roles.Parent", "scope":"institution" }),
           extractions: []
         }, "result-1c")'>Run Step 1c — Assign Parent Role</button>
         <div class="result" id="result-1c"></div>
-        <div class="note">Parent role id: <code>fffd68f6-dba8-4410-8d92-868692ce4222</code></div>
+        <div class="note">role_id resolved from /api/v1/lookups/roles at runtime. Requires lookups cached from Flow 1.</div>
       </div>
 
       <div class="step">

@@ -33,7 +33,8 @@
           url: "http://127.0.0.1:8000/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
           body: JSON.stringify({ "email":"director@greenwood.com", "password":"Director@123" }),
-          extractions: [{ var: "DIRECTOR_TOKEN", path: "access_token" }]
+          extractions: [{ var: "DIRECTOR_TOKEN", path: "access_token" }],
+          fetchLookups: ["roles", "user-categories"]
         }, "result-1")'>Run Step 1</button>
         <div class="result" id="result-1"></div>
         <div class="note">If Host header is dropped, login still works — middleware falls back to app_user lookup.</div>
@@ -101,7 +102,7 @@
           body: JSON.stringify({
             "email":"admin@greenwoodhigh.com",
             "name":"Anita Verma",
-            "user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24",
+            "user_category_id":"$LOOKUP.user-categories.Executive Leadership",
             "institution_id":"$INST_ID"
           }),
           extractions: [{ var: "ADMIN_ID", path: "id" }]
@@ -115,11 +116,11 @@
           method: "POST",
           url: "http://127.0.0.1:8000/api/v1/users/$ADMIN_ID/roles",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "role_id":"70343690-695e-46a0-992c-c6eed7fb0c57" }),
+          body: JSON.stringify({ "role_id":"$LOOKUP.roles.Admin" }),
           extractions: []
         }, "result-6")'>Run Step 6</button>
         <div class="result" id="result-6"></div>
-        <div class="note">Role <code>Admin</code> id: <code>70343690-695e-46a0-992c-c6eed7fb0c57</code></div>
+        <div class="note">Role <code>Admin</code> resolved from /api/v1/lookups/roles at runtime.</div>
       </div>
 
       <div class="step">
@@ -155,7 +156,7 @@
           body: JSON.stringify({
             "email":"teacher@greenwoodhigh.com",
             "name":"Rahul Sharma",
-            "user_category_id":"20a3b37b-56be-4573-a7ee-b2c5b016fc24",
+            "user_category_id":"$LOOKUP.user-categories.Academic Staff",
             "institution_id":"$INST_ID"
           }),
           extractions: [{ var: "TEACHER_ID", path: "id" }]
@@ -169,7 +170,7 @@
           method: "POST",
           url: "http://127.0.0.1:8000/api/v1/users/$TEACHER_ID/roles",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "role_id":"5d1efdc6-b15d-403f-8dac-bbacbcb5ff3c" }),
+          body: JSON.stringify({ "role_id":"$LOOKUP.roles.Teacher" }),
           extractions: []
         }, "result-10")'>Run Step 10 — Assign Role</button>
         <div class="result" id="result-10"></div>
@@ -200,7 +201,7 @@
           body: JSON.stringify({
             "email":"student@greenwoodhigh.com",
             "name":"Arjun Kumar",
-            "user_category_id":"024ffc86-e4d4-4901-9449-fd6546843909",
+            "user_category_id":"$LOOKUP.user-categories.Learner",
             "institution_id":"$INST_ID"
           }),
           extractions: [{ var: "STUDENT_ID", path: "id" }]
@@ -214,7 +215,7 @@
           method: "POST",
           url: "http://127.0.0.1:8000/api/v1/users/$STUDENT_ID/roles",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "role_id":"03bd67b4-8c4e-4e3b-861e-e7548ba930e8" }),
+          body: JSON.stringify({ "role_id":"$LOOKUP.roles.Student" }),,
           extractions: []
         }, "result-12")'>Run Step 12 — Assign Role</button>
         <div class="result" id="result-12"></div>

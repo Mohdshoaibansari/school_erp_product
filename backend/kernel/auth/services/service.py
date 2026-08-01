@@ -132,6 +132,21 @@ class AuthService:
                 "is_platform_owner": True,
             }
 
+        # Client-leadership user (D2) — look up client_user instead of app_user
+        user_tier = user_metadata.get("user_tier")
+        if user_tier == "client_leadership":
+            return await self._login_client_leadership(
+                ctx, user_id, email,
+                ip_address=ip_address, user_agent=user_agent,
+            )
+
+        # Institution user — fall through to existing app_user lookup
+        if user_tier != "institution":
+            # D14: strict-fail for users without user_tier flag
+            logger.warning("[AUTH] Login failed: no user_tier flag for user_id=%s email=%s metadata=%s",
+                           user_id, email, user_metadata)
+            raise AuthError("Account requires reconfiguration. Contact administrator.", status_code=403)
+
         # Normal user — look up app_user by UUID
         with self._session_factory() as session:
             # Look up app_user by UUID — bypass tenant filter since login
@@ -186,6 +201,72 @@ class AuthService:
                 "refresh_token": result["refresh_token"],
                 "token_type": "bearer",
                 "expires_in": jwt_expiry,
+            }
+
+    async def _login_client_leadership(
+        self,
+        ctx: TenantContext,
+        user_id: uuid.UUID,
+        email: str,
+        *,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> dict[str, Any]:
+        """Login a client-leadership user (Client Director etc.) — D2, D9.
+
+        Queries client_user instead of app_user, validates lifecycle_status == 'active',
+        mints a custom HS256 JWT carrying {sub, user_tier, client_id, role_id, exp}.
+        """
+        from kernel.user.models.client_user import ClientUser
+        from kernel.config.resolver import config
+        from jose import jwt
+
+        with self._session_factory() as session:
+            user_obj = session.get(ClientUser, user_id)
+            if not user_obj:
+                logger.warning("[AUTH] Login failed: client_user not found user_id=%s", user_id)
+                self._record_login_attempt(
+                    ctx, email, "login_failure",
+                    ip_address=ip_address, user_agent=user_agent,
+                )
+                raise AuthError("User record missing. Contact administrator.", status_code=403)
+
+            if user_obj.lifecycle_status != "active":
+                logger.warning("[AUTH] Login failed: user_id=%s lifecycle=%s",
+                               user_id, user_obj.lifecycle_status)
+                self._record_login_attempt(
+                    ctx, email, "login_failure",
+                    user_id=user_id, ip_address=ip_address, user_agent=user_agent,
+                )
+                raise AuthError(f"Account is not active. Status: {user_obj.lifecycle_status}.", status_code=403)
+
+            self._record_login_attempt(
+                ctx, email, "login_success",
+                user_id=user_id, ip_address=ip_address, user_agent=user_agent,
+            )
+
+            jwt_secret = os.environ.get("SUPABASE_JWT_SECRET", "test-secret-for-c01")
+            now = datetime.now(timezone.utc)
+            jwt_expiry = int(config.get('auth.jwtExpirySeconds') or 3600)
+
+            cd_jwt = jwt.encode({
+                "sub": str(user_id),
+                "user_tier": "client_leadership",
+                "client_id": str(user_obj.client_id),
+                "role_id": str(user_obj.role_id),
+                "iat": now,
+                "exp": now + timedelta(seconds=jwt_expiry),
+            }, jwt_secret, algorithm="HS256")
+
+            logger.info("[AUTH] CD login success: user_id=%s client_id=%s", user_id, user_obj.client_id)
+
+            return {
+                "access_token": cd_jwt,
+                "refresh_token": "",
+                "token_type": "bearer",
+                "expires_in": jwt_expiry,
+                "user_tier": "client_leadership",
+                "client_id": str(user_obj.client_id),
             }
 
     async def refresh(

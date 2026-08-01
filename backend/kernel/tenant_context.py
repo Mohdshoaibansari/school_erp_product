@@ -33,6 +33,7 @@ class TenantContext:
         institution_id: the institution selected by the in-app switcher (may be None).
         user_id: the Supabase Auth ``sub`` claim.
         is_platform_owner: whether the caller is a Platform Owner (D11).
+        user_tier: the tier from the JWT claim ("client_leadership", "institution", or None).
         roles: the caller's role labels (e.g. ``["client_director"]``).
     """
 
@@ -40,6 +41,7 @@ class TenantContext:
     institution_id: uuid.UUID | None = None
     user_id: str | None = None
     is_platform_owner: bool = False
+    user_tier: str | None = None
     roles: Sequence[str] = field(default_factory=list)
 
 

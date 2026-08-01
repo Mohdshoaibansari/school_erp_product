@@ -198,6 +198,7 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
         jwt_client_id = None
         jwt_institution_id = None
         is_platform_owner = False
+        user_tier = None
         roles: list[str] = []
 
         if token:
@@ -226,6 +227,7 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
                         jwt_client_id = payload.get("client_id")
                         jwt_institution_id = payload.get("institution_id")
                         is_platform_owner = payload.get("is_platform_owner", False)
+                        user_tier = payload.get("user_tier")
                         roles = payload.get("roles", [])
                         logger.debug("[MW] Supabase JWT decoded: user_id=%s roles=%s is_po=%s", user_id, roles, is_platform_owner)
                 except JWTError:
@@ -234,6 +236,7 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
                     jwt_client_id = payload.get("client_id")
                     jwt_institution_id = payload.get("institution_id")
                     is_platform_owner = payload.get("is_platform_owner", False)
+                    user_tier = payload.get("user_tier")
                     roles = payload.get("roles", [])
                     logger.debug("[MW] Supabase JWT decoded (fallback): user_id=%s roles=%s is_po=%s", user_id, roles, is_platform_owner)
             except JWTError:
@@ -288,11 +291,12 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
                 content={"detail": "Platform owner access restricted to platform endpoints"},
             )
 
-        # Role lookup for normal users (not platform owner).
+        # Role lookup for normal users (not platform owner, not client-leadership).
+        # Client-leadership users have their role in the JWT; no DB lookup needed.
         # Fallback: if client_id was not resolved from subdomain (e.g. Swagger UI
         # without Host header), look up the user's client_id and institution_id
         # from app_user so tenant context is still populated.
-        if user_id and not roles and not is_platform_owner:
+        if user_id and not roles and not is_platform_owner and user_tier != "client_leadership":
             try:
                 from sqlalchemy import create_engine, text as sa_text
                 db_url = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:54322/postgres")
@@ -327,11 +331,12 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
             institution_id=institution_id,
             user_id=user_id,
             is_platform_owner=is_platform_owner,
+            user_tier=user_tier,
             roles=roles,
         )
         set_tenant_context(ctx)
 
-        logger.info("[MW] Request: %s %s | user=%s client=%s inst=%s roles=%s is_po=%s",
-                     request.method, path, user_id, client_id, institution_id, roles, is_platform_owner)
+        logger.info("[MW] Request: %s %s | user=%s client=%s inst=%s roles=%s is_po=%s tier=%s",
+                     request.method, path, user_id, client_id, institution_id, roles, is_platform_owner, user_tier)
 
         return await call_next(request)

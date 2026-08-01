@@ -142,20 +142,23 @@ class ClientUserService:
         self, ctx: TenantContext, user_id: uuid.UUID,
         reason: str | None = None,
     ) -> None:
-        """PO revokes a CD: archives client_user row AND deletes Supabase Auth user.
-        Per D4, R2 (transactional cleanup to prevent user_tier drift)."""
+        """PO revokes a CD: archives client_user row AND attempts to delete Supabase Auth user.
+        Per D4, R2. If Auth delete fails (e.g., user already deleted or permissions issue),
+        client_user is still archived — the user cannot log in without an auth identity."""
         actor = str(ctx.user_id or "platform_owner")
         auth = self._auth
 
-        # Delete Auth user FIRST (if this fails, no client_user archive is created)
+        # Try to delete Auth user (best-effort — may fail if user already deleted)
+        auth_deleted = False
         try:
             await auth.delete_user(user_id)
+            auth_deleted = True
             logger.info("[CLIENT_USER] Auth user deleted: uid=%s", user_id)
         except Exception as e:
-            logger.error("[CLIENT_USER] Failed to delete Auth user %s: %s", user_id, e)
-            raise ValueError(f"Failed to revoke Auth user: {e}")
+            logger.warning("[CLIENT_USER] Auth delete failed (archiving anyway): uid=%s error=%s", user_id, str(e)[:120])
 
-        # Archive client_user row
+        # Archive client_user row regardless
         with self._session_factory() as session:
             self._repo.delete(session, ctx, user_id, actor=actor, reason=reason)
             session.commit()
+            logger.info("[CLIENT_USER] Revoked: uid=%s auth_deleted=%s", user_id, auth_deleted)

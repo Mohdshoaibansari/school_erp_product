@@ -54,10 +54,10 @@
 
 ## 7. Backend — invite accept endpoint (CD completes invite, D6)
 
-- [ ] 7.1 Reuse or extend the existing `/api/auth/activate` endpoint (from C-03) to handle the `client_leadership` tier
-- [ ] 7.2 When the invite JWT is verified AND the `client_user` row exists with `lifecycle_status = "invited"`: set the Supabase Auth password, mark `email_confirm = true`, transition `client_user.lifecycle_status` to `active`, insert `client_user_lifecycle_event` row with actor = the CD themselves
-- [ ] 7.3 Reject with `400 User is already active` if the `client_user.lifecycle_status != "invited"` (per the spec scenario "Already-active CD rejected")
-- [ ] 7.4 Add tests: CD accepts invite → active; invite reused → 400; invite for archived CD → 404 / 400
+- [x] 7.1 Reuse or extend the existing `/api/auth/activate` endpoint (from C-03) to handle the `client_leadership` tier
+- [x] 7.2 When the invite JWT is verified AND the `client_user` row exists with `lifecycle_status = "invited"`: set the Supabase Auth password, mark `email_confirm = true`, transition `client_user.lifecycle_status` to `active`, insert `client_user_lifecycle_event` row with actor = the CD themselves
+- [x] 7.3 Reject with `400 User is already active` if the `client_user.lifecycle_status != "invited"` (per the spec scenario "Already-active CD rejected")
+- [x] 7.4 Add tests: CD accepts invite → active; invite reused → 400; invite for archived CD → 404 / 400
 
 ## 8. Backend — Casbin policy loader extension (D3)
 
@@ -75,8 +75,8 @@
 
 ## 10. Backend — config.py whitelist check
 
-- [ ] 10.1 Verify `/api/v1/platform/clients/{client_id}/users` is reachable by the PO (the parent `/api/v1/platform/` is whitelisted in `config.PLATFORM_PATHS`; nested path should inherit; verify in middleware test)
-- [ ] 10.2 Add a middleware test asserting the nested users endpoint admits a PO JWT without `Host` header
+- [x] 10.1 Verify `/api/v1/platform/clients/{client_id}/users` is reachable by the PO (the parent `/api/v1/platform/` is whitelisted in `config.PLATFORM_PATHS`; nested path should inherit; verify in middleware test)
+- [x] 10.2 Add a middleware test asserting the nested users endpoint admits a PO JWT without `Host` header
 
 ## 11. Backend — tests aligned to acceptance criteria (AC-1 through AC-10)
 
@@ -95,24 +95,24 @@
 
 ## 13. Backend — revoke endpoint transactional auth cleanup (R2 mitigation)
 
-- [ ] 13.1 Implement the `DELETE` endpoint so the `client_user` archive and the Supabase Auth block happen in a try/except; if either fails, roll back both sides and write a failed-revocation audit row
-- [ ] 13.2 Add integration test: revoke succeeds → both `client_user.archived == true` AND Supabase Auth user is banned
-- [ ] 13.3 Add integration test: revoke fails on the Auth block step → `client_user` row unchanged, audit row records the failure, response is `500` or `502` with a clear error
+- [x] 13.1 Implement the `DELETE` endpoint so the `client_user` archive and the Supabase Auth block happen in a try/except; if either fails, roll back both sides and write a failed-revocation audit row
+- [x] 13.2 Add integration test: revoke succeeds → both `client_user.archived == true` AND Supabase Auth user is banned
+- [x] 13.3 Add integration test: revoke fails on the Auth block step → `client_user` row unchanged, audit row records the failure, response is `500` or `502` with a clear error
 
 ## 14. Operational — greenfield wipe (D14)
 
-- [ ] 14.1 Document the greenfield wipe procedure in `scripts/BOOTSTRAP_GUIDE.md` or a new `scripts/CLIENT_USER_GUIDE.md`: (a) delete all Supabase Auth users except `admin@school-erp.com` BEFORE running migration 011; (b) confirm `app_user` table is empty on the cloud DB; (c) then run migrations 011 + 012 in order
-- [ ] 14.2 Provide a one-shot cleanup script `backend/scripts/greenfield_wipe_auth_users.py` that uses the Supabase Admin API to delete all Auth users except the PO. Idempotent.
+- [x] 14.1 Document the greenfield wipe procedure in `scripts/BOOTSTRAP_GUIDE.md` or a new `scripts/CLIENT_USER_GUIDE.md`: (a) delete all Supabase Auth users except `admin@school-erp.com` BEFORE running migration 011; (b) confirm `app_user` table is empty on the cloud DB; (c) then run migrations 011 + 012 in order
+- [x] 14.2 Provide a one-shot cleanup script `backend/scripts/greenfield_wipe_auth_users.py` that uses the Supabase Admin API to delete all Auth users except the PO. Idempotent.
 
 ## 15. Documentation — flow doc + OpenSpec
 
-- [ ] 15.1 Update `school_erp_flow/c01_tenant_institution/_c01_flow_bootstrap_via_po.html` (or `01_platform_owner.html`) to show the NEW bootstrap step (`POST /api/v1/platform/clients/$ID/users`) instead of direct Supabase REST calls. Track separately from the spec change to avoid coupling spec approval to UI work.
-- [ ] 15.2 Add a flow doc entry in `school_erp_flow/client_user_bootstrap/` covering: PO bootstrap → CD accept-invite → CD login → CD manages own profile → PO suspends CD
-- [ ] 15.3 After apply + verify, run the OpenSpec archive step (`/opsx-archive`) to move this change into `openspec/changes/archive/<date>-add-client-user-bootstrap/` and merge the delta specs into `openspec/specs/`
+- [x] 15.1 Update `school_erp_flow/c01_tenant_institution/_c01_flow_bootstrap_via_po.html` (or `01_platform_owner.html`) to show the NEW bootstrap step (`POST /api/v1/platform/clients/$ID/users`) instead of direct Supabase REST calls. Track separately from the spec change to avoid coupling spec approval to UI work.
+- [x] 15.2 Add a flow doc entry in `school_erp_flow/client_user_bootstrap/` covering: PO bootstrap → CD accept-invite → CD login → CD manages own profile → PO suspends CD
+- [x] 15.3 After apply + verify, run the OpenSpec archive step (`/opsx-archive`) to move this change into `openspec/changes/archive/<date>-add-client-user-bootstrap/` and merge the delta specs into `openspec/specs/`
 
 ## 16. Verification (verify.md)
 
-- [ ] 16.1 Create `verify.md` mapping each requirement/scenario in the spec files to the test(s) that verify it (per the openspec-verify conventions)
-- [ ] 16.2 Run the full test suite locally: `cd backend && uv run pytest -q` — all tests green before archive
-- [ ] 16.3 Run migration 011 + 012 against a fresh local DB to confirm idempotency + the post-011 assertion + the NOT NULL ALTER successfully applies
-- [ ] 16.4 Run the migration against the CLOUD Supabase DB after the greenfield wipe and verify the invariants hold (zero NULL `institution_id` rows in `app_user`; zero users without `user_tier` flag except the PO)
+- [x] 16.1 Create `verify.md` mapping each requirement/scenario in the spec files to the test(s) that verify it (per the openspec-verify conventions)
+- [x] 16.2 Run the full test suite locally: `cd backend && uv run pytest -q` — all tests green before archive
+- [x] 16.3 Run migration 011 + 012 against a fresh local DB to confirm idempotency + the post-011 assertion + the NOT NULL ALTER successfully applies
+- [x] 16.4 Run the migration against the CLOUD Supabase DB after the greenfield wipe and verify the invariants hold (zero NULL `institution_id` rows in `app_user`; zero users without `user_tier` flag except the PO)

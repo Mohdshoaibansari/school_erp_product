@@ -47,7 +47,7 @@
           method: "GET",
           url: "http://127.0.0.1:8000/api/v1/lookups/institution-types",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
-          extractions: [{ var: "INST_TYPE_ID", path: "0.id" }]
+          extractions: [{ var: "INST_TYPE_ID", path: "[code=$INST_TYPE_CODE].id" }]
         }, "result-2")'>Run Step 2</button>
         <div class="result" id="result-2"></div>
       </div>
@@ -265,6 +265,9 @@
     <div><div class="store-panel" id="store-panel"></div></div>
   </div>
   <script src="shared.js"></script>
-  <script>renderStorePanel("store-panel");</script>
+  <script>
+    if (!STORE.INST_TYPE_CODE) { STORE.INST_TYPE_CODE = "TEST"; saveStore(); }
+    renderStorePanel("store-panel");
+  </script>
 </body>
 </html>

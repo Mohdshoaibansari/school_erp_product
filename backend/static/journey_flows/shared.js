@@ -157,19 +157,64 @@ function applyExtractions(data, extractions) {
     if (value !== undefined) {
       STORE[ext.var] = String(value);
       console.log('[flow] stored ' + ext.var + ' = ' + value);
+    } else {
+      console.warn('[flow] extraction returned undefined: ' + ext.path);
     }
   }
   saveStore();
 }
 
 // Resolve a dotted path like "access_token" or "user.id" or "data.0.id"
+// Supports filter syntax: "[field=value]" finds array item matching predicate.
 function resolvePath(obj, path) {
-  const parts = path.split('.');
+  // Tokenize: split on dots, but keep "[...]" as a single token.
+  const parts = [];
+  let depth = 0;
+  let buf = '';
+  for (let i = 0; i < path.length; i++) {
+    const ch = path[i];
+    if (ch === '[') {
+      if (depth > 0) buf += ch;
+      depth++;
+    } else if (ch === ']') {
+      depth--;
+      if (depth === 0) {
+        parts.push(buf);
+        buf = '';
+      } else {
+        buf += ch;
+      }
+    } else if (ch === '.' && depth === 0) {
+      if (buf.length > 0) {
+        parts.push(buf);
+        buf = '';
+      }
+    } else {
+      buf += ch;
+    }
+  }
+  if (buf.length > 0) parts.push(buf);
+
   let cur = obj;
   for (const p of parts) {
     if (cur === null || cur === undefined) return undefined;
-    if (/^\d+$/.test(p)) cur = cur[parseInt(p, 10)];
-    else cur = cur[p];
+    if (p.startsWith('[') && p.endsWith(']')) {
+      const inner = p.slice(1, -1);
+      const predicates = inner.split(',').map(s => {
+        const eq = s.indexOf('=');
+        return { field: s.substring(0, eq), value: s.substring(eq + 1) };
+      });
+      if (!Array.isArray(cur)) return undefined;
+      cur = cur.find(item => {
+        if (item === null || typeof item !== 'object') return false;
+        return predicates.every(pred => String(item[pred.field]) === pred.value);
+      });
+      if (cur === undefined) return undefined;
+    } else if (/^\d+$/.test(p)) {
+      cur = cur[parseInt(p, 10)];
+    } else {
+      cur = cur[p];
+    }
   }
   return cur;
 }
@@ -280,7 +325,12 @@ async function runStep(step, resultElId) {
     log.push('<pre style="background:#f5f5f5;padding:8px;border-radius:4px;overflow:auto;max-height:300px;font-size:11px;">' + (respJson ? prettyJson(respJson) : respText) + '</pre>');
 
     if (resp.ok && step.extractions) {
-      applyExtractions(respJson || {}, step.extractions);
+      // Substitute $VARS in path expressions (e.g. "[slug=$CD_CLIENT_SLUG].id")
+      const resolvedExtractions = step.extractions.map(ext => ({
+        var: ext.var,
+        path: substitute(ext.path)
+      }));
+      applyExtractions(respJson || {}, resolvedExtractions);
       log.push('<div style="color:#0a0;font-size:11px;margin-top:6px;">✓ extracted: ' + step.extractions.map(e => e.var).join(', ') + '</div>');
     }
 

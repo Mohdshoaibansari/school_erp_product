@@ -30,7 +30,8 @@
           url: "http://127.0.0.1:8000/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
           body: JSON.stringify({ "email":"admin@greenwoodhigh.com", "password":"Admin@123" }),
-          extractions: [{ var: "ADMIN_TOKEN", path: "access_token" }]
+          extractions: [{ var: "ADMIN_TOKEN", path: "access_token" }],
+          fetchLookups: ["org-unit-types"]
         }, "result-1")'>Run Step 1</button>
         <div class="result" id="result-1"></div>
       </div>
@@ -55,10 +56,13 @@
           method: "GET",
           url: "http://127.0.0.1:8000/api/v1/lookups/org-unit-types",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
-          extractions: [{ var: "ORG_TYPE_DEPARTMENT_ID", path: "0.id" }, { var: "ORG_TYPE_CLASS_ID", path: "2.id" }]
+          extractions: [
+            { var: "ORG_TYPE_DEPARTMENT_ID", path: "[name=Department].id" },
+            { var: "ORG_TYPE_CLASS_ID", path: "[name=Class].id" }
+          ]
         }, "result-3")'>Run Step 3</button>
         <div class="result" id="result-3"></div>
-        <div class="note">Returns org_unit_types sorted by name (Department, Faculty, Grade, Class, Section...). Double-check the response to see which row each ID maps to. If you want a different type, manually update <code>ORG_TYPE_DEPARTMENT_ID</code> / <code>ORG_TYPE_CLASS_ID</code> in the env panel.</div>
+        <div class="note">Extracts IDs by name, not by index — robust against lookup table reorderings.</div>
       </div>
 
       <div class="step">

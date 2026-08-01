@@ -205,10 +205,11 @@ Host: meerutpublic.localhost</div>
           url: "http://127.0.0.1:8000/api/v1/platform/clients",
           headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
           extractions: [
-            { var: "CLIENT_ID", path: "0.id" }
+            { var: "CLIENT_ID", path: "[slug=$CD_CLIENT_SLUG].id" }
           ]
         }, "result-8")'>Run Step 8</button>
         <div class="result" id="result-8"></div>
+        <div class="note">Filters by <code>CD_CLIENT_SLUG</code> env var (default: <code>meerutpublic</code>). Change in the env panel to point at a different client.</div>
       </div>
 
       <!-- Step 9 -->
@@ -223,7 +224,7 @@ Host: meerutpublic.localhost</div>
           url: "http://127.0.0.1:8000/api/v1/institutions",
           headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
           extractions: [
-            { var: "INST_ID", path: "0.id" }
+            { var: "INST_ID", path: "[display_name=$CD_INST_NAME].id" }
           ]
         }, "result-9")'>Run Step 9</button>
         <div class="result" id="result-9"></div>
@@ -604,5 +605,12 @@ Authorization: Bearer $PLATFORM_TOKEN</div>
   </div>
 
   <script src="shared.js"></script>
+  <script>
+    // Default identifier for the school chain the configuration flow operates on.
+    // Change CD_CLIENT_SLUG / CD_INST_NAME in the env panel to point at a different chain.
+    if (!STORE.CD_CLIENT_SLUG) { STORE.CD_CLIENT_SLUG = "meerutpublic"; saveStore(); }
+    if (!STORE.CD_INST_NAME)   { STORE.CD_INST_NAME   = "Test Inst";       saveStore(); }
+    renderStorePanel("store-panel");
+  </script>
 </body>
 </html>

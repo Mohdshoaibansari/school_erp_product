@@ -9,6 +9,7 @@ Centralized constants for middleware, auth, and platform operations.
 PLATFORM_PATHS = [
     "/api/v1/platform/",
     "/api/v1/config/",
+    "/api/v1/lookups/",  # C-02 lookup tables: roles, user-categories, etc. Global read-only data needed for client/institution/user creation.
     "/api/auth/",
     "/health",
     "/docs",

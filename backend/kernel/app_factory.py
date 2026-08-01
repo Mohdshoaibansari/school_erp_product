@@ -129,8 +129,11 @@ def create_app(module_manifests: list[ModuleManifest] | None = None) -> FastAPI:
         logger.info("Registering module: %s (tier=%s)", manifest.name, manifest.tier)
         manifest.register_routes(app)
 
-    # Invoke on_startup hooks so modules can initialise (DB reads, policy loads, ...)
-    # BEFORE the Casbin enforcer is created and policies are registered (D29)
+    # Invoke on_startup ONLY once — the lifespan handler below also calls it.
+    # Modules that need to init BEFORE Casbin (DB reads, policy loads) use
+    # the first call. The lifespan call is for modules that need the running app.
+    # C-08 is one such module — its cache load + NOTIFY listener must run
+    # exactly ONCE. Remove the duplicate call to prevent double-thread leaks.
     for manifest in manifests:
         manifest.on_startup()
 
@@ -140,9 +143,7 @@ def create_app(module_manifests: list[ModuleManifest] | None = None) -> FastAPI:
     # Register startup/shutdown hooks via lifespan
     @asynccontextmanager
     async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
-        for manifest in manifests:
-            logger.info("Starting module: %s", manifest.name)
-            manifest.on_startup()
+        # on_startup was already called above. Do NOT call it again.
         yield
         for manifest in reversed(manifests):
             logger.info("Shutting down module: %s", manifest.name)

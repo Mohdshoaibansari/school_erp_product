@@ -87,6 +87,7 @@ class SupabaseAuthClient(Protocol):
         password: str | None = None,
         email: str | None = None,
         email_confirm: bool | None = None,
+        user_metadata: dict | None = None,
     ) -> dict:
         """Update a user in Supabase Auth (D4, D15, D16, D20b).
 
@@ -95,6 +96,7 @@ class SupabaseAuthClient(Protocol):
             password: new password (if changing).
             email: new email (if changing).
             email_confirm: whether to mark email as confirmed.
+            user_metadata: merge-dict into user_metadata (for D2 tier flag).
 
         Returns:
             dict with updated user data.
@@ -265,6 +267,8 @@ class SupabaseAuthClientImpl:
                 update_data["email"] = email
             if email_confirm is not None:
                 update_data["email_confirm"] = email_confirm
+            if user_metadata is not None:
+                update_data["user_metadata"] = user_metadata
             response = client.auth.admin.update_user_by_id(str(user_id), update_data)
             logger.info("[SUPABASE] User updated: id=%s", user_id)
             return {"user": response.user.model_dump() if response.user else None}

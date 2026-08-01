@@ -89,6 +89,11 @@ class IdentityUserService:
             if self._supabase is not None:
                 try:
                     await self._supabase.create_user(result.id, result.email)
+                    # D2: stamp user_tier = "institution" on every app_user's Auth record
+                    await self._supabase.update_user(
+                        result.id,
+                        user_metadata={"user_tier": "institution"},
+                    )
                 except SupabaseAuthError as e:
                     session.rollback()  # Rollback app_user insert
                     raise ValueError(f"Failed to create Supabase Auth user: {e}") from e

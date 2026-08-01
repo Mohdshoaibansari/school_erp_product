@@ -359,13 +359,24 @@ class AuthService:
             # Look up app_user
             # Look up app_user by UUID — bypass tenant filter for auth operations
             from kernel.user.models.user import User
+            from kernel.user.models.client_user import ClientUser
             user_obj = session.get(User, user_id)
+            client_user_obj = None
             user_dto = self._user_repo._to_dto(user_obj) if user_obj else None
+            
             if not user_dto:
+                # Try client_user (client-leadership tier per D2)
+                client_user_obj = session.get(ClientUser, user_id)
+            
+            if not user_dto and not client_user_obj:
                 raise AuthError("User not found", status_code=404)
 
+            # Determine target
+            target_table = "client_user" if client_user_obj else "app_user"
+            target_lifecycle = client_user_obj.lifecycle_status if client_user_obj else user_dto.lifecycle_status
+
             # Check user not already active
-            if user_dto.lifecycle_status == "active":
+            if target_lifecycle == "active":
                 raise AuthError("User is already active", status_code=400)
 
             # Call Supabase to set password and confirm email
@@ -380,13 +391,28 @@ class AuthService:
                 logger.error("[AUTH] Supabase update failed: user_id=%s error=%s", user_id, str(e)[:100])
                 raise AuthError(f"Failed to activate user: {e}", status_code=502) from e
 
-            # Transition app_user from invited to active (D29)
-            from kernel.user.services.dtos import UserUpdateDTO
-            update_dto = UserUpdateDTO(lifecycle_status="active")
-            result = self._user_repo.update(session, ctx, user_id, update_dto)
+            # Transition app_user or client_user from invited to active (D29)
+            if client_user_obj:
+                # Client-leadership tier — transition client_user
+                from kernel.user.models.client_user_lifecycle_event import ClientUserLifecycleEvent
+                client_user_obj.lifecycle_status = "active"
+                event = ClientUserLifecycleEvent(
+                    client_user_id=client_user_obj.id,
+                    state="active",
+                    reason="Completed invite activation",
+                    actor=str(user_id),
+                )
+                session.add(event)
+                session.flush()
+                result_lifecycle = client_user_obj.lifecycle_status
+            else:
+                from kernel.user.services.dtos import UserUpdateDTO
+                update_dto = UserUpdateDTO(lifecycle_status="active")
+                result = self._user_repo.update(session, ctx, user_id, update_dto)
+                result_lifecycle = result.lifecycle_status
             session.commit()
 
-            logger.info("[AUTH] User activated: user_id=%s lifecycle=%s", user_id, result.lifecycle_status)
+            logger.info("[AUTH] User activated: user_id=%s table=%s lifecycle=%s", user_id, target_table, result_lifecycle)
 
             # Emit audit event
             self._audit.emit(

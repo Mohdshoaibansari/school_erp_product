@@ -80,12 +80,12 @@
 
 ## 11. Backend — tests aligned to acceptance criteria (AC-1 through AC-10)
 
-- [ ] 11.1 `tests/test_client_user_bootstrap.py` covering: bootstrap returns invite_url (AC-3); CD accept-invite flow (AC-3 step 4.2); CD login mints custom HS256 JWT with correct claims (AC-2); PO list / suspend / revoke (AC-4); CD own-row selection (AC-5); CD cannot read sibling (AC-5); RLS denies CD INSERT/DELETE (AC-5)
-- [ ] 11.2 `tests/test_client_user_rls.py` covering: PO reads all client_user rows (AC-6 partial); PO cannot read app_user via client_user (AC-6); PO sees zero app_user rows via middleware (AC-6, AC-7); PO cannot POST /api/v1/users (AC-6)
-- [ ] 11.3 `tests/test_login_user_tier_lookup.py` covering: `client_leadership` → client_user lookup (AC-2); `institution` → app_user lookup (AC-2); no-tier → 403 strict-fail (AC-9)
-- [ ] 11.4 `tests/test_migration_011_012.py` covering: 011 moves NULL rows to client_user + backfills user_tier (AC-10); 011 idempotency; 012 ALTER NotNull success; 012 NO-OP if 011 not run; 012 rollback (AC-10)
-- [ ] 11.5 Extend `tests/test_c03_auth.py` (or new file) to cover the `invited → active` transition for `client_user` rows
-- [ ] 11.6 Extend `tests/test_c04_authz.py` to verify the dual-source Casbin loader (AC-2 partial)
+- [x] 11.1 `tests/test_client_user_bootstrap.py` covering: bootstrap returns invite_url (AC-3); CD accept-invite flow (AC-3 step 4.2); CD login mints custom HS256 JWT with correct claims (AC-2); PO list / suspend / revoke (AC-4); CD own-row selection (AC-5); CD cannot read sibling (AC-5); RLS denies CD INSERT/DELETE (AC-5)
+- [x] 11.2 `tests/test_client_user_rls.py` covering: PO reads all client_user rows (AC-6 partial); PO cannot read app_user via client_user (AC-6); PO sees zero app_user rows via middleware (AC-6, AC-7); PO cannot POST /api/v1/users (AC-6)
+- [x] 11.3 `tests/test_login_user_tier_lookup.py` covering: `client_leadership` → client_user lookup (AC-2); `institution` → app_user lookup (AC-2); no-tier → 403 strict-fail (AC-9)
+- [x] 11.4 `tests/test_migration_011_012.py` covering: 011 moves NULL rows to client_user + backfills user_tier (AC-10); 011 idempotency; 012 ALTER NotNull success; 012 NO-OP if 011 not run; 012 rollback (AC-10)
+- [x] 11.5 Extend `tests/test_c03_auth.py` (or new file) to cover the `invited → active` transition for `client_user` rows
+- [x] 11.6 Extend `tests/test_c04_authz.py` to verify the dual-source Casbin loader (AC-2 partial)
 
 ## 12. Backend — AppUser creation now stamps user_tier (D2 integrity)
 

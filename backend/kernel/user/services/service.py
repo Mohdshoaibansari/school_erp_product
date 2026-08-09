@@ -1,17 +1,15 @@
-"""IdentityUserService (task 8.1, task 8.2).
+"""UserService — unified user-lifecycle service (D6, D8).
+
+Replaces both IdentityUserService and ClientUserService.
+Holds a StrategyResolver that dispatches to CDStrategy or InstitutionUserStrategy.
 
 Published service interface for C-02 (A4). Endpoints call services; services
 call repos. This is the module boundary other modules see.
 
-Methods: create_user, get_user, list_users, update_user, transition_lifecycle,
-create_profile, get_profile, update_profile, create_role_assignment,
-list_role_assignments, delete_role_assignment, create_identifier,
-list_identifiers, delete_identifier.
-
-Wires audit emission via AuditEmitter Protocol (task 8.2).
-
-Phase 4 (C-03): Optional SupabaseAuthClient for admin propagation to Supabase Auth.
-When injected, create_user/transition_lifecycle/update_user propagate to Supabase.
+Methods: create_user, get_user, list_users, update_user, delete_user,
+transition_lifecycle, create_profile, get_profile, update_profile,
+create_role_assignment, list_role_assignments, delete_role_assignment,
+create_identifier, list_identifiers, delete_identifier.
 """
 
 from __future__ import annotations
@@ -22,12 +20,10 @@ import uuid
 from sqlalchemy.orm import Session, sessionmaker
 
 from kernel.tenant_context import TenantContext
-from kernel.user.repos.user_repo import UserRepository
 from kernel.user.repos.user_profile_repo import UserProfileRepository
 from kernel.user.repos.role_assignment_repo import RoleAssignmentRepository
 from kernel.user.repos.user_identifier_repo import UserIdentifierRepository
 from kernel.audit import AuditEmitter, DefaultAuditEmitter
-from kernel.auth.supabase_client import SupabaseAuthClient, SupabaseAuthError
 
 logger = logging.getLogger(__name__)
 from kernel.user.services.dtos import (
@@ -41,195 +37,113 @@ from kernel.user.services.dtos import (
     RoleAssignmentDTO,
     UserIdentifierCreateDTO,
     UserIdentifierDTO,
+    ClientUserCreateDTO,
+    ClientUserDTO,
+    ClientUserUpdateDTO,
+    ClientUserTransitionDTO,
 )
 
 
-class IdentityUserService:
-    """Published service interface for C-02 (A4).
+class UserService:
+    """Unified user-lifecycle service (D6).
 
-    Endpoints call this; it orchestrates repos + TenantContext.
+    Replaces IdentityUserService and ClientUserService.
+    Holds a StrategyResolver and delegates to strategies.
     """
 
     def __init__(
         self,
         session_factory: sessionmaker[Session],
         audit_emitter: AuditEmitter | None = None,
-        user_repo: UserRepository | None = None,
         profile_repo: UserProfileRepository | None = None,
         role_assignment_repo: RoleAssignmentRepository | None = None,
         user_identifier_repo: UserIdentifierRepository | None = None,
-        supabase_client: SupabaseAuthClient | None = None,  # Phase 4 (12.1)
+        supabase_client=None,  # Optional SupabaseAuthClient
+        resolver=None,  # StrategyResolver
     ) -> None:
         self._session_factory = session_factory
         self._audit = audit_emitter or DefaultAuditEmitter()
-        self._user_repo = user_repo or UserRepository(audit_emitter=self._audit)
         self._profile_repo = profile_repo or UserProfileRepository()
         self._role_assignment_repo = role_assignment_repo or RoleAssignmentRepository(audit_emitter=self._audit)
         self._user_identifier_repo = user_identifier_repo or UserIdentifierRepository(audit_emitter=self._audit)
-        self._supabase = supabase_client  # Phase 4 (12.1) — optional, backwards compatible
+        self._supabase = supabase_client
+        self._resolver = resolver
 
     @property
     def audit_emitter(self) -> AuditEmitter:
         """Expose the shared audit emitter for tests."""
         return self._audit
 
-    # ---- User CRUD ----
+    # ---- User CRUD (strategy-dispatched) ----
 
-    async def create_user(self, ctx: TenantContext, dto: UserCreateDTO) -> UserDTO:
-        """Create a new User.
-
-        Phase 4 (12.2): If SupabaseAuthClient is injected, creates the
-        matching Supabase Auth user. On Supabase failure, rolls back the
-        app_user insert and raises.
-        """
-        with self._session_factory() as session:
-            result = self._user_repo.create(session, ctx, dto)
-
-            # Phase 4 (12.2): Propagate to Supabase Auth
-            if self._supabase is not None:
-                try:
-                    await self._supabase.create_user(result.id, result.email)
-                    # D2: stamp user_tier = "institution" on every app_user's Auth record
-                    await self._supabase.update_user(
-                        result.id,
-                        user_metadata={"user_tier": "institution"},
-                    )
-                except SupabaseAuthError as e:
-                    session.rollback()  # Rollback app_user insert
-                    raise ValueError(f"Failed to create Supabase Auth user: {e}") from e
-
-            session.commit()
-
-            # C-11 audit emission for user creation (AC-10)
-            self._audit.emit(
-                action="user_created",
-                client_id=ctx.client_id,
-                institution_id=ctx.institution_id,
-                actor=ctx.user_id,
-                payload={
-                    "user_id": str(result.id),
-                    "email": result.email,
-                    "name": result.name,
-                },
+    def _get_resolver(self):
+        """Lazy-init a default resolver for backwards compatibility."""
+        if self._resolver is None:
+            from kernel.user.services.strategies.cd_strategy import CDStrategy
+            from kernel.user.services.strategies.institution_strategy import InstitutionUserStrategy
+            from kernel.user.services.strategies.resolver import StrategyResolver
+            cd_strategy = CDStrategy(
+                session_factory=self._session_factory,
+                supabase_client=self._supabase,
+                audit_emitter=self._audit,
             )
+            institution_strategy = InstitutionUserStrategy(
+                session_factory=self._session_factory,
+                supabase_client=self._supabase,
+                audit_emitter=self._audit,
+            )
+            self._resolver = StrategyResolver(
+                cd_strategy=cd_strategy,
+                institution_strategy=institution_strategy,
+                session_factory=self._session_factory,
+            )
+        return self._resolver
 
-            return result
+    async def create_user(self, ctx: TenantContext, dto) -> dict:
+        """Create a user. Dispatches to the appropriate strategy by DTO type."""
+        strategy = self._get_resolver().resolve_for_create(dto)
+        return await strategy.create_user(ctx, dto)
 
-    def get_user(self, ctx: TenantContext, user_id: uuid.UUID) -> UserDTO | None:
-        """Get a User by id."""
+    def get_user(self, ctx: TenantContext, user_id: uuid.UUID):
+        """Get a user by ID. Uses DB lookup to dispatch."""
+        resolver = self._get_resolver()
         with self._session_factory() as session:
-            return self._user_repo.get(session, ctx, user_id)
+            from kernel.user.models.client_user import ClientUser
+            cuser = session.get(ClientUser, user_id)
+            if cuser:
+                return resolver._cd.get_user(ctx, user_id)
+            return resolver._inst.get_user(ctx, user_id)
 
-    def list_users(self, ctx: TenantContext, **filters) -> list[UserDTO]:
-        """List Users, tenant-filtered."""
-        with self._session_factory() as session:
-            return self._user_repo.list(session, ctx, **filters)
+    def list_users(self, ctx: TenantContext, **filters):
+        """List users. Currently returns institution users (backwards compat).
 
-    async def delete_user(
-        self, ctx: TenantContext, user_id: uuid.UUID
-    ) -> None:
-        """Delete a user and all related data (D20b cascade).
-
-        1. Delete role_assignments
-        2. Delete user_identifiers
-        3. Delete user_profile
-        4. Delete user_lifecycle_events
-        5. Delete Supabase Auth user
-        6. Delete app_user
+        For CD listing, the route calls get_user or uses the CD-specific
+        list endpoint that passes client_id as a filter.
         """
-        from sqlalchemy import text as sa_text
+        resolver = self._get_resolver()
+        if "client_id" in filters:
+            return resolver._cd.list_users(ctx, **filters)
+        return resolver._inst.list_users(ctx, **filters)
 
-        logger.info("[C02] Deleting user: id=%s", user_id)
-
-        with self._session_factory() as session:
-            # Verify user exists and belongs to this tenant
-            user_dto = self._user_repo.get(session, ctx, user_id)
-            if not user_dto:
-                raise ValueError("User not found")
-
-            # Delete related records (cascade order — FKs first)
-            session.execute(sa_text("DELETE FROM login_attempt WHERE user_id = :uid"), {"uid": user_id})
-            session.execute(sa_text("DELETE FROM role_assignment WHERE user_id = :uid"), {"uid": user_id})
-            session.execute(sa_text("DELETE FROM user_identifier WHERE user_id = :uid"), {"uid": user_id})
-            session.execute(sa_text("DELETE FROM user_profile WHERE user_id = :uid"), {"uid": user_id})
-            session.execute(sa_text("DELETE FROM user_lifecycle_event WHERE user_id = :uid"), {"uid": user_id})
-
-            # Delete Supabase Auth user
-            if self._supabase:
-                try:
-                    await self._supabase.delete_user(user_id)
-                    logger.info("[C02] Supabase Auth user deleted: id=%s", user_id)
-                except Exception as e:
-                    logger.warning("[C02] Failed to delete Supabase Auth user: id=%s error=%s", user_id, str(e)[:100])
-                    # Continue with app_user deletion even if Supabase fails
-
-            # Delete app_user
-            session.execute(sa_text("DELETE FROM app_user WHERE id = :uid"), {"uid": user_id})
-            session.commit()
-
-            logger.info("[C02] User deleted: id=%s", user_id)
+    async def delete_user(self, ctx: TenantContext, user_id: uuid.UUID) -> None:
+        """Delete a user. Dispatches by DB lookup."""
+        strategy = await self._get_resolver().resolve_for_other(ctx, user_id)
+        await strategy.delete_user(ctx, user_id)
 
     async def update_user(
-        self, ctx: TenantContext, user_id: uuid.UUID, dto: UserUpdateDTO,
-    ) -> UserDTO:
-        """Update a User.
-
-        Phase 4 (12.5): If SupabaseAuthClient is injected and email changes,
-        propagates to Supabase Auth.
-        """
-        with self._session_factory() as session:
-            # Get current user to check if email changed
-            current_user = self._user_repo.get(session, ctx, user_id)
-            if not current_user:
-                raise ValueError(f"User {user_id} not found")
-
-            result = self._user_repo.update(session, ctx, user_id, dto)
-
-            # Phase 4 (12.5): Propagate email change to Supabase Auth
-            if (
-                self._supabase is not None
-                and dto.email is not None
-                and dto.email != current_user.email
-            ):
-                try:
-                    await self._supabase.update_user(
-                        user_id, email=dto.email, email_confirm=False,
-                    )
-                except SupabaseAuthError as e:
-                    session.rollback()
-                    raise ValueError(f"Failed to propagate email change to Supabase: {e}") from e
-
-            session.commit()
-            return result
+        self, ctx: TenantContext, user_id: uuid.UUID, dto,
+    ):
+        """Update a user. Dispatches by DB lookup."""
+        strategy = await self._get_resolver().resolve_for_other(ctx, user_id)
+        return await strategy.update_user(ctx, user_id, dto)
 
     async def transition_lifecycle(
         self, ctx: TenantContext, user_id: uuid.UUID,
         new_state: str, reason: str | None,
-    ) -> UserDTO:
-        """Transition User lifecycle.
-
-        Phase 4 (12.3, 12.4): If SupabaseAuthClient is injected and the
-        new state is suspended or archived, propagates to Supabase Auth.
-        """
-        with self._session_factory() as session:
-            result = self._user_repo.transition_lifecycle(
-                session, ctx, user_id, new_state, reason, ctx.user_id or "unknown",
-            )
-
-            # Phase 4 (12.3, 12.4): Propagate suspend/archive to Supabase Auth
-            if self._supabase is not None:
-                try:
-                    if new_state == "suspended":
-                        await self._supabase.sign_out(user_id, "global")
-                    elif new_state == "archived":
-                        await self._supabase.sign_out(user_id, "global")
-                        await self._supabase.delete_user(user_id)
-                except SupabaseAuthError as e:
-                    session.rollback()
-                    raise ValueError(f"Failed to propagate {new_state} to Supabase: {e}") from e
-
-            session.commit()
-            return result
+    ):
+        """Transition user lifecycle. Dispatches by DB lookup."""
+        strategy = await self._get_resolver().resolve_for_other(ctx, user_id)
+        return await strategy.transition_lifecycle(ctx, user_id, new_state, reason)
 
     # ---- UserProfile ----
 

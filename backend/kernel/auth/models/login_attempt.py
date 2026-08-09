@@ -25,7 +25,7 @@ class LoginAttempt(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     client_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("client.id"), nullable=True)
-    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("app_user.id"), nullable=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user_account.id"), nullable=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)

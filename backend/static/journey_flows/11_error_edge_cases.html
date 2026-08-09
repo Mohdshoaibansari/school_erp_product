@@ -29,7 +29,7 @@
         <div><span class="step-num">1</span><span class="step-title">No Authorization header</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          url: "http://127.0.0.1:8001/api/v1/platform/clients",
           headers: {},
           extractions: []
         }, "result-1")'>Run Step 1</button>
@@ -41,7 +41,7 @@
         <div><span class="step-num">2</span><span class="step-title">Invalid JWT (garbage)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          url: "http://127.0.0.1:8001/api/v1/platform/clients",
           headers: { "Authorization": "Bearer not.a.valid.jwt" },
           extractions: []
         }, "result-2")'>Run Step 2</button>
@@ -51,9 +51,9 @@
 
       <div class="step">
         <div><span class="step-num">3</span><span class="step-title">Student tries to create fee type (no permission)</span></div>
-        <button class="run-btn" onclick='runStep({
+        <button class="run-btn" onclick='if (!requireVars(["STUDENT_TOKEN"], "result-3")) return; runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/fee-types",
+          url: "http://127.0.0.1:8001/api/v1/fee-types",
           headers: { "Authorization": "Bearer $STUDENT_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "name":"Hack", "amount":1, "institution_id":"$INST_ID" }),
           extractions: []
@@ -67,7 +67,7 @@
         <div class="step-desc">Director does not have <code>client.create</code> permission — should be blocked.</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          url: "http://127.0.0.1:8001/api/v1/platform/clients",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "display_name":"Hack", "slug":"hack", "primary_contact_email":"hack@hack.com", "legal_entity_type_id":"$LOOKUP.legal-entity-types.Pvt Ltd" }),
           extractions: []
@@ -80,7 +80,7 @@
         <div><span class="step-num">5</span><span class="step-title">Invalid UUID in path parameter</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/institutions/not-a-uuid",
+          url: "http://127.0.0.1:8001/api/v1/institutions/not-a-uuid",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
           extractions: []
         }, "result-5")'>Run Step 5</button>
@@ -92,7 +92,7 @@
         <div><span class="step-num">6</span><span class="step-title">Nonexistent institution (valid UUID but not found)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/institutions/00000000-0000-0000-0000-000000000000",
+          url: "http://127.0.0.1:8001/api/v1/institutions/00000000-0000-0000-0000-000000000000",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
           extractions: []
         }, "result-6")'>Run Step 6</button>
@@ -104,7 +104,7 @@
         <div><span class="step-num">7</span><span class="step-title">Invalid lifecycle transition (active → prospective)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/institutions/$INST_ID/transition",
+          url: "http://127.0.0.1:8001/api/v1/institutions/$INST_ID/transition",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "new_state":"prospective", "reason":"Invalid arc" }),
           extractions: []
@@ -117,7 +117,7 @@
         <div><span class="step-num">8</span><span class="step-title">Create user with duplicate email</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/users",
+          url: "http://127.0.0.1:8001/api/v1/users",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "email":"admin@greenwoodhigh.com", "name":"Dup", "user_category_id":"$LOOKUP.user-categories.Executive Leadership", "institution_id":"$INST_ID" }),
           extractions: []
@@ -130,7 +130,7 @@
         <div><span class="step-num">9</span><span class="step-title">Missing required field (create client without slug)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          url: "http://127.0.0.1:8001/api/v1/platform/clients",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "display_name":"No Slug", "primary_contact_email":"x@y.com", "legal_entity_type_id":"$LOOKUP.legal-entity-types.Pvt Ltd" }),
           extractions: []
@@ -143,7 +143,7 @@
         <div><span class="step-num">10</span><span class="step-title">Reserved slug rejected</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          url: "http://127.0.0.1:8001/api/v1/platform/clients",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "display_name":"Admin Client", "slug":"admin", "primary_contact_email":"x@y.com", "legal_entity_type_id":"$LOOKUP.legal-entity-types.Pvt Ltd" }),,
           extractions: []

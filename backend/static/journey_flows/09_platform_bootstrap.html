@@ -13,12 +13,15 @@
   <div class="layout">
     <div class="main-col container">
       <div class="intro">
-        <strong>This flow:</strong> Combines Flow 1 + Flow 2 into a single end-to-end bootstrap.
-        From zero state to a fully operating school with users. Useful for demos and full regression.
+        <strong>This flow:</strong> Combines Flow 1 + Flow 2 into a single end-to-end bootstrap
+        using the new backend APIs. From zero state to a fully operating school with an admin user.
+        <strong>No Supabase Admin API for Director bootstrap</strong> — uses
+        <code>POST /api/v1/platform/clients/{id}/users</code> + <code>/api/auth/activate</code>.
+        Useful for demos and full regression.
       </div>
       <div class="prereq">
-        <strong>Prerequisites:</strong> Backend running. <code>SUPABASE_SERVICE_ROLE_KEY</code> set on index page.
-        A platform owner user exists in Supabase Auth.
+        <strong>Prerequisites:</strong> Backend running. Platform owner user exists in Supabase Auth.
+        No <code>SUPABASE_SERVICE_ROLE_KEY</code> needed — all activation uses the backend <code>/api/auth/activate</code> endpoint.
       </div>
 
       <h2>Steps</h2>
@@ -28,7 +31,7 @@
         <div><span class="step-num">1</span><span class="step-title">Platform Owner Login</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/login",
+          url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ "email":"admin@school-erp.com", "password":"Shoby@123" }),
           extractions: [{ var: "BOOT_PLATFORM_TOKEN", path: "access_token" }],
@@ -41,7 +44,7 @@
         <div><span class="step-num">2</span><span class="step-title">Create Client — Sunrise International</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          url: "http://127.0.0.1:8001/api/v1/platform/clients",
           headers: { "Authorization": "Bearer $BOOT_PLATFORM_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
             "display_name":"Sunrise International School",
@@ -59,7 +62,7 @@
         <div><span class="step-num">3</span><span class="step-title">Activate Client</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/platform/clients/$BOOT_CLIENT_ID/transition",
+          url: "http://127.0.0.1:8001/api/v1/platform/clients/$BOOT_CLIENT_ID/transition",
           headers: { "Authorization": "Bearer $BOOT_PLATFORM_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "new_state":"active", "reason":"Onboarding approved" }),
           extractions: []
@@ -67,51 +70,67 @@
         <div class="result" id="result-3"></div>
       </div>
 
+      <!-- Steps 4-5 — Bootstrap Director via backend API -->
       <div class="step">
-        <div><span class="step-num">4</span><span class="step-title">Bootstrap Director in Supabase Auth</span></div>
-        <button class="run-btn" onclick='
-          STORE.BOOT_DIRECTOR_ID = crypto.randomUUID();
-          saveStore();
-          runStep({
-            method: "POST",
-            url: "$SUPABASE_URL/auth/v1/admin/users",
-            headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
-            body: JSON.stringify({ "id":"$BOOT_DIRECTOR_ID", "email":"director@sunrise.edu", "password":"Director@123", "email_confirm":true }),
-            extractions: []
-          }, "result-4");
-        '>Run Step 4</button>
+        <div><span class="step-num">4</span><span class="step-title">Bootstrap Director via Backend API</span></div>
+        <div class="step-desc">Single API call creates Supabase Auth user + <code>client_user</code> row + role.
+        Returns <code>user_id</code> and <code>invite_url</code>. No Supabase Admin API needed.</div>
+        <div class="step-request">POST /api/v1/platform/clients/$BOOT_CLIENT_ID/users
+Authorization: Bearer $BOOT_PLATFORM_TOKEN
+body: { "email":"director@sunrise.edu", "name":"Sunrise Director",
+  "role_id":"$LOOKUP.roles.client_director",
+  "user_category_id":"$LOOKUP.user-categories.Executive Leadership" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/platform/clients/$BOOT_CLIENT_ID/users",
+          headers: { "Authorization": "Bearer $BOOT_PLATFORM_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "email": "director@sunrise.edu",
+            "name": "Sunrise Director",
+            "role_id": "$LOOKUP.roles.client_director",
+            "user_category_id": "$LOOKUP.user-categories.Executive Leadership"
+          }),
+          extractions: [
+            { var: "BOOT_DIRECTOR_ID", path: "user_id" },
+            { var: "BOOT_INVITE_URL", path: "invite_url" }
+          ]
+        }, "result-4")'>Run Step 4</button>
         <div class="result" id="result-4"></div>
+        <div class="note"><strong>Expected:</strong> <code>201</code> with <code>user_id</code>, <code>invite_url</code>. Uses lookups fetched in Step 1.</div>
       </div>
 
       <div class="step">
-        <div><span class="step-num">5</span><span class="step-title">Insert Director into app_user + assign role</span></div>
+        <div><span class="step-num">5</span><span class="step-title">Extract + Activate Director</span></div>
+        <div class="step-desc">Parse invite token from invite URL, then call activate to set password.</div>
+        <button class="run-btn" onclick='
+          if (!STORE.BOOT_INVITE_URL) {
+            document.getElementById("result-5a").innerHTML = "<div style=\"color:#a00;\">⚠ Run Step 4 first</div>";
+          } else {
+            try { STORE.BOOT_INVITE_TOKEN = new URL(STORE.BOOT_INVITE_URL).searchParams.get("token"); }
+            catch(e) { STORE.BOOT_INVITE_TOKEN = STORE.BOOT_INVITE_URL.split("token=")[1] || ""; }
+            saveStore();
+            document.getElementById("result-5a").innerHTML =
+              "<div style=\"color:#0a0;\">✓ extracted token (len: " + (STORE.BOOT_INVITE_TOKEN||"").length + ")</div>";
+            renderStorePanel("store-panel");
+          }
+        '>Step 5a — Extract Token</button>
+        <div class="result" id="result-5a"></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "$SUPABASE_URL/rest/v1/app_user",
-          headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
-          body: JSON.stringify({ "id":"$BOOT_DIRECTOR_ID", "client_id":"$BOOT_CLIENT_ID", "email":"director@sunrise.edu", "name":"Sunrise Director", "user_category_id":"$LOOKUP.user-categories.Executive Leadership", "lifecycle_status":"active" }),
+          url: "http://127.0.0.1:8001/api/auth/activate",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "invite_token": "$BOOT_INVITE_TOKEN", "password": "Director@123" }),
           extractions: []
-        }, "result-5a")'>Run Step 5a — app_user</button>
-        <div class="result" id="result-5a"></div>
-        <button class="run-btn" onclick='
-          STORE.BOOT_ASSIGN_ID = crypto.randomUUID();
-          saveStore();
-          runStep({
-            method: "POST",
-            url: "$SUPABASE_URL/rest/v1/role_assignment",
-            headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
-            body: JSON.stringify({ "id":"$BOOT_ASSIGN_ID", "client_id":"$BOOT_CLIENT_ID", "user_id":"$BOOT_DIRECTOR_ID", "role_id":"$LOOKUP.roles.client_director", "scope":"client" }),
-            extractions: []
-          }, "result-5b");
-        '>Run Step 5b — role</button>
+        }, "result-5b")'>Step 5b — Activate</button>
         <div class="result" id="result-5b"></div>
+        <div class="note">Director lifecycle: invited→active via <code>POST /api/auth/activate</code>.</div>
       </div>
 
       <div class="step">
         <div><span class="step-num">6</span><span class="step-title">Director Login</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/login",
+          url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$BOOT_CLIENT_SLUG.localhost" },
           body: JSON.stringify({ "email":"director@sunrise.edu", "password":"Director@123" }),
           extractions: [{ var: "BOOT_DIRECTOR_TOKEN", path: "access_token" }]
@@ -123,7 +142,7 @@
         <div><span class="step-num">7</span><span class="step-title">Get Institution Type</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/lookups/institution-types",
+          url: "http://127.0.0.1:8001/api/v1/lookups/institution-types",
           headers: { "Authorization": "Bearer $BOOT_DIRECTOR_TOKEN" },
           extractions: [{ var: "BOOT_INST_TYPE_ID", path: "[code=$INST_TYPE_CODE].id" }]
         }, "result-7")'>Run Step 7</button>
@@ -134,7 +153,7 @@
         <div><span class="step-num">8</span><span class="step-title">Create + Activate Institution</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/institutions",
+          url: "http://127.0.0.1:8001/api/v1/institutions",
           headers: { "Authorization": "Bearer $BOOT_DIRECTOR_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "display_name":"Sunrise Main Campus", "institution_type_id":"$BOOT_INST_TYPE_ID", "code":"SRMC", "primary_contact_email":"info@sunrise.edu", "established_year":2002 }),
           extractions: [{ var: "BOOT_INST_ID", path: "id" }]
@@ -142,7 +161,7 @@
         <div class="result" id="result-8a"></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/institutions/$BOOT_INST_ID/transition",
+          url: "http://127.0.0.1:8001/api/v1/institutions/$BOOT_INST_ID/transition",
           headers: { "Authorization": "Bearer $BOOT_DIRECTOR_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "new_state":"active", "reason":"Setup complete" }),
           extractions: []
@@ -154,43 +173,50 @@
         <div><span class="step-num">9</span><span class="step-title">Create Admin User + Activate</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/users",
+          url: "http://127.0.0.1:8001/api/v1/users",
           headers: { "Authorization": "Bearer $BOOT_DIRECTOR_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "email":"admin@sunrise.edu", "name":"Sunrise Admin", "user_category_id":"$LOOKUP.user-categories.Executive Leadership", "institution_id":"$BOOT_INST_ID" }),
-          extractions: [{ var: "BOOT_ADMIN_ID", path: "id" }]
+          extractions: [{ var: "BOOT_ADMIN_ID", path: "user.id" }, { var: "BOOT_ADMIN_INVITE_URL", path: "invite_url" }]
         }, "result-9a")'>Run Step 9a — Create</button>
         <div class="result" id="result-9a"></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/users/$BOOT_ADMIN_ID/roles",
+          url: "http://127.0.0.1:8001/api/v1/users/$BOOT_ADMIN_ID/roles",
           headers: { "Authorization": "Bearer $BOOT_DIRECTOR_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "role_id":"$LOOKUP.roles.Admin" }),,
+          body: JSON.stringify({ "role_id":"$LOOKUP.roles.Admin" }),
           extractions: []
         }, "result-9b")'>Run Step 9b — Assign Admin Role</button>
         <div class="result" id="result-9b"></div>
-        <button class="run-btn" onclick='runStep({
-          method: "PUT",
-          url: "$SUPABASE_URL/auth/v1/admin/users/$BOOT_ADMIN_ID",
-          headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
-          body: JSON.stringify({ "password":"Admin@123", "email_confirm":true }),
-          extractions: []
-        }, "result-9c")'>Run Step 9c — Set Password</button>
+        <button class="run-btn" onclick='
+          if (!STORE.BOOT_ADMIN_INVITE_URL) {
+            document.getElementById("result-9c").innerHTML = "<div style=\"color:#a00;\">⚠ BOOT_ADMIN_INVITE_URL not set — run Step 9a first</div>";
+          } else {
+            try { STORE.BOOT_ADMIN_INVITE_TOKEN = new URL(STORE.BOOT_ADMIN_INVITE_URL).searchParams.get("token"); }
+            catch(e) { STORE.BOOT_ADMIN_INVITE_TOKEN = STORE.BOOT_ADMIN_INVITE_URL.split("token=")[1] || ""; }
+            saveStore();
+            document.getElementById("result-9c").innerHTML =
+              "<div style=\"color:#0a0;\">✓ extracted BOOT_ADMIN_INVITE_TOKEN</div>";
+            renderStorePanel("store-panel");
+          }
+        '>Step 9c — Extract Token</button>
         <div class="result" id="result-9c"></div>
         <button class="run-btn" onclick='runStep({
-          method: "PATCH",
-          url: "$SUPABASE_URL/rest/v1/app_user?id=eq.$BOOT_ADMIN_ID",
-          headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
-          body: JSON.stringify({ "lifecycle_status":"active" }),
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/activate",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "invite_token": "$BOOT_ADMIN_INVITE_TOKEN", "password": "Admin@123" }),
           extractions: []
-        }, "result-9d")'>Run Step 9d — Activate</button>
+        }, "result-9d")'>Step 9d — Activate (set password + transition invited→active)</button>
         <div class="result" id="result-9d"></div>
+        <div class="note"><strong>Expected:</strong> <code>200</code> with <code>{"message":"...", "user_tier":"institution", "client_slug":"sunrise"}</code>.
+        No Supabase Admin API needed — pure backend activation.</div>
       </div>
 
       <div class="step">
         <div><span class="step-num">10</span><span class="step-title">Admin Login — Verify</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/login",
+          url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$BOOT_CLIENT_SLUG.localhost" },
           body: JSON.stringify({ "email":"admin@sunrise.edu", "password":"Admin@123" }),
           extractions: [{ var: "BOOT_ADMIN_TOKEN", path: "access_token" }]
@@ -200,6 +226,7 @@
 
       <div class="flow-end">
         ✅ <strong>Flow 9 complete.</strong> Full bootstrap from zero to a working school with an admin user.
+        Director bootstrapped via <code>POST /api/v1/platform/clients/{id}/users</code> + <code>/api/auth/activate</code>.
         Sunrise International is now fully operational. Use the BOOT_* env vars to continue testing flows for this client.
       </div>
     </div>

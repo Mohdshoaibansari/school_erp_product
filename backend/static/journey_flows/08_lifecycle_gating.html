@@ -26,9 +26,9 @@
 
       <div class="step">
         <div><span class="step-num">1</span><span class="step-title">Platform Owner suspends the Client</span></div>
-        <button class="run-btn" onclick='runStep({
+        <button class="run-btn" onclick='if (!requireVars(["PLATFORM_TOKEN", "CLIENT_ID"], "result-1")) return; runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/platform/clients/$CLIENT_ID/transition",
+          url: "http://127.0.0.1:8001/api/v1/platform/clients/$CLIENT_ID/transition",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "new_state":"suspended", "reason":"Payment overdue" }),
           extractions: []
@@ -39,24 +39,25 @@
 
       <div class="step">
         <div><span class="step-num">2</span><span class="step-title">Institute Admin tries to create org unit</span></div>
-        <div class="step-desc">Should be blocked by effective-state gating (client suspended). <strong>Note:</strong> Current implementation may not enforce effective-state gating at runtime — this is logged as a known gap.</div>
+        <div class="step-desc">Should be blocked by effective-state gating (client suspended). Uses <code>$ORG_TYPE_DEPARTMENT_ID</code> resolved from lookups (set by Flow 3). <strong>Note:</strong> Current implementation may not enforce effective-state gating at runtime — this is logged as a known gap.</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/org-units",
+          url: "http://127.0.0.1:8001/api/v1/org-units",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "institution_id":"$INST_ID", "name":"Should Fail", "type":"department", "sort_order":3 }),
+          body: JSON.stringify({ "institution_id":"$INST_ID", "name":"Should Fail", "type_id":"$ORG_TYPE_DEPARTMENT_ID", "sort_order":3 }),
           extractions: []
         }, "result-2")'>Run Step 2</button>
         <div class="result" id="result-2"></div>
         <div class="note"><strong>Expected (per spec):</strong> <code>403</code> effective-state blocked.
-        <strong>Actual (current):</strong> may succeed — runtime gating is deferred (Q-AC-7 known gap).</div>
+        <strong>Actual (current):</strong> may succeed — runtime gating is deferred (Q-AC-7 known gap).<br>
+        <strong>type_id</strong> uses <code>$ORG_TYPE_DEPARTMENT_ID</code> from Flow 3 lookups. Must run Flow 3 first.</div>
       </div>
 
       <div class="step">
         <div><span class="step-num">3</span><span class="step-title">Reactivate the Client</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/platform/clients/$CLIENT_ID/transition",
+          url: "http://127.0.0.1:8001/api/v1/platform/clients/$CLIENT_ID/transition",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "new_state":"active", "reason":"Payment resolved" }),
           extractions: []
@@ -68,7 +69,7 @@
         <div><span class="step-num">4</span><span class="step-title">Institute Admin deactivates Institution</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/institutions/$INST_ID/transition",
+          url: "http://127.0.0.1:8001/api/v1/institutions/$INST_ID/transition",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "new_state":"inactive", "reason":"Term break" }),
           extractions: []
@@ -80,7 +81,7 @@
         <div><span class="step-num">5</span><span class="step-title">Teacher tries to create homework (institution inactive)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/homeworks",
+          url: "http://127.0.0.1:8001/api/v1/homeworks",
           headers: { "Authorization": "Bearer $TEACHER_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "title":"Should Fail", "institution_id":"$INST_ID", "assigned_by":"$TEACHER_ID", "due_date":"2026-08-15" }),
           extractions: []
@@ -93,7 +94,7 @@
         <div><span class="step-num">6</span><span class="step-title">Reactivate Institution</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/institutions/$INST_ID/transition",
+          url: "http://127.0.0.1:8001/api/v1/institutions/$INST_ID/transition",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "new_state":"active", "reason":"Term resumed" }),
           extractions: []

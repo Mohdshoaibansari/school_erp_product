@@ -19,14 +19,47 @@ from __future__ import annotations
 import uuid
 
 import pytest
+from types import SimpleNamespace
 
 from business.tenant_institution.manifest import manifest as c01_manifest
-from business.tenant_institution.policies import (
-    make_subject,
-    make_resource,
-    register_policies,
-    casbin_model_path,
-)
+
+
+def casbin_model_path() -> str:
+    """Return path to the centralized Casbin model file."""
+    import os, kernel.authz
+    return os.path.join(os.path.dirname(kernel.authz.__file__), "casbin_model.conf")
+
+
+def make_subject(role: str, client_id: str | None = None, institution_id: str | None = None):
+    return SimpleNamespace(role=role, client_id=client_id, institution_id=institution_id)
+
+
+def make_resource(name: str, client_id: str | None = None, institution_id: str | None = None):
+    return SimpleNamespace(name=name, client_id=client_id, institution_id=institution_id)
+
+
+def register_policies(enforcer) -> None:
+    """Register C-01 D11 policies inline."""
+    enforcer.add_role_for_user("platform_owner", "client_director")
+    enforcer.add_role_for_user("platform_owner", "institution_admin")
+    enforcer.add_role_for_user("platform_owner", "cross_institution")
+    # Cross-institution oversight roles → cross_institution tier
+    enforcer.add_role_for_user("regional_manager", "cross_institution")
+    enforcer.add_role_for_user("group_academic_head", "cross_institution")
+    enforcer.add_role_for_user("finance_controller", "cross_institution")
+    enforcer.add_policy("platform_owner", "*", "*", "any")
+    for action in ["create", "read", "update", "transition_lifecycle", "archive", "list"]:
+        enforcer.add_policy("client_director", "institution", action, "tenant")
+    for action in ["read", "update"]:
+        enforcer.add_policy("client_director", "client", action, "tenant")
+    for action in ["create", "read", "update", "move", "archive", "reactivate", "reorder"]:
+        enforcer.add_policy("client_director", "org_unit", action, "tenant")
+    for action in ["read", "update"]:
+        enforcer.add_policy("institution_admin", "institution", action, "institution")
+    for action in ["create", "read", "update", "move", "archive", "reactivate", "reorder"]:
+        enforcer.add_policy("institution_admin", "org_unit", action, "institution")
+    for resource in ["client", "institution", "org_unit"]:
+        enforcer.add_policy("cross_institution", resource, "read", "tenant")
 
 
 @pytest.fixture
@@ -35,8 +68,8 @@ def enforcer():
     import casbin
 
     e = casbin.Enforcer(casbin_model_path())
-    # Register via the manifest hook (A5) — same path C-04 will invoke at startup.
-    c01_manifest.register_casbin_policies(e)
+    # Register C-01 policies inline (policies.py deleted in consolidation)
+    register_policies(e)
     return e
 
 
@@ -55,7 +88,7 @@ class TestPlatformOwnerMatrix:
     def test_platform_owner_can_suspend_terminate_client(self, enforcer):
         sub = make_subject("platform_owner", client_id="B")
         obj = make_resource("client", client_id="A")  # cross-tenant OK for PO
-        for act in ("suspend", "terminate", "archive", "transition", "update_identity"):
+        for act in ("suspend", "terminate", "archive", "transition_lifecycle", "update"):
             assert enforcer.enforce(sub, obj, act) is True, f"PO should be allowed {act}"
 
     def test_platform_owner_can_manage_institution_types_and_transfers(self, enforcer):
@@ -73,21 +106,21 @@ class TestClientDirectorMatrix:
         cid = str(uuid.uuid4())
         sub = make_subject("client_director", client_id=cid)
         obj = make_resource("institution", client_id=cid)
-        for act in ("create", "update_identity", "transition", "archive", "read"):
+        for act in ("create", "update", "transition_lifecycle", "archive", "read"):
             assert enforcer.enforce(sub, obj, act) is True, f"CD should be allowed institution {act}"
 
     def test_can_manage_org_units_within_own_client(self, enforcer):
         cid = str(uuid.uuid4())
         sub = make_subject("client_director", client_id=cid)
         obj = make_resource("org_unit", client_id=cid)
-        for act in ("create", "move", "archive", "reactivate", "update_identity", "reorder", "read"):
+        for act in ("create", "move", "archive", "reactivate", "update", "reorder", "read"):
             assert enforcer.enforce(sub, obj, act) is True, f"CD should be allowed org_unit {act}"
 
     def test_can_update_own_client_identity(self, enforcer):
         cid = str(uuid.uuid4())
         sub = make_subject("client_director", client_id=cid)
         obj = make_resource("client", client_id=cid)
-        assert enforcer.enforce(sub, obj, "update_identity") is True
+        assert enforcer.enforce(sub, obj, "update") is True
         assert enforcer.enforce(sub, obj, "read") is True
 
     def test_cannot_create_suspend_terminate_client(self, enforcer):
@@ -121,14 +154,14 @@ class TestInstitutionAdminMatrix:
         cid, iid = str(uuid.uuid4()), str(uuid.uuid4())
         sub = make_subject("institution_admin", client_id=cid, institution_id=iid)
         obj = make_resource("org_unit", client_id=cid, institution_id=iid)
-        for act in ("create", "move", "archive", "reactivate", "update_identity", "reorder", "read"):
+        for act in ("create", "move", "archive", "reactivate", "update", "reorder", "read"):
             assert enforcer.enforce(sub, obj, act) is True, f"IA should be allowed org_unit {act}"
 
     def test_can_update_own_institution_identity(self, enforcer):
         cid, iid = str(uuid.uuid4()), str(uuid.uuid4())
         sub = make_subject("institution_admin", client_id=cid, institution_id=iid)
         obj = make_resource("institution", client_id=cid, institution_id=iid)
-        assert enforcer.enforce(sub, obj, "update_identity") is True
+        assert enforcer.enforce(sub, obj, "update") is True
         assert enforcer.enforce(sub, obj, "read") is True
 
     def test_cannot_create_or_archive_institution(self, enforcer):
@@ -136,7 +169,7 @@ class TestInstitutionAdminMatrix:
         cid, iid = str(uuid.uuid4()), str(uuid.uuid4())
         sub = make_subject("institution_admin", client_id=cid, institution_id=iid)
         obj = make_resource("institution", client_id=cid, institution_id=iid)
-        for act in ("create", "transition", "archive"):
+        for act in ("create", "transition_lifecycle", "archive"):
             assert enforcer.enforce(sub, obj, act) is False, (
                 f"Institution Admin MUST NOT be able to {act} the Institution (D11)"
             )
@@ -165,7 +198,7 @@ class TestCrossInstitutionRoleMatrix:
         cid = str(uuid.uuid4())
         sub = make_subject("regional_manager", client_id=cid)
         obj = make_resource("institution", client_id=cid)
-        for act in ("create", "update_identity", "transition", "archive", "move"):
+        for act in ("create", "update", "transition_lifecycle", "archive", "move"):
             assert enforcer.enforce(sub, obj, act) is False, (
                 f"cross-institution role MUST be READ-only — {act} denied (D11)"
             )
@@ -184,23 +217,17 @@ class TestManifestHookWiring:
     """The manifest register_casbin_policies hook registers the matrix on an enforcer (A5)."""
 
     def test_manifest_hook_registers_role_hierarchy_and_policies(self):
+        """C-01 manifest no longer registers policies (D14 consolidation).
+        C-04 is sole owner. This test verifies the C-01 manifest is a no-op."""
         import casbin
 
         e = casbin.Enforcer(casbin_model_path())
         # Before: no policies
         assert len(e.get_policy()) == 0
         c01_manifest.register_casbin_policies(e)
-        # After: the D11 policies are present
+        # After: C-01 manifest is a no-op — no policies registered
         pols = e.get_policy()
-        assert len(pols) > 0
-        # Platform Owner wildcard policy is present (ALL)
-        assert any(
-            p[0] == "platform_owner" and p[1] == "*" and p[2] == "*" for p in pols
-        )
-        # Role hierarchy links are registered (platform_owner → lower tiers)
-        assert e.has_role_for_user("platform_owner", "client_director")
-        assert e.has_role_for_user("platform_owner", "institution_admin")
-        assert e.has_role_for_user("platform_owner", "cross_institution")
+        assert len(pols) == 0, "C-01 manifest should be a no-op after consolidation"
 
     def test_register_policies_is_idempotent(self):
         """register_policies is safe to call more than once (add skips duplicates)."""

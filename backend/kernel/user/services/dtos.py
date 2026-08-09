@@ -49,6 +49,7 @@ class UserCreateDTO(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     user_category_id: uuid.UUID
     institution_id: uuid.UUID  # Required — every app_user row belongs to exactly one institution (D13)
+    role_id: uuid.UUID | None = None  # Optional — assigned atomically at creation (D2)
 
 
 class UserUpdateDTO(BaseModel):
@@ -73,6 +74,13 @@ class UserDTO(BaseModel):
     lifecycle_status: str
     created_at: datetime
     updated_at: datetime
+
+
+class UserCreateResponseDTO(BaseModel):
+    """Response DTO for user creation — includes user + invite_url (D1, D3)."""
+
+    user: UserDTO
+    invite_url: str
 
 
 # ============================================================

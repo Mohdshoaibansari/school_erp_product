@@ -18,7 +18,6 @@ from fastapi.testclient import TestClient
 
 from kernel.authz.dependencies import require_permission, get_enforcer, set_enforcer
 from kernel.tenant_context import TenantContext, get_tenant_context, set_tenant_context
-from business.tenant_institution.policies import register_policies
 from kernel.authz.services.policy_loader import register_policies_from_map
 
 
@@ -34,11 +33,40 @@ def _build_test_enforcer(with_c01_policies: bool = True) -> casbin.Enforcer:
     e = casbin.Enforcer(model_path)
 
     if with_c01_policies:
-        register_policies(e)
+        _register_c01_policies(e)
 
     # Register C-04 role-permission policies from seed data
     _register_c04_test_policies(e)
     return e
+
+
+def _register_c01_policies(e: casbin.Enforcer) -> None:
+    """Register C-01 D11 policies inline (replaces deleted policies.py)."""
+    # Role hierarchy
+    e.add_role_for_user("platform_owner", "client_director")
+    e.add_role_for_user("platform_owner", "institution_admin")
+    e.add_role_for_user("platform_owner", "cross_institution")
+
+    # Platform Owner: wildcard
+    e.add_policy("platform_owner", "*", "*", "any")
+
+    # Client Director: tenant scope
+    for action in ["create", "read", "update", "transition_lifecycle", "archive", "list"]:
+        e.add_policy("client_director", "institution", action, "tenant")
+    for action in ["read", "update"]:
+        e.add_policy("client_director", "client", action, "tenant")
+    for action in ["create", "read", "update", "move", "archive", "reactivate", "reorder"]:
+        e.add_policy("client_director", "org_unit", action, "tenant")
+
+    # Institution Admin: institution scope
+    for action in ["read", "update"]:
+        e.add_policy("institution_admin", "institution", action, "institution")
+    for action in ["create", "read", "update", "move", "archive", "reactivate", "reorder"]:
+        e.add_policy("institution_admin", "org_unit", action, "institution")
+
+    # Cross-institution: tenant scope, read-only
+    for resource in ["client", "institution", "org_unit"]:
+        e.add_policy("cross_institution", resource, "read", "tenant")
 
 
 def _register_c04_test_policies(e: casbin.Enforcer) -> None:

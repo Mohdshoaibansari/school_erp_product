@@ -293,10 +293,10 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
 
         # Role lookup for normal users (not platform owner, not client-leadership).
         # Client-leadership users have their role in the JWT; no DB lookup needed.
-        # Fallback: if client_id was not resolved from subdomain (e.g. Swagger UI
-        # without Host header), look up the user's client_id and institution_id
-        # from app_user so tenant context is still populated.
-        if user_id and not roles and not is_platform_owner and user_tier != "client_leadership":
+        # Fallback: look up the user's roles from role_assignment.
+        # Also resolves client_id + institution_id from app_user/client_user
+        # if they weren't resolved from subdomain.
+        if user_id and not roles and not is_platform_owner:
             try:
                 from sqlalchemy import create_engine, text as sa_text
                 db_url = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:54322/postgres")

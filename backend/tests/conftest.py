@@ -138,7 +138,10 @@ def db_session(db_session_factory: sessionmaker[Session]) -> Generator[Session, 
     # Clean up all non-seed data so tests start from a clean state
     # (some RLS tests commit, so rollback alone is insufficient)
     session.rollback()
-    # Set platform owner to bypass RLS during cleanup (FORCE RLS is on)
+    # Set platform owner to bypass RLS during cleanup (FORCE RLS is on).
+    # Per-test RLS context is now set by the production hook in kernel/db.py,
+    # which reads TenantContext from the contextvar. This cleanup bypass is
+    # legitimate — it runs AFTER the test, not during it.
     session.execute(text("SET LOCAL app.is_platform_owner = 'true'"))
     for table_name in _C01_TABLES:
         session.execute(text(f"DELETE FROM {table_name}"))
@@ -221,14 +224,8 @@ def app():
 
     # Create a shared FakeSupabaseAuth for both C-02 and C-03
     fake_supabase = FakeSupabaseAuth()
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-    database_url = os.environ.get(
-        "DATABASE_URL",
-        "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
-    )
-    engine = create_engine(database_url)
-    session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+    from kernel.db import get_session_factory
+    session_factory = get_session_factory()
 
     # Inject FakeSupabaseAuth into C-03 AuthService and supabase client
     set_supabase_auth_client(fake_supabase)

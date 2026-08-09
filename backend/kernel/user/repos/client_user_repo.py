@@ -35,9 +35,17 @@ class ClientUserRepository(TenantAwareRepositoryBase[ClientUser]):
 
     def create(
         self, session: Session, ctx: TenantContext, dto: ClientUserCreateDTO,
+        *,
+        user_id: uuid.UUID | None = None,
     ) -> ClientUserDTO:
         """Create a new ClientUser (PO-only — no client_id auto-inject;
-        the PO sets client_id explicitly in the DTO)."""
+        the PO sets client_id explicitly in the DTO).
+
+        Args:
+            user_id: optional UUID to use as the row's id. When provided (CD bootstrap),
+                     uses this so Supabase Auth and the invite JWT share the same id.
+                     When None (future self-registration), auto-generates via default=uuid4.
+        """
         # Check email uniqueness across client_user
         existing = session.execute(
             select(ClientUser).where(ClientUser.email == dto.email)
@@ -45,8 +53,18 @@ class ClientUserRepository(TenantAwareRepositoryBase[ClientUser]):
         if existing:
             raise ValueError(f"Email '{dto.email}' is already taken in client_user")
 
+        uid = user_id or uuid.uuid4()
+        client_id = ctx.client_id or dto.client_id
+
+        # D12: Insert user_account parent row first
+        from sqlalchemy import text as sa_text
+        session.execute(sa_text(
+            "INSERT INTO user_account (id) VALUES (:id) ON CONFLICT (id) DO NOTHING"
+        ), {"id": uid})
+
         obj = ClientUser(
-            client_id=ctx.client_id or dto.client_id,
+            id=uid,
+            client_id=client_id,
             email=dto.email,
             name=dto.name,
             user_category_id=dto.user_category_id,

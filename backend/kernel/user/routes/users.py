@@ -6,14 +6,17 @@ Endpoints for creating, reading, updating users and transitioning lifecycle.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from kernel.tenant_context import TenantContext, get_tenant_context
-from kernel.authz.dependencies import require_permission
+from kernel.authz.dependencies import require_permission, check_permission, get_enforcer
 from kernel.user.dependencies import get_identity_user_service
-from kernel.user.services.service import IdentityUserService
-from kernel.user.services.dtos import UserCreateDTO, UserDTO, UserUpdateDTO, LifecycleTransitionDTO
+from kernel.user.services.service import UserService
+from kernel.user.services.dtos import (
+    UserCreateDTO, UserDTO, UserCreateResponseDTO, UserUpdateDTO, LifecycleTransitionDTO,
+)
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
@@ -22,14 +25,14 @@ router = APIRouter(prefix="/api/v1/users", tags=["users"])
 # 9.1 — User CRUD endpoints
 # ============================================================
 
-@router.post("", response_model=UserDTO, status_code=status.HTTP_201_CREATED, summary="Create user")
+@router.post("", response_model=UserCreateResponseDTO, status_code=status.HTTP_201_CREATED, summary="Create user")
 async def create_user(
     dto: UserCreateDTO,
     _authz: None = Depends(require_permission("user", "create")),
     ctx: TenantContext = Depends(get_tenant_context),
-    svc: IdentityUserService = Depends(get_identity_user_service),
-) -> UserDTO:
-    """Create a new User."""
+    svc: UserService = Depends(get_identity_user_service),
+) -> UserCreateResponseDTO:
+    """Create a new User. Returns user + invite_url (D1, D3)."""
     try:
         return await svc.create_user(ctx, dto)
     except ValueError as e:
@@ -45,7 +48,7 @@ def list_users(
     lifecycle_status: str | None = None,
     _authz: None = Depends(require_permission("user", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
-    svc: IdentityUserService = Depends(get_identity_user_service),
+    svc: UserService = Depends(get_identity_user_service),
 ) -> list[UserDTO]:
     """List Users, optionally filtered by user_category_id or lifecycle_status.
 
@@ -61,14 +64,17 @@ def list_users(
 @router.get("/{user_id}", response_model=UserDTO, summary="Get user")
 def get_user(
     user_id: uuid.UUID,
-    _authz: None = Depends(require_permission("user", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
-    svc: IdentityUserService = Depends(get_identity_user_service),
+    enforcer: Any = Depends(get_enforcer),
+    svc: UserService = Depends(get_identity_user_service),
 ) -> UserDTO:
     """Get a User by ID."""
     result = svc.get_user(ctx, user_id)
     if not result:
         raise HTTPException(status_code=404, detail="User not found")
+    check_permission(ctx, enforcer, "user", "read",
+        obj_client_id=result.client_id,
+        obj_institution_id=result.institution_id)
     return result
 
 
@@ -76,11 +82,17 @@ def get_user(
 async def update_user(
     user_id: uuid.UUID,
     dto: UserUpdateDTO,
-    _authz: None = Depends(require_permission("user", "update")),
     ctx: TenantContext = Depends(get_tenant_context),
-    svc: IdentityUserService = Depends(get_identity_user_service),
+    enforcer: Any = Depends(get_enforcer),
+    svc: UserService = Depends(get_identity_user_service),
 ) -> UserDTO:
     """Update User identity fields (email immutable)."""
+    existing = svc.get_user(ctx, user_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="User not found")
+    check_permission(ctx, enforcer, "user", "update",
+        obj_client_id=existing.client_id,
+        obj_institution_id=existing.institution_id)
     try:
         return await svc.update_user(ctx, user_id, dto)
     except ValueError:
@@ -94,11 +106,17 @@ async def update_user(
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete user")
 async def delete_user(
     user_id: uuid.UUID,
-    _authz: None = Depends(require_permission("user", "delete")),
     ctx: TenantContext = Depends(get_tenant_context),
-    svc: IdentityUserService = Depends(get_identity_user_service),
+    enforcer: Any = Depends(get_enforcer),
+    svc: UserService = Depends(get_identity_user_service),
 ) -> None:
     """Delete a User and all related data (role_assignments, identifiers, Supabase Auth user)."""
+    existing = svc.get_user(ctx, user_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="User not found")
+    check_permission(ctx, enforcer, "user", "delete",
+        obj_client_id=existing.client_id,
+        obj_institution_id=existing.institution_id)
     try:
         await svc.delete_user(ctx, user_id)
     except ValueError:
@@ -113,9 +131,9 @@ async def delete_user(
 async def transition_user_lifecycle(
     user_id: uuid.UUID,
     dto: LifecycleTransitionDTO,
-    _authz: None = Depends(require_permission("user", "suspend")),
     ctx: TenantContext = Depends(get_tenant_context),
-    svc: IdentityUserService = Depends(get_identity_user_service),
+    enforcer: Any = Depends(get_enforcer),
+    svc: UserService = Depends(get_identity_user_service),
 ) -> UserDTO:
     """Transition User lifecycle (Decision 8, AC-10, AC-11).
 
@@ -125,6 +143,12 @@ async def transition_user_lifecycle(
     """
     if not dto.new_state:
         raise HTTPException(status_code=400, detail="new_state is required")
+    existing = svc.get_user(ctx, user_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="User not found")
+    check_permission(ctx, enforcer, "user", "suspend",
+        obj_client_id=existing.client_id,
+        obj_institution_id=existing.institution_id)
     try:
         return await svc.transition_lifecycle(ctx, user_id, dto.new_state, dto.reason)
     except ValueError as e:

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 15 — Auth Lifecycle</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 15 — Auth Lifecycle Journey</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+  <div class="layout">
+    <div class="main-col container">
+      <div class="intro">
+        <strong>This flow:</strong> Exercises all remaining C-03 Authentication endpoints not covered by
+        Flow 12 — password reset (request + confirm + verify login), password change (authenticated),
+        OTP login (request + verify), and user activation via invite token.
+        <br><br>
+        <strong>No hardcoded values:</strong> all user emails/passwords come from env vars set by prior flows.
+      </div>
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Run Flow 1 + Flow 2 first. Stored vars:
+        <code>CLIENT_SLUG</code>, <code>DIRECTOR_ID</code>, <code>STUDENT_ID</code>.
+        The Director and Student users must exist in Supabase Auth.
+      </div>
+
+      <h2>Part A — Password Reset Flow</h2>
+      <div class="note">Tests /password/reset/request → /password/reset/confirm → login with new password.
+      In Supabase dev mode, the reset token may be returned in the API response.
+      In production, the token arrives via email.</div>
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">Request Password Reset for Student</span></div>
+        <div class="step-desc">Triggers a password reset email for the student user. Email from stored vars — no hardcoding.</div>
+        <div class="step-request">POST /api/auth/password/reset/request
+body: { "email":"student@greenwoodhigh.com" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/password/reset/request",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "email": "student@greenwoodhigh.com" }),
+          extractions: [
+            { var: "PW_RESET_TOKEN", path: "token" },
+            { var: "PW_RESET_REDIRECT", path: "redirect_to" }
+          ]
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+        <div class="note">If the backend returns a <code>token</code> field (dev mode), it's auto-extracted to <code>PW_RESET_TOKEN</code>. If <code>undefined</code>, check Supabase dashboard → Authentication → Users → the student's email for the reset link.</div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">Confirm Password Reset</span></div>
+        <div class="step-desc">Uses the token from Step 1 (or paste from email). Token is substituted from env var.</div>
+        <div class="step-request">POST /api/auth/password/reset/confirm
+body: { "token":"$PW_RESET_TOKEN", "new_password":"NewStudent@123" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/password/reset/confirm",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "token": "$PW_RESET_TOKEN", "new_password": "NewStudent@123" }),
+          extractions: []
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+        <div class="note"><strong>If PW_RESET_TOKEN is empty:</strong> manually set it in the env panel (paste from Supabase email), then re-run this step. The old password is <code>Student@123</code>.</div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">Verify — Login with New Password</span></div>
+        <div class="step-desc">Student logs in with the new password to confirm the reset worked.</div>
+        <div class="step-request">POST /api/auth/login
+Host: $CLIENT_SLUG.localhost
+body: { "email":"student@greenwoodhigh.com", "password":"NewStudent@123" }</div>
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG"], "result-3")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email": "student@greenwoodhigh.com", "password": "NewStudent@123" }),
+          extractions: [{ var: "STUDENT_NEW_TOKEN", path: "access_token" }]
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
+        <div class="note">✅ Login success = reset confirmed. <strong>Expected:</strong> <code>200</code> with valid tokens.</div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">Verify — Old Password Rejected</span></div>
+        <div class="step-desc">Attempt login with the old password — should now fail.</div>
+        <div class="step-request">POST /api/auth/login
+Host: $CLIENT_SLUG.localhost
+body: { "email":"student@greenwoodhigh.com", "password":"Student@123" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email": "student@greenwoodhigh.com", "password": "Student@123" }),
+          extractions: []
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+        <div class="note"><strong>Expected:</strong> <code>401 Invalid email or password</code> — old password no longer works.</div>
+      </div>
+
+      <h2>Part B — Password Change (Authenticated)</h2>
+      <div class="note">Tests /password/change — requires a valid access token. Uses the newly reset student password.</div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div><span class="step-num">5</span><span class="step-title">Change Password While Authenticated</span></div>
+        <div class="step-desc">Student changes their own password from NewStudent@123 → FinalStudent@123.</div>
+        <div class="step-request">POST /api/auth/password/change
+Authorization: Bearer $STUDENT_NEW_TOKEN
+body: { "current_password":"NewStudent@123", "new_password":"FinalStudent@123" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/password/change",
+          headers: { "Authorization": "Bearer $STUDENT_NEW_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "current_password": "NewStudent@123", "new_password": "FinalStudent@123" }),
+          extractions: []
+        }, "result-5")'>Run Step 5</button>
+        <div class="result" id="result-5"></div>
+        <div class="note"><strong>Expected:</strong> <code>200 {"message": "Password changed successfully"}</code>.</div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div><span class="step-num">6</span><span class="step-title">Verify — Login with Changed Password</span></div>
+        <div class="step-desc">Login with FinalStudent@123 — should succeed. Old NewStudent@123 should fail.</div>
+        <div class="step-request">POST /api/auth/login
+Host: $CLIENT_SLUG.localhost
+body: { "email":"student@greenwoodhigh.com", "password":"FinalStudent@123" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email": "student@greenwoodhigh.com", "password": "FinalStudent@123" }),
+          extractions: [{ var: "STUDENT_FINAL_TOKEN", path: "access_token" }]
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+        <div class="note">✅ Login with FinalStudent@123 = password change confirmed.</div>
+      </div>
+
+      <h2>Part C — OTP Login Flow</h2>
+      <div class="note">Tests /otp/request → /otp/verify. In dev mode, the OTP may be returned in the response.
+      In production, it arrives via email.</div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div><span class="step-num">7</span><span class="step-title">Request OTP for Director</span></div>
+        <div class="step-desc">Requests an email OTP for the Client Director. Email from stored context.</div>
+        <div class="step-request">POST /api/auth/otp/request
+body: { "email":"director@greenwood.com" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/otp/request",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "email": "director@greenwood.com" }),
+          extractions: [
+            { var: "OTP_CODE", path: "otp" },
+            { var: "OTP_TOKEN", path: "token" }
+          ]
+        }, "result-7")'>Run Step 7</button>
+        <div class="result" id="result-7"></div>
+        <div class="note">If backend returns <code>otp</code> field (dev mode), it's stored as <code>OTP_CODE</code>. Otherwise check Supabase email logs.</div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div><span class="step-num">8</span><span class="step-title">Verify OTP and Get Tokens</span></div>
+        <div class="step-desc">Verify the OTP (from env var or paste from email). Returns JWT tokens on success.</div>
+        <div class="step-request">POST /api/auth/otp/verify
+body: { "email":"director@greenwood.com", "token":"$OTP_CODE" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/otp/verify",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "email": "director@greenwood.com", "token": "$OTP_CODE" }),
+          extractions: [
+            { var: "DIRECTOR_OTP_TOKEN", path: "access_token" }
+          ]
+        }, "result-8")'>Run Step 8</button>
+        <div class="result" id="result-8"></div>
+        <div class="note"><strong>If OTP_CODE is empty:</strong> set it manually in the env panel (6-digit code from email), then re-run. <strong>Expected:</strong> <code>200</code> with <code>access_token</code> + <code>refresh_token</code>.</div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div><span class="step-num">9</span><span class="step-title">Verify OTP Token Works</span></div>
+        <div class="step-desc">Use the OTP-derived token to list institutions — confirms it's a valid session.</div>
+        <div class="step-request">GET /api/v1/institutions
+Authorization: Bearer $DIRECTOR_OTP_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/institutions",
+          headers: { "Authorization": "Bearer $DIRECTOR_OTP_TOKEN" },
+          extractions: []
+        }, "result-9")'>Run Step 9</button>
+        <div class="result" id="result-9"></div>
+        <div class="note">✅ OTP login verified — token can access protected resources.</div>
+      </div>
+
+      <h2>Part D — User Activation (Invite Flow)</h2>
+      <div class="note">Tests /activate — accepts invite token JWT + sets password. Requires a user in <code>invited</code> state.
+      When users are created via <code>POST /api/v1/users</code>, they start in <code>invited</code> state.
+      The backend may expose an invite token for newly created users.</div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div><span class="step-num">10</span><span class="step-title">Login as Director (for user creation)</span></div>
+        <div class="step-desc">Login via password to get a fresh token for creating a new invited user.</div>
+        <div class="step-request">POST /api/auth/login
+Host: $CLIENT_SLUG.localhost
+body: { "email":"director@greenwood.com", "password":"Director@123" }</div>
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG", "INST_ID"], "result-10")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email": "director@greenwood.com", "password": "Director@123" }),
+          extractions: [{ var: "DIRECTOR_TOKEN", path: "access_token" }],
+          fetchLookups: ["user-categories"]
+        }, "result-10")'>Run Step 10</button>
+        <div class="result" id="result-10"></div>
+      </div>
+
+      <!-- Step 11 -->
+      <div class="step">
+        <div><span class="step-num">11</span><span class="step-title">Create New User (starts in invited state)</span></div>
+        <div class="step-desc">Creates a new user via the backend API. User starts in <code>invited</code> lifecycle status. The invite token may be returned in the response.</div>
+        <div class="step-request">POST /api/v1/users
+Authorization: Bearer $DIRECTOR_TOKEN
+body: { "email":"activate-me@greenwoodhigh.com", "name":"Activate Test", "user_category_id":"$LOOKUP.user-categories.Learner", "institution_id":"$INST_ID" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/users",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "email": "activate-me@greenwoodhigh.com",
+            "name": "Activate Test User",
+            "user_category_id": "$LOOKUP.user-categories.Learner",
+            "institution_id": "$INST_ID"
+          }),
+          extractions: [
+            { var: "ACTIVATE_USER_ID", path: "id" },
+            { var: "INVITE_TOKEN", path: "invite_token" },
+            { var: "ACTIVATION_LINK", path: "activation_url" }
+          ]
+        }, "result-11")'>Run Step 11</button>
+        <div class="result" id="result-11"></div>
+        <div class="note">User created in <code>invited</code> state. If the backend returns <code>invite_token</code> or <code>activation_url</code>, it's auto-extracted. Otherwise check the response for invite details.</div>
+      </div>
+
+      <!-- Step 12 -->
+      <div class="step">
+        <div><span class="step-num">12</span><span class="step-title">Activate User (invite token → set password)</span></div>
+        <div class="step-desc">Accepts the invite, sets password, transitions user from <code>invited → active</code>. Token from <code>$INVITE_TOKEN</code> env var.</div>
+        <div class="step-request">POST /api/auth/activate
+body: { "invite_token":"$INVITE_TOKEN", "password":"Activate@123" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/activate",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ "invite_token": "$INVITE_TOKEN", "password": "Activate@123" }),
+          extractions: []
+        }, "result-12")'>Run Step 12</button>
+        <div class="result" id="result-12"></div>
+        <div class="note"><strong>If INVITE_TOKEN is empty:</strong> the backend may not return invite tokens via API. Check response from Step 11 for activation details. <strong>Expected:</strong> <code>200 {"message":"User activated"}</code>.</div>
+      </div>
+
+      <!-- Step 13 -->
+      <div class="step">
+        <div><span class="step-num">13</span><span class="step-title">Verify — Login as Activated User</span></div>
+        <div class="step-desc">The activated user should now be able to login with their newly set password.</div>
+        <div class="step-request">POST /api/auth/login
+Host: $CLIENT_SLUG.localhost
+body: { "email":"activate-me@greenwoodhigh.com", "password":"Activate@123" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email": "activate-me@greenwoodhigh.com", "password": "Activate@123" }),
+          extractions: [{ var: "ACTIVATED_TOKEN", path: "access_token" }]
+        }, "result-13")'>Run Step 13</button>
+        <div class="result" id="result-13"></div>
+        <div class="note">✅ Activation verified — user can login.</div>
+      </div>
+
+      <div class="flow-end">
+        ✅ <strong>Flow 15 complete.</strong> Auth lifecycle verified:
+        <ul>
+          <li>Password reset request → confirm → new password login → old password rejected</li>
+          <li>Password change (authenticated) → new password login</li>
+          <li>OTP request → OTP verify → OTP-derived token works</li>
+          <li>User activation (invite → set password → login)</li>
+        </ul>
+        <div style="margin-top:8px;padding:8px;background:#fef3c7;border-radius:4px;">
+        <strong>⚠ Dev/production note:</strong> Password reset tokens, OTP codes, and invite tokens
+        are normally delivered via email. In Supabase dev mode, the backend may return them in API
+        responses (auto-extracted to env vars). If not, manually set the token from Supabase dashboard
+        or email logs.
+        </div>
+      </div>
+    </div>
+    <div><div class="store-panel" id="store-panel"></div></div>
+  </div>
+  <script src="shared.js"></script>
+  <script>renderStorePanel("store-panel");</script>
+</body>
+</html>

@@ -24,7 +24,7 @@ class User(Base):
 
     __tablename__ = "app_user"
 
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_account.id"), primary_key=True, default=uuid.uuid4)
     client_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("client.id"), nullable=False)
     institution_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("institution.id"), nullable=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
@@ -37,6 +37,9 @@ class User(Base):
     # Relationships
     user_category = relationship("UserCategory", foreign_keys=[user_category_id])
     profile = relationship("UserProfile", back_populates="user", uselist=False)
-    role_assignments = relationship("RoleAssignment", back_populates="user")
+    role_assignments = relationship("RoleAssignment",
+        primaryjoin="User.id == foreign(RoleAssignment.user_id)",
+        viewonly=True,
+    )
     identifiers = relationship("UserIdentifier", back_populates="user")
     lifecycle_events = relationship("UserLifecycleEvent", back_populates="user")

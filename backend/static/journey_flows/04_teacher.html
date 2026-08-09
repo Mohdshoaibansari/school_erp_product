@@ -25,21 +25,15 @@
 
       <div class="step">
         <div><span class="step-num">1</span><span class="step-title">Login as Teacher</span></div>
-        <button class="run-btn" onclick='runStep({
-          method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/login",
-          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
-          body: JSON.stringify({ "email":"teacher@greenwoodhigh.com", "password":"Teacher@123" }),
-          extractions: [{ var: "TEACHER_TOKEN", path: "access_token" }]
-        }, "result-1")'>Run Step 1</button>
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG"], "result-1")) return; runStep({</button>
         <div class="result" id="result-1"></div>
       </div>
 
       <div class="step">
         <div><span class="step-num">2</span><span class="step-title">Create Homework</span></div>
-        <button class="run-btn" onclick='runStep({
+        <button class="run-btn" onclick='if (!requireVars(["INST_ID", "TEACHER_ID"], "result-2")) return; runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/homeworks",
+          url: "http://127.0.0.1:8001/api/v1/homeworks",
           headers: { "Authorization": "Bearer $TEACHER_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
             "title":"Math Chapter 5 Worksheet",
@@ -61,7 +55,7 @@
         <div><span class="step-num">3</span><span class="step-title">List Homeworks</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/homeworks",
+          url: "http://127.0.0.1:8001/api/v1/homeworks",
           headers: { "Authorization": "Bearer $TEACHER_TOKEN" },
           extractions: []
         }, "result-3")'>Run Step 3</button>
@@ -73,7 +67,7 @@
         <div class="step-desc">Switch to student context to submit. In a real flow, the student would do this in Flow 5.</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/login",
+          url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
           body: JSON.stringify({ "email":"student@greenwoodhigh.com", "password":"Student@123" }),
           extractions: [{ var: "STUDENT_TOKEN_", path: "access_token" }]
@@ -81,7 +75,7 @@
         <div class="result" id="result-4"></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/submissions",
+          url: "http://127.0.0.1:8001/api/v1/submissions",
           headers: { "Authorization": "Bearer $STUDENT_TOKEN_", "Content-Type": "application/json" },
           body: JSON.stringify({
             "homework_id":"$HOMEWORK_ID",
@@ -97,7 +91,7 @@
         <div><span class="step-num">5</span><span class="step-title">List Submissions for Homework</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/submissions?homework_id=$HOMEWORK_ID",
+          url: "http://127.0.0.1:8001/api/v1/submissions?homework_id=$HOMEWORK_ID",
           headers: { "Authorization": "Bearer $TEACHER_TOKEN" },
           extractions: []
         }, "result-5")'>Run Step 5</button>
@@ -108,7 +102,7 @@
         <div><span class="step-num">6</span><span class="step-title">Grade the Submission</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/submissions/$SUBMISSION_ID/grade",
+          url: "http://127.0.0.1:8001/api/v1/submissions/$SUBMISSION_ID/grade",
           headers: { "Authorization": "Bearer $TEACHER_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
             "score":42,
@@ -123,7 +117,7 @@
         <div><span class="step-num">7</span><span class="step-title">Get Submission (verify graded)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/submissions/$SUBMISSION_ID",
+          url: "http://127.0.0.1:8001/api/v1/submissions/$SUBMISSION_ID",
           headers: { "Authorization": "Bearer $TEACHER_TOKEN" },
           extractions: []
         }, "result-7")'>Run Step 7</button>
@@ -135,7 +129,7 @@
         <div><span class="step-num">8</span><span class="step-title">Close Homework (active → closed)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/homeworks/$HOMEWORK_ID/close",
+          url: "http://127.0.0.1:8001/api/v1/homeworks/$HOMEWORK_ID/close",
           headers: { "Authorization": "Bearer $TEACHER_TOKEN" },
           extractions: []
         }, "result-8")'>Run Step 8</button>

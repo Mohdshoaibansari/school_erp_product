@@ -26,7 +26,6 @@ from sqlalchemy.orm import sessionmaker, Session
 
 from kernel.tenant_context import TenantContext, get_tenant_context
 from kernel.authz.dependencies import get_enforcer, set_enforcer
-from business.tenant_institution.policies import register_policies
 from kernel.authz.services.policy_loader import register_policies_from_map
 
 
@@ -40,7 +39,23 @@ def _build_real_enforcer() -> casbin.Enforcer:
     import kernel.authz
     model_path = os.path.join(os.path.dirname(kernel.authz.__file__), "casbin_model.conf")
     e = casbin.Enforcer(model_path)
-    register_policies(e)  # C-01 D11 matrix
+    # Register C-01 D11 policies inline (policies.py deleted in consolidation)
+    e.add_role_for_user("platform_owner", "client_director")
+    e.add_role_for_user("platform_owner", "institution_admin")
+    e.add_role_for_user("platform_owner", "cross_institution")
+    e.add_policy("platform_owner", "*", "*", "any")
+    for action in ["create", "read", "update", "transition_lifecycle", "archive", "list"]:
+        e.add_policy("client_director", "institution", action, "tenant")
+    for action in ["read", "update"]:
+        e.add_policy("client_director", "client", action, "tenant")
+    for action in ["create", "read", "update", "move", "archive", "reactivate", "reorder"]:
+        e.add_policy("client_director", "org_unit", action, "tenant")
+    for action in ["read", "update"]:
+        e.add_policy("institution_admin", "institution", action, "institution")
+    for action in ["create", "read", "update", "move", "archive", "reactivate", "reorder"]:
+        e.add_policy("institution_admin", "org_unit", action, "institution")
+    for resource in ["client", "institution", "org_unit"]:
+        e.add_policy("cross_institution", resource, "read", "tenant")
 
     # Register C-04 permissions from DB (simplified for tests — uses known seed data)
     from sqlalchemy import create_engine, text as sa_text

@@ -25,13 +25,7 @@
 
       <div class="step">
         <div><span class="step-num">1</span><span class="step-title">Login as Student</span></div>
-        <button class="run-btn" onclick='runStep({
-          method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/login",
-          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
-          body: JSON.stringify({ "email":"student@greenwoodhigh.com", "password":"Student@123" }),
-          extractions: [{ var: "STUDENT_TOKEN", path: "access_token" }]
-        }, "result-1")'>Run Step 1</button>
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG"], "result-1")) return; runStep({</button>
         <div class="result" id="result-1"></div>
       </div>
 
@@ -39,7 +33,7 @@
         <div><span class="step-num">2</span><span class="step-title">View Active Homeworks</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/homeworks?status=active",
+          url: "http://127.0.0.1:8001/api/v1/homeworks?status=active",
           headers: { "Authorization": "Bearer $STUDENT_TOKEN" },
           extractions: []
         }, "result-2")'>Run Step 2</button>
@@ -48,9 +42,9 @@
 
       <div class="step">
         <div><span class="step-num">3</span><span class="step-title">Submit Homework</span></div>
-        <button class="run-btn" onclick='runStep({
+        <button class="run-btn" onclick='if (!requireVars(["HOMEWORK_ID", "STUDENT_ID"], "result-3")) return; runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/submissions",
+          url: "http://127.0.0.1:8001/api/v1/submissions",
           headers: { "Authorization": "Bearer $STUDENT_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
             "homework_id":"$HOMEWORK_ID",
@@ -67,7 +61,7 @@
         <div><span class="step-num">4</span><span class="step-title">View My Submissions</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/submissions?student_id=$STUDENT_ID",
+          url: "http://127.0.0.1:8001/api/v1/submissions?student_id=$STUDENT_ID",
           headers: { "Authorization": "Bearer $STUDENT_TOKEN" },
           extractions: []
         }, "result-4")'>Run Step 4</button>
@@ -79,7 +73,7 @@
         <div><span class="step-num">5</span><span class="step-title">View My Grades</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/grades?student_id=$STUDENT_ID",
+          url: "http://127.0.0.1:8001/api/v1/grades?student_id=$STUDENT_ID",
           headers: { "Authorization": "Bearer $STUDENT_TOKEN" },
           extractions: []
         }, "result-5")'>Run Step 5</button>
@@ -92,7 +86,7 @@
         <div class="step-desc">Verify student CANNOT create homework — permission denied.</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/homeworks",
+          url: "http://127.0.0.1:8001/api/v1/homeworks",
           headers: { "Authorization": "Bearer $STUDENT_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
             "title":"Cheating attempt",

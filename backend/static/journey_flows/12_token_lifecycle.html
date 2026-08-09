@@ -27,7 +27,7 @@
         <div><span class="step-num">1</span><span class="step-title">Platform Owner Login</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/login",
+          url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ "email":"admin@school-erp.com", "password":"Shoby@123" }),
           extractions: [
@@ -43,7 +43,7 @@
         <div><span class="step-num">2</span><span class="step-title">Use Access Token — List Clients</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          url: "http://127.0.0.1:8001/api/v1/platform/clients",
           headers: { "Authorization": "Bearer $PO_ACCESS_TOKEN" },
           extractions: []
         }, "result-2")'>Run Step 2</button>
@@ -54,7 +54,7 @@
         <div><span class="step-num">3</span><span class="step-title">Platform Owner Refresh — should fail (empty refresh)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/refresh",
+          url: "http://127.0.0.1:8001/api/auth/refresh",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ "refresh_token":"$PO_REFRESH_TOKEN" }),
           extractions: []
@@ -67,9 +67,9 @@
 
       <div class="step">
         <div><span class="step-num">4</span><span class="step-title">Director Login</span></div>
-        <button class="run-btn" onclick='runStep({
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG"], "result-4")) return; runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/login",
+          url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
           body: JSON.stringify({ "email":"director@greenwood.com", "password":"Director@123" }),
           extractions: [
@@ -84,7 +84,7 @@
         <div><span class="step-num">5</span><span class="step-title">Use Access Token — List Institutions</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/institutions",
+          url: "http://127.0.0.1:8001/api/v1/institutions",
           headers: { "Authorization": "Bearer $DIR_ACCESS_TOKEN" },
           extractions: []
         }, "result-5")'>Run Step 5</button>
@@ -95,7 +95,7 @@
         <div><span class="step-num">6</span><span class="step-title">Refresh Access Token</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/refresh",
+          url: "http://127.0.0.1:8001/api/auth/refresh",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ "refresh_token":"$DIR_REFRESH_TOKEN" }),
           extractions: [
@@ -111,7 +111,7 @@
         <div><span class="step-num">7</span><span class="step-title">Use New Access Token</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/institutions",
+          url: "http://127.0.0.1:8001/api/v1/institutions",
           headers: { "Authorization": "Bearer $DIR_ACCESS_TOKEN_NEW" },
           extractions: []
         }, "result-7")'>Run Step 7</button>
@@ -122,7 +122,7 @@
         <div><span class="step-num">8</span><span class="step-title">Logout (revoke refresh)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/logout",
+          url: "http://127.0.0.1:8001/api/auth/logout",
           headers: { "Content-Type": "application/json", "Authorization": "Bearer $DIR_ACCESS_TOKEN_NEW" },
           body: JSON.stringify({ "refresh_token":"$DIR_REFRESH_TOKEN_NEW" }),
           extractions: []
@@ -134,7 +134,7 @@
         <div><span class="step-num">9</span><span class="step-title">Try to use revoked refresh token — should fail</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/refresh",
+          url: "http://127.0.0.1:8001/api/auth/refresh",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ "refresh_token":"$DIR_REFRESH_TOKEN_NEW" }),
           extractions: []
@@ -147,7 +147,7 @@
         <div><span class="step-num">10</span><span class="step-title">Login with wrong password — should fail</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/login",
+          url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
           body: JSON.stringify({ "email":"director@greenwood.com", "password":"WrongPass" }),
           extractions: []

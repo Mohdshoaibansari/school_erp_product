@@ -82,29 +82,17 @@ async def bootstrap_platform_owner() -> None:
 
     try:
         # Check if user already exists in Supabase Auth
+        # Use sign_in_with_password as existence check (update_user fails with "User not allowed")
         try:
-            existing = await client.update_user(platform_owner_id, email=platform_owner_email)
-            if existing and existing.get("user"):
+            existing = await client.sign_in_with_password(platform_owner_email, initial_password)
+            if existing and existing.get("access_token"):
                 print(f"Platform owner already exists in Supabase Auth: {platform_owner_email}")
-                # Ensure password is set and email confirmed
-                await client.update_user(
-                    platform_owner_id,
-                    password=initial_password,
-                    email_confirm=True,
-                )
-                print("Password and email confirmation updated.")
                 return
         except SupabaseAuthError:
-            pass  # User doesn't exist, create them
+            pass  # User doesn't exist or password wrong, create them
 
-        # Create the user
-        await client.create_user(platform_owner_id, platform_owner_email)
-        # Set password and confirm email
-        await client.update_user(
-            platform_owner_id,
-            password=initial_password,
-            email_confirm=True,
-        )
+        # Create the user WITH password (D11)
+        await client.create_user(platform_owner_id, platform_owner_email, password=initial_password)
         print(f"Platform owner created in Supabase Auth: {platform_owner_email}")
     except SupabaseAuthError as e:
         print(f"ERROR: Failed to create platform owner: {e}")

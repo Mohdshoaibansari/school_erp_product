@@ -25,7 +25,7 @@
       </div>
 
       <div class="prereq">
-        <strong>Prerequisites:</strong> Backend running on <code>http://127.0.0.1:8000</code>.
+        <strong>Prerequisites:</strong> Backend running on <code>http://127.0.0.1:8001</code>.
         Migrations 009 + 010 applied (21 seed keys). Platform Owner exists in Supabase Auth.
         Run Flow 2 first to create a Client + Institution + Client Director if you haven't already.
       </div>
@@ -40,7 +40,7 @@
 body: { "email":"admin@school-erp.com", "password":"Shoby@123" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/login",
+          url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ "email":"admin@school-erp.com", "password":"Shoby@123" }),
           extractions: [
@@ -58,7 +58,7 @@ body: { "email":"admin@school-erp.com", "password":"Shoby@123" }</div>
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/keys",
+          url: "http://127.0.0.1:8001/api/v1/config/keys",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: []
         }, "result-2")'>Run Step 2</button>
@@ -74,7 +74,7 @@ Authorization: Bearer $PLATFORM_TOKEN</div>
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/keys?key=auth.jwtExpirySeconds",
+          url: "http://127.0.0.1:8001/api/v1/config/keys?key=auth.jwtExpirySeconds",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: [
             { var: "JWT_KEY_ID", path: "items.0.id" }
@@ -87,7 +87,7 @@ Authorization: Bearer $PLATFORM_TOKEN
 body: { "default_value": 7200 }</div>
         <button class="run-btn" onclick='runStep({
           method: "PATCH",
-          url: "http://127.0.0.1:8000/api/v1/config/keys/$JWT_KEY_ID",
+          url: "http://127.0.0.1:8001/api/v1/config/keys/$JWT_KEY_ID",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "default_value": 7200 }),
           extractions: []
@@ -104,7 +104,7 @@ body: { "default_value": 7200 }</div>
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/keys?key=auth.passwordResetRedirectUrl",
+          url: "http://127.0.0.1:8001/api/v1/config/keys?key=auth.passwordResetRedirectUrl",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: [
             { var: "RESET_URL_KEY_ID", path: "items.0.id" }
@@ -117,7 +117,7 @@ Authorization: Bearer $PLATFORM_TOKEN
 body: { "default_value": "https://school-erp.com/reset-password" }</div>
         <button class="run-btn" onclick='runStep({
           method: "PATCH",
-          url: "http://127.0.0.1:8000/api/v1/config/keys/$RESET_URL_KEY_ID",
+          url: "http://127.0.0.1:8001/api/v1/config/keys/$RESET_URL_KEY_ID",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "default_value": "https://school-erp.com/reset-password" }),
           extractions: []
@@ -133,7 +133,7 @@ body: { "default_value": "https://school-erp.com/reset-password" }</div>
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/keys?key=homework.lateSubmissionPolicy",
+          url: "http://127.0.0.1:8001/api/v1/config/keys?key=homework.lateSubmissionPolicy",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: [
             { var: "LATE_POLICY_KEY_ID", path: "items.0.id" }
@@ -146,7 +146,7 @@ GET /api/v1/config/resolve/homework.lateSubmissionPolicy
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/resolve/homework.lateSubmissionPolicy",
+          url: "http://127.0.0.1:8001/api/v1/config/resolve/homework.lateSubmissionPolicy",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: []
         }, "result-5b")'>Resolve</button>
@@ -162,7 +162,7 @@ Authorization: Bearer $PLATFORM_TOKEN</div>
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/resolve/auth.jwtExpirySeconds",
+          url: "http://127.0.0.1:8001/api/v1/config/resolve/auth.jwtExpirySeconds",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: []
         }, "result-6")'>Run Step 6</button>
@@ -181,7 +181,7 @@ body: { "email":"shoby.ansari586@gmail.com", "password":"Admin@123" }
 Host: meerutpublic.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/login",
+          url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "meerutpublic.localhost" },
           body: JSON.stringify({ "email":"shoby.ansari586@gmail.com", "password":"Admin@123" }),
           extractions: [
@@ -202,7 +202,7 @@ Authorization: Bearer $CD_TOKEN
 Host: meerutpublic.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          url: "http://127.0.0.1:8001/api/v1/platform/clients",
           headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
           extractions: [
             { var: "CLIENT_ID", path: "[slug=$CD_CLIENT_SLUG].id" }
@@ -221,7 +221,7 @@ Authorization: Bearer $CD_TOKEN
 Host: meerutpublic.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/institutions",
+          url: "http://127.0.0.1:8001/api/v1/institutions",
           headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
           extractions: [
             { var: "INST_ID", path: "[display_name=$CD_INST_NAME].id" }
@@ -240,7 +240,7 @@ Authorization: Bearer $CD_TOKEN
 Host: meerutpublic.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/keys?key=attendance.statuses",
+          url: "http://127.0.0.1:8001/api/v1/config/keys?key=attendance.statuses",
           headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
           extractions: [
             { var: "ATT_KEY_ID", path: "items.0.id" }
@@ -254,7 +254,7 @@ Host: meerutpublic.localhost
 body: { "key_id":"$ATT_KEY_ID", "scope_type":"client", "scope_id":"$CLIENT_ID", "value":["half_day","leave"] }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/config/values",
+          url: "http://127.0.0.1:8001/api/v1/config/values",
           headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost", "Content-Type": "application/json" },
           body: JSON.stringify({ "key_id": "$ATT_KEY_ID", "scope_type": "client", "scope_id": "$CLIENT_ID", "value": ["half_day","leave"] }),
           extractions: [
@@ -275,7 +275,7 @@ Host: meerutpublic.localhost
 body: { "key_id":"$LATE_POLICY_KEY_ID", "scope_type":"client", "scope_id":"$CLIENT_ID", "value":"late" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/config/values",
+          url: "http://127.0.0.1:8001/api/v1/config/values",
           headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost", "Content-Type": "application/json" },
           body: JSON.stringify({ "key_id": "$LATE_POLICY_KEY_ID", "scope_type": "client", "scope_id": "$CLIENT_ID", "value": "late" }),
           extractions: [
@@ -295,7 +295,7 @@ Authorization: Bearer $CD_TOKEN
 Host: meerutpublic.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/resolve/attendance.statuses?institution_id=$INST_ID&client_id=$CLIENT_ID",
+          url: "http://127.0.0.1:8001/api/v1/config/resolve/attendance.statuses?institution_id=$INST_ID&client_id=$CLIENT_ID",
           headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
           extractions: []
         }, "result-12")'>Run Step 12</button>
@@ -312,7 +312,7 @@ Authorization: Bearer $CD_TOKEN
 Host: meerutpublic.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/resolve/homework.lateSubmissionPolicy?institution_id=$INST_ID&client_id=$CLIENT_ID",
+          url: "http://127.0.0.1:8001/api/v1/config/resolve/homework.lateSubmissionPolicy?institution_id=$INST_ID&client_id=$CLIENT_ID",
           headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
           extractions: []
         }, "result-13")'>Run Step 13</button>
@@ -331,7 +331,7 @@ body: { "email":"admin@test-school.com", "password":"Admin@123" }
 Host: test-school.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/login",
+          url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "test-school.localhost" },
           body: JSON.stringify({ "email":"admin@test-school.com", "password":"Admin@123" }),
           extractions: [
@@ -353,7 +353,7 @@ Authorization: Bearer $ADMIN_TOKEN
 Host: test-school.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/keys?key=homework.closedStatusValues",
+          url: "http://127.0.0.1:8001/api/v1/config/keys?key=homework.closedStatusValues",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
           extractions: [
             { var: "CLOSED_KEY_ID", path: "items.0.id" }
@@ -367,7 +367,7 @@ Host: test-school.localhost
 body: { "key_id":"$CLOSED_KEY_ID", "scope_type":"institution", "scope_id":"$ADMIN_INST_ID", "value":["active","closed"] }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/config/values",
+          url: "http://127.0.0.1:8001/api/v1/config/values",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost", "Content-Type": "application/json" },
           body: JSON.stringify({ "key_id": "$CLOSED_KEY_ID", "scope_type": "institution", "scope_id": "$ADMIN_INST_ID", "value": ["active","closed"] }),
           extractions: [
@@ -389,7 +389,7 @@ Host: test-school.localhost
 body: { "key_id":"$ATT_KEY_ID", "scope_type":"institution", "scope_id":"$ADMIN_INST_ID", "value":["excused"] }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/config/values",
+          url: "http://127.0.0.1:8001/api/v1/config/values",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost", "Content-Type": "application/json" },
           body: JSON.stringify({ "key_id": "$ATT_KEY_ID", "scope_type": "institution", "scope_id": "$ADMIN_INST_ID", "value": ["excused"] }),
           extractions: [
@@ -409,7 +409,7 @@ Authorization: Bearer $ADMIN_TOKEN
 Host: test-school.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/resolve/attendance.statuses?institution_id=$ADMIN_INST_ID",
+          url: "http://127.0.0.1:8001/api/v1/config/resolve/attendance.statuses?institution_id=$ADMIN_INST_ID",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
           extractions: []
         }, "result-17")'>Run Step 17</button>
@@ -426,7 +426,7 @@ Authorization: Bearer $ADMIN_TOKEN
 Host: test-school.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/resolve/homework.closedStatusValues?institution_id=$ADMIN_INST_ID",
+          url: "http://127.0.0.1:8001/api/v1/config/resolve/homework.closedStatusValues?institution_id=$ADMIN_INST_ID",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
           extractions: []
         }, "result-18")'>Run Step 18</button>
@@ -445,7 +445,7 @@ Authorization: Bearer $ADMIN_TOKEN
 Host: test-school.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/resolve/auth.jwtExpirySeconds?institution_id=$ADMIN_INST_ID",
+          url: "http://127.0.0.1:8001/api/v1/config/resolve/auth.jwtExpirySeconds?institution_id=$ADMIN_INST_ID",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
           extractions: []
         }, "result-19")'>Run Step 19</button>
@@ -462,7 +462,7 @@ Authorization: Bearer $ADMIN_TOKEN
 Host: test-school.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/resolve/auth.passwordResetRedirectUrl",
+          url: "http://127.0.0.1:8001/api/v1/config/resolve/auth.passwordResetRedirectUrl",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
           extractions: []
         }, "result-20")'>Run Step 20</button>
@@ -479,7 +479,7 @@ Authorization: Bearer $ADMIN_TOKEN
 Host: test-school.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/resolve/homework.lateSubmissionPolicy?institution_id=$ADMIN_INST_ID",
+          url: "http://127.0.0.1:8001/api/v1/config/resolve/homework.lateSubmissionPolicy?institution_id=$ADMIN_INST_ID",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
           extractions: []
         }, "result-21")'>Run Step 21</button>
@@ -497,7 +497,7 @@ Host: test-school.localhost</div>
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/audit?page_size=15",
+          url: "http://127.0.0.1:8001/api/v1/config/audit?page_size=15",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: []
         }, "result-22")'>Run Step 22</button>
@@ -513,7 +513,7 @@ Authorization: Bearer $PLATFORM_TOKEN</div>
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/audit?key=attendance.statuses",
+          url: "http://127.0.0.1:8001/api/v1/config/audit?key=attendance.statuses",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: []
         }, "result-23")'>Run Step 23</button>
@@ -528,7 +528,7 @@ Authorization: Bearer $PLATFORM_TOKEN</div>
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "DELETE",
-          url: "http://127.0.0.1:8000/api/v1/config/values/$INST_ATT_VALUE_ID",
+          url: "http://127.0.0.1:8001/api/v1/config/values/$INST_ATT_VALUE_ID",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: []
         }, "result-24")'>Run Step 24</button>
@@ -543,7 +543,7 @@ Authorization: Bearer $PLATFORM_TOKEN</div>
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "DELETE",
-          url: "http://127.0.0.1:8000/api/v1/config/values/$CLIENT_ATT_VALUE_ID",
+          url: "http://127.0.0.1:8001/api/v1/config/values/$CLIENT_ATT_VALUE_ID",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: []
         }, "result-25")'>Run Step 25</button>
@@ -558,7 +558,7 @@ Authorization: Bearer $PLATFORM_TOKEN</div>
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "DELETE",
-          url: "http://127.0.0.1:8000/api/v1/config/values/$CLIENT_LATE_POLICY_VALUE_ID",
+          url: "http://127.0.0.1:8001/api/v1/config/values/$CLIENT_LATE_POLICY_VALUE_ID",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: []
         }, "result-26")'>Run Step 26</button>
@@ -573,7 +573,7 @@ Authorization: Bearer $PLATFORM_TOKEN</div>
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "DELETE",
-          url: "http://127.0.0.1:8000/api/v1/config/values/$INST_CLOSED_VALUE_ID",
+          url: "http://127.0.0.1:8001/api/v1/config/values/$INST_CLOSED_VALUE_ID",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: []
         }, "result-27")'>Run Step 27</button>
@@ -588,7 +588,7 @@ Authorization: Bearer $PLATFORM_TOKEN</div>
 Authorization: Bearer $PLATFORM_TOKEN</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/config/resolve/attendance.statuses",
+          url: "http://127.0.0.1:8001/api/v1/config/resolve/attendance.statuses",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: []
         }, "result-28")'>Run Step 28</button>

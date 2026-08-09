@@ -16,8 +16,8 @@ from sqlalchemy.orm import sessionmaker, Session
 
 logger = logging.getLogger(__name__)
 
-# In-memory permission map: {role_name: [(resource, action), ...]}
-_permission_map: dict[str, list[tuple[str, str]]] = {}
+# In-memory permission map: {role_name: [(resource, action, scope), ...]}
+_permission_map: dict[str, list[tuple[str, str, str]]] = {}
 
 
 def _get_session() -> Session:
@@ -40,7 +40,7 @@ def load_permission_map() -> None:
     session = _get_session()
     try:
         rows = session.execute(text("""
-            SELECT r.name AS role_name, p.resource, p.action
+            SELECT r.name AS role_name, p.resource, p.action, rp.scope
             FROM role_permission rp
             JOIN role r ON r.id = rp.role_id
             JOIN permission p ON p.id = rp.permission_id
@@ -48,8 +48,8 @@ def load_permission_map() -> None:
         """)).fetchall()
 
         _permission_map.clear()
-        for role_name, resource, action in rows:
-            _permission_map.setdefault(role_name, []).append((resource, action))
+        for role_name, resource, action, scope in rows:
+            _permission_map.setdefault(role_name, []).append((resource, action, scope))
 
         logger.info(
             "C-04 policy loader: loaded %d role-permission mappings across %d roles",
@@ -71,8 +71,8 @@ def register_policies_from_map(enforcer: Any) -> None:
         # Casbin role hierarchy: the identity role label is also a Casbin role
         enforcer.add_role_for_user(role_name, role_name)
 
-        for resource, action in permissions:
-            enforcer.add_policy(role_name, resource, action, "institution")
+        for resource, action, scope in permissions:
+            enforcer.add_policy(role_name, resource, action, scope)
 
     logger.info(
         "C-04 policy loader: registered %d role mappings into enforcer",
@@ -80,6 +80,6 @@ def register_policies_from_map(enforcer: Any) -> None:
     )
 
 
-def get_permission_map() -> dict[str, list[tuple[str, str]]]:
+def get_permission_map() -> dict[str, list[tuple[str, str, str]]]:
     """Return the current in-memory permission map (test helper)."""
     return dict(_permission_map)

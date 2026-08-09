@@ -22,12 +22,14 @@ class SupabaseAuthClient(Protocol):
     Fake impl is in-memory for testing (D23, D24).
     """
 
-    async def create_user(self, user_id: uuid.UUID, email: str) -> dict:
-        """Create a user in Supabase Auth (D3).
+    async def create_user(self, user_id: uuid.UUID, email: str, *, password: str | None = None, user_metadata: dict | None = None) -> dict:
+        """Create a user in Supabase Auth (D3, D11).
 
         Args:
             user_id: the UUID to use for the Supabase Auth user (shared with app_user).
             email: the user's email.
+            password: optional password to set at creation time (D11).
+            user_metadata: optional dict to set on creation (e.g. user_tier).
 
         Returns:
             dict with Supabase user data.
@@ -168,22 +170,27 @@ class SupabaseAuthClientImpl:
             self._client = create_client(self._url, self._key)
         return self._client
 
-    async def create_user(self, user_id: uuid.UUID, email: str) -> dict:
+    async def create_user(self, user_id: uuid.UUID, email: str, *, password: str | None = None, user_metadata: dict | None = None) -> dict:
         logger.info("[SUPABASE] Create user: id=%s email=%s", user_id, email)
         try:
             import httpx
             async with httpx.AsyncClient() as client:
+                payload = {
+                    "id": str(user_id),
+                    "email": email,
+                    "email_confirm": True,
+                }
+                if password:
+                    payload["password"] = password
+                if user_metadata is not None:
+                    payload["user_metadata"] = user_metadata
                 response = await client.post(
                     f"{self._url}/auth/v1/admin/users",
                     headers={
                         "apikey": self._key,
                         "Authorization": f"Bearer {self._key}",
                     },
-                    json={
-                        "id": str(user_id),
-                        "email": email,
-                        "email_confirm": False,
-                    },
+                    json=payload,
                 )
                 if response.status_code not in (200, 201):
                     raise Exception(f"{response.status_code}: {response.text[:200]}")
@@ -256,6 +263,7 @@ class SupabaseAuthClientImpl:
         password: str | None = None,
         email: str | None = None,
         email_confirm: bool | None = None,
+        user_metadata: dict | None = None,
     ) -> dict:
         logger.info("[SUPABASE] Update user: id=%s password=%s email=%s", user_id, "***" if password else None, email)
         client = self._get_client()

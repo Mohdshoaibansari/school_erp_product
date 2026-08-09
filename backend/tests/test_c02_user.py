@@ -169,7 +169,7 @@ def _create_user_via_api(tc: TestClient, email: str, name: str, category_id: uui
         "institution_id": str(institution_id),
     })
     assert response.status_code == 201, f"Failed to create user: {response.text}"
-    return response.json()
+    return response.json()["user"]
 
 
 # ============================================================

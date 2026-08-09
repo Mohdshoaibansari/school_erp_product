@@ -35,7 +35,7 @@
       <div class="step">
         <div><span class="step-num">1</span><span class="step-title">Create Parent User (via Supabase API)</span></div>
         <div class="step-desc">Manually create a parent user to demonstrate the current 403 behavior.</div>
-        <button class="run-btn" onclick='
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_ID", "INST_ID"], "result-1")) return; 
           STORE.PARENT_ID = crypto.randomUUID();
           STORE.PARENT_ASSIGN_ID = crypto.randomUUID();
           saveStore();
@@ -71,7 +71,7 @@
         <div><span class="step-num">2</span><span class="step-title">Login as Parent</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/login",
+          url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
           body: JSON.stringify({ "email":"parent@greenwoodhigh.com", "password":"Parent@123" }),
           extractions: [{ var: "PARENT_TOKEN", path: "access_token" }]
@@ -83,7 +83,7 @@
         <div><span class="step-num">3</span><span class="step-title">Try to view grades (should FAIL — no permissions yet)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/grades",
+          url: "http://127.0.0.1:8001/api/v1/grades",
           headers: { "Authorization": "Bearer $PARENT_TOKEN" },
           extractions: []
         }, "result-3")'>Run Step 3</button>

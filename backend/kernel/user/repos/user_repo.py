@@ -31,8 +31,13 @@ class UserRepository(TenantAwareRepositoryBase[User]):
     def _to_dto(self, obj: User) -> UserDTO:
         return UserDTO.model_validate(obj)
 
-    def create(self, session: Session, ctx: TenantContext, dto: UserCreateDTO) -> UserDTO:
-        """Create a new User."""
+    def create(self, session: Session, ctx: TenantContext, dto: UserCreateDTO, *, user_id: uuid.UUID | None = None) -> UserDTO:
+        """Create a new User.
+
+        Args:
+            user_id: optional UUID to use as the row's id. When provided, uses this
+                     so Supabase Auth and the invite JWT share the same id.
+        """
         # Check email uniqueness
         existing = session.execute(
             select(User).where(User.email == dto.email)
@@ -40,7 +45,16 @@ class UserRepository(TenantAwareRepositoryBase[User]):
         if existing:
             raise ValueError(f"Email '{dto.email}' is already taken")
 
+        uid = user_id or uuid.uuid4()
+
+        # D12: Insert user_account parent row first
+        from sqlalchemy import text as sa_text
+        session.execute(sa_text(
+            "INSERT INTO user_account (id) VALUES (:id) ON CONFLICT (id) DO NOTHING"
+        ), {"id": uid})
+
         obj = User(
+            id=uid,
             client_id=ctx.client_id,
             institution_id=dto.institution_id,
             email=dto.email,

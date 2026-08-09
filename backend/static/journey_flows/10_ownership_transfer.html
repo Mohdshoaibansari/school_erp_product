@@ -28,9 +28,9 @@
       <div class="step">
         <div><span class="step-num">1</span><span class="step-title">Request Ownership Transfer</span></div>
         <div class="step-desc">Initiated by Platform Owner. Records an <code>Approval</code> row in pending state.</div>
-        <button class="run-btn" onclick='runStep({
+        <button class="run-btn" onclick='if (!requireVars(["PLATFORM_TOKEN", "INST_ID", "BOOT_CLIENT_ID"], "result-1")) return; runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/platform/ownership-transfers",
+          url: "http://127.0.0.1:8001/api/v1/platform/ownership-transfers",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
             "institution_id":"$INST_ID",
@@ -47,7 +47,7 @@
         <div class="step-desc">Executes the transfer in a single DB transaction (D12). Institution's <code>client_id</code> moves A → B.</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/v1/platform/ownership-transfers/$TRANSFER_APPROVAL_ID/approve?to_client_id=$BOOT_CLIENT_ID",
+          url: "http://127.0.0.1:8001/api/v1/platform/ownership-transfers/$TRANSFER_APPROVAL_ID/approve?to_client_id=$BOOT_CLIENT_ID",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "consent_source":true, "consent_dest":true, "reason":"Both parties agreed" }),
           extractions: [{ var: "TRANSFER_EVENT_ID", path: "id" }]
@@ -59,7 +59,7 @@
         <div><span class="step-num">3</span><span class="step-title">Verify Institution is now under Sunrise</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/platform/clients/$BOOT_CLIENT_ID",
+          url: "http://127.0.0.1:8001/api/v1/platform/clients/$BOOT_CLIENT_ID",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: []
         }, "result-3")'>Run Step 3 — View Sunrise client</button>
@@ -71,7 +71,7 @@
         <div><span class="step-num">4</span><span class="step-title">Sunrise Director lists institutions — should now include transferred one</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/institutions",
+          url: "http://127.0.0.1:8001/api/v1/institutions",
           headers: { "Authorization": "Bearer $BOOT_DIRECTOR_TOKEN" },
           extractions: []
         }, "result-4")'>Run Step 4</button>

@@ -13,14 +13,15 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from kernel.tenant_context import TenantContext, require_platform_owner
-from kernel.user.services.client_user_service import ClientUserService
+from kernel.user.services.service import UserService
 from kernel.user.services.dtos import (
     ClientUserCreateDTO,
     ClientUserDTO,
     ClientUserUpdateDTO,
     ClientUserTransitionDTO,
+    UserCreateResponseDTO,
 )
-from kernel.user.dependencies import get_client_user_service
+from kernel.user.dependencies import get_identity_user_service
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ async def bootstrap_client_director(
     client_id: uuid.UUID,
     dto: ClientUserCreateDTO,
     ctx: TenantContext = Depends(require_platform_owner),
-    svc: ClientUserService = Depends(get_client_user_service),
+    svc: UserService = Depends(get_identity_user_service),
 ):
     """Bootstrap the first Client Director for a client.
 
@@ -55,8 +56,18 @@ async def bootstrap_client_director(
     Per D4, D6, D7.
     """
     try:
-        result = await svc.bootstrap_invite(ctx, client_id, dto)
-        return result
+        # Set client_id on DTO from the URL path
+        dto.client_id = client_id
+        result = await svc.create_user(ctx, dto)
+        # Convert to backwards-compatible response shape
+        user_dto = result["user"]
+        return {
+            "user_id": str(user_dto.id),
+            "email": user_dto.email,
+            "invite_url": result["invite_url"],
+            "client_id": str(client_id),
+            "user": user_dto,
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -69,11 +80,11 @@ async def bootstrap_client_director(
 def list_client_users(
     client_id: uuid.UUID,
     ctx: TenantContext = Depends(require_platform_owner),
-    svc: ClientUserService = Depends(get_client_user_service),
+    svc: UserService = Depends(get_identity_user_service),
 ) -> list[ClientUserDTO]:
     """List all client-leadership users in the given client.
     Returns rows across all lifecycle states. Per D4."""
-    return svc.list_in_client(ctx, client_id)
+    return svc.list_users(ctx, client_id=client_id)
 
 
 @router.get(
@@ -85,10 +96,10 @@ def get_client_user(
     client_id: uuid.UUID,
     user_id: uuid.UUID,
     ctx: TenantContext = Depends(require_platform_owner),
-    svc: ClientUserService = Depends(get_client_user_service),
+    svc: UserService = Depends(get_identity_user_service),
 ) -> ClientUserDTO:
     """Get a single ClientUser by ID. PO gets any; CD gets own row (filtered by RLS)."""
-    result = svc.get_by_id(ctx, user_id)
+    result = svc.get_user(ctx, user_id)
     if not result:
         raise HTTPException(status_code=404, detail="ClientUser not found")
     return result
@@ -99,17 +110,17 @@ def get_client_user(
     response_model=ClientUserDTO,
     summary="Update a Client Director (name, email)",
 )
-def update_client_user(
+async def update_client_user(
     client_id: uuid.UUID,
     user_id: uuid.UUID,
     dto: ClientUserUpdateDTO,
     ctx: TenantContext = Depends(require_platform_owner),
-    svc: ClientUserService = Depends(get_client_user_service),
+    svc: UserService = Depends(get_identity_user_service),
 ) -> ClientUserDTO:
     """Update a ClientUser's identity fields (name, email).
     CD can update own row (RLS-filtered); PO can update any."""
     try:
-        return svc.update_own(ctx, user_id, dto)
+        return await svc.update_user(ctx, user_id, dto)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -119,16 +130,16 @@ def update_client_user(
     response_model=ClientUserDTO,
     summary="Transition Client Director lifecycle (PO-only)",
 )
-def transition_client_user(
+async def transition_client_user(
     client_id: uuid.UUID,
     user_id: uuid.UUID,
     transition: ClientUserTransitionDTO,
     ctx: TenantContext = Depends(require_platform_owner),
-    svc: ClientUserService = Depends(get_client_user_service),
+    svc: UserService = Depends(get_identity_user_service),
 ) -> ClientUserDTO:
     """Transition a CD's lifecycle: suspend, reinstate, archive. PO-only. Per D4, D10."""
     try:
-        return svc.transition_lifecycle(ctx, user_id, transition)
+        return await svc.transition_lifecycle(ctx, user_id, transition.new_state, transition.reason)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -142,12 +153,12 @@ async def revoke_client_user(
     client_id: uuid.UUID,
     user_id: uuid.UUID,
     ctx: TenantContext = Depends(require_platform_owner),
-    svc: ClientUserService = Depends(get_client_user_service),
+    svc: UserService = Depends(get_identity_user_service),
     reason: str | None = None,
 ):
     """Revoke a CD: archive client_user row + delete Supabase Auth user.
     Per D4, R2 (transactional cleanup to prevent user_tier drift)."""
     try:
-        await svc.revoke(ctx, user_id, reason=reason)
+        await svc.delete_user(ctx, user_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

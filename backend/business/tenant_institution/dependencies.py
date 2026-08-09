@@ -7,11 +7,9 @@ Provides:
 
 from __future__ import annotations
 
-import os
-
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
+from kernel.db import get_engine
 from business.tenant_institution.services import TenantInstitutionService
 
 # Lazy singleton — created on first use
@@ -19,18 +17,11 @@ _service: TenantInstitutionService | None = None
 _session_factory: sessionmaker[Session] | None = None
 
 
-def _get_database_url() -> str:
-    return os.environ.get(
-        "DATABASE_URL",
-        "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
-    )
-
-
 def get_db_session_factory() -> sessionmaker[Session]:
     """Return the module-scoped session factory singleton (A6)."""
     global _session_factory
     if _session_factory is None:
-        engine = create_engine(_get_database_url())
+        engine = get_engine()
         _session_factory = sessionmaker(bind=engine, expire_on_commit=False)
     return _session_factory
 

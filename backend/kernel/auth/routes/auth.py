@@ -34,6 +34,17 @@ class TokenResponse(BaseModel):
     expires_in: int = 3600
 
 
+class LoginResponse(BaseModel):
+    """Unified login response with optional tier fields (D9)."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int = 3600
+    is_platform_owner: bool | None = None
+    user_tier: str | None = None
+    client_id: str | None = None
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str
 
@@ -45,6 +56,14 @@ class LogoutRequest(BaseModel):
 class ActivateRequest(BaseModel):
     invite_token: str
     password: str
+
+
+class ActivateResponse(BaseModel):
+    """Response DTO for activate endpoint (D4)."""
+    message: str
+    user_id: str
+    user_tier: str
+    client_slug: str
 
 
 class OtpRequest(BaseModel):
@@ -83,13 +102,13 @@ def _raise_http_error(error: AuthError) -> None:
 # Auth endpoints (9.1 — 9.9)
 # ============================================================
 
-@router.post("/login", response_model=TokenResponse, summary="Login")
+@router.post("/login", response_model=LoginResponse, summary="Login")
 async def login(
     request: LoginRequest,
     http_request: Request,
     ctx: TenantContext = Depends(get_tenant_context),
     auth_service: AuthService = Depends(get_auth_service),
-) -> TokenResponse:
+) -> LoginResponse:
     """Email + password login → access + refresh tokens (9.1, D8, D8b, D18, D19)."""
     client_ip = get_client_ip(http_request)
     user_agent = http_request.headers.get("user-agent")
@@ -98,7 +117,7 @@ async def login(
             ctx, request.email, request.password,
             ip_address=client_ip, user_agent=user_agent,
         )
-        return TokenResponse(**result)
+        return LoginResponse(**result)
     except AuthError as e:
         _raise_http_error(e)
 
@@ -143,13 +162,15 @@ async def logout(
         _raise_http_error(e)
 
 
-@router.post("/activate", summary="Activate user")
+@router.post("/activate", response_model=ActivateResponse, summary="Activate user")
 async def activate(
     request: ActivateRequest,
     ctx: TenantContext = Depends(get_tenant_context),
     auth_service: AuthService = Depends(get_auth_service),
-) -> dict:
-    """Accept invite: verify JWT, set password, transition invited → active (9.4, D4, D29)."""
+) -> ActivateResponse:
+    """Accept invite: verify JWT, set password, transition invited → active (9.4, D4, D29).
+
+    Returns user_tier and client_slug for frontend redirect to tenant-scoped login."""
     try:
         result = await auth_service.activate(ctx, request.invite_token, request.password)
         return result
@@ -160,12 +181,14 @@ async def activate(
 @router.post("/otp/request", summary="Request OTP")
 async def otp_request(
     request: OtpRequest,
+    http_request: Request,
     ctx: TenantContext = Depends(get_tenant_context),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> dict:
     """Request email OTP (9.5, D13)."""
+    client_ip = get_client_ip(http_request)
     try:
-        result = await auth_service.request_otp(ctx, request.email)
+        result = await auth_service.request_otp(ctx, request.email, ip_address=client_ip)
         return result
     except AuthError as e:
         _raise_http_error(e)

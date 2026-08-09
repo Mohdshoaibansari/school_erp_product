@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 16 — User Profile & Identifiers</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 16 — User Profile & Identifiers Journey</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+  <div class="layout">
+    <div class="main-col container">
+      <div class="intro">
+        <strong>This flow:</strong> Client Director manages a student's profile (create, read, update)
+        and identifiers (student ID, admission number — create, list, delete).
+        Covers all C-02 User Profile & Identifier endpoints not exercised by any prior flow.
+        <br><br>
+        <strong>All values</strong> (user IDs, tokens) come from stored env vars — nothing is hardcoded.
+      </div>
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Run Flow 1 + Flow 2 first. Stored vars required:
+        <code>DIRECTOR_TOKEN</code>, <code>CLIENT_SLUG</code>, <code>STUDENT_ID</code>.
+      </div>
+
+      <h2>Part A — Setup</h2>
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">Login as Client Director</span></div>
+        <div class="step-desc">Fresh token for profile and identifier management operations.</div>
+        <div class="step-request">POST /api/auth/login
+Host: $CLIENT_SLUG.localhost
+body: { "email":"director@greenwood.com", "password":"Director@123" }</div>
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG", "STUDENT_ID"], "result-1")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email": "director@greenwood.com", "password": "Director@123" }),
+          extractions: [{ var: "DIRECTOR_TOKEN", path: "access_token" }]
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+      </div>
+
+      <h2>Part B — User Profile CRUD</h2>
+      <div class="note">Profile endpoints are nested under <code>/api/v1/users/$STUDENT_ID/profile</code>.
+      All user IDs come from stored env vars set by Flow 2.</div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">Create Profile for Student</span></div>
+        <div class="step-desc">Creates a UserProfile with date_of_birth, gender, and blood_group.
+        <code>user_id</code> is in the URL path from <code>$STUDENT_ID</code>.</div>
+        <div class="step-request">POST /api/v1/users/$STUDENT_ID/profile
+Authorization: Bearer $DIRECTOR_TOKEN
+body: { "date_of_birth":"2014-07-15", "gender":"male", "blood_group":"B+" }</div>
+        <button class="run-btn" onclick='if (!requireVars(["STUDENT_ID"], "result-2")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/users/$STUDENT_ID/profile",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "date_of_birth": "2014-07-15",
+            "gender": "male",
+            "blood_group": "B+"
+          }),
+          extractions: [{ var: "PROFILE_ID", path: "id" }]
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+        <div class="note"><strong>Expected:</strong> <code>201</code> with profile fields populated. <code>user_id</code> should match <code>$STUDENT_ID</code>.</div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">Get Student Profile</span></div>
+        <div class="step-desc">Read back the profile to verify it was created correctly.</div>
+        <div class="step-request">GET /api/v1/users/$STUDENT_ID/profile
+Authorization: Bearer $DIRECTOR_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/users/$STUDENT_ID/profile",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
+        <div class="note">Should show <code>gender: "male"</code>, <code>blood_group: "B+"</code>, <code>date_of_birth: "2014-07-15"</code>.</div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">Update Student Profile</span></div>
+        <div class="step-desc">PATCH to update the blood_group from B+ to O+. Other fields remain unchanged.</div>
+        <div class="step-request">PATCH /api/v1/users/$STUDENT_ID/profile
+Authorization: Bearer $DIRECTOR_TOKEN
+body: { "blood_group":"O+" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "PATCH",
+          url: "http://127.0.0.1:8001/api/v1/users/$STUDENT_ID/profile",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "blood_group": "O+" }),
+          extractions: []
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+        <div class="note"><strong>Expected:</strong> <code>200</code> with updated <code>blood_group: "O+"</code>. Other fields (gender, date_of_birth) preserved.</div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div><span class="step-num">5</span><span class="step-title">Verify Updated Profile</span></div>
+        <div class="step-desc">GET the profile again to confirm blood_group changed to O+ and other fields are intact.</div>
+        <div class="step-request">GET /api/v1/users/$STUDENT_ID/profile
+Authorization: Bearer $DIRECTOR_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/users/$STUDENT_ID/profile",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-5")'>Run Step 5</button>
+        <div class="result" id="result-5"></div>
+        <div class="note">Should show <code>blood_group: "O+"</code>, <code>gender: "male"</code>, <code>date_of_birth: "2014-07-15"</code>.</div>
+      </div>
+
+      <h2>Part C — User Identifiers CRUD</h2>
+      <div class="note">Identifiers are institution-scoped business codes (Student ID, Employee ID, Admission No).
+      Managed under <code>/api/v1/users/$STUDENT_ID/identifiers</code>.</div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div><span class="step-num">6</span><span class="step-title">Create Student ID Identifier</span></div>
+        <div class="step-desc">Adds a <code>student_id</code> type identifier with a unique value. Both fields are free-text — the
+        value is the human-readable business code (per C-12).</div>
+        <div class="step-request">POST /api/v1/users/$STUDENT_ID/identifiers
+Authorization: Bearer $DIRECTOR_TOKEN
+body: { "type":"student_id", "value":"GHS-2026-001" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/users/$STUDENT_ID/identifiers",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "type": "student_id", "value": "GHS-2026-001" }),
+          extractions: [{ var: "IDENTIFIER_1_ID", path: "id" }]
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+        <div class="note"><strong>Expected:</strong> <code>201</code> with <code>type: "student_id"</code>, <code>value: "GHS-2026-001"</code>.</div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div><span class="step-num">7</span><span class="step-title">Create Admission Number Identifier</span></div>
+        <div class="step-desc">Adds a second identifier of type <code>admission_no</code> — separate from the student_id.</div>
+        <div class="step-request">POST /api/v1/users/$STUDENT_ID/identifiers
+Authorization: Bearer $DIRECTOR_TOKEN
+body: { "type":"admission_no", "value":"ADM-2026-0042" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/users/$STUDENT_ID/identifiers",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "type": "admission_no", "value": "ADM-2026-0042" }),
+          extractions: [{ var: "IDENTIFIER_2_ID", path: "id" }]
+        }, "result-7")'>Run Step 7</button>
+        <div class="result" id="result-7"></div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div><span class="step-num">8</span><span class="step-title">List All Student Identifiers</span></div>
+        <div class="step-desc">Should show both identifiers: student_id (GHS-2026-001) and admission_no (ADM-2026-0042).</div>
+        <div class="step-request">GET /api/v1/users/$STUDENT_ID/identifiers
+Authorization: Bearer $DIRECTOR_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/users/$STUDENT_ID/identifiers",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-8")'>Run Step 8</button>
+        <div class="result" id="result-8"></div>
+        <div class="note">Should list both identifiers with their IDs, types, and values.</div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div><span class="step-num">9</span><span class="step-title">Delete Admission Number Identifier</span></div>
+        <div class="step-desc">Remove the admission_no identifier. <code>identifier_id</code> from stored var <code>$IDENTIFIER_2_ID</code>.</div>
+        <div class="step-request">DELETE /api/v1/users/$STUDENT_ID/identifiers/$IDENTIFIER_2_ID
+Authorization: Bearer $DIRECTOR_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "DELETE",
+          url: "http://127.0.0.1:8001/api/v1/users/$STUDENT_ID/identifiers/$IDENTIFIER_2_ID",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-9")'>Run Step 9</button>
+        <div class="result" id="result-9"></div>
+        <div class="note"><strong>Expected:</strong> <code>204 No Content</code> — identifier deleted.</div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div><span class="step-num">10</span><span class="step-title">Verify — List After Deletion</span></div>
+        <div class="step-desc">Only the student_id identifier should remain. The admission_no should be gone.</div>
+        <div class="step-request">GET /api/v1/users/$STUDENT_ID/identifiers
+Authorization: Bearer $DIRECTOR_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/users/$STUDENT_ID/identifiers",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-10")'>Run Step 10</button>
+        <div class="result" id="result-10"></div>
+        <div class="note">Should show only <code>student_id: "GHS-2026-001"</code>. <code>admission_no</code> removed.</div>
+      </div>
+
+      <!-- Step 11 -->
+      <div class="step">
+        <div><span class="step-num">11</span><span class="step-title">Verify — Student Cannot Create Own Identifier</span></div>
+        <div class="step-desc">Student logs in and tries to create an identifier — should be blocked (no <code>user_identifier.create</code> permission).</div>
+        <div class="step-request">POST /api/v1/users/$STUDENT_ID/identifiers
+Authorization: Bearer $STUDENT_TOKEN (from Flow 5 or after reset)
+body: { "type":"hack", "value":"fake-id" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email": "student@greenwoodhigh.com", "password": "Student@123" }),
+          extractions: [{ var: "STUDENT_TOKEN", path: "access_token" }]
+        }, "result-11a")'>Run Step 11a — Student Login</button>
+        <div class="result" id="result-11a"></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/users/$STUDENT_ID/identifiers",
+          headers: { "Authorization": "Bearer $STUDENT_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "type": "hack", "value": "fake-id" }),
+          extractions: []
+        }, "result-11b")'>Run Step 11b — Try Create (should fail)</button>
+        <div class="result" id="result-11b"></div>
+        <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code> — Student has no <code>user_identifier.create</code>.</div>
+      </div>
+
+      <div class="flow-end">
+        ✅ <strong>Flow 16 complete.</strong> User Profile & Identifiers lifecycle verified:
+        <ul>
+          <li>Profile created (DOB, gender, blood_group)</li>
+          <li>Profile read and updated (blood_group B+ → O+)</li>
+          <li>Identifiers created (student_id + admission_no)</li>
+          <li>Identifiers listed and deleted (admission_no removed)</li>
+          <li>Student cannot create identifiers (403 — permission denied)</li>
+        </ul>
+        Stored: <code>PROFILE_ID</code>, <code>IDENTIFIER_1_ID</code>.
+      </div>
+    </div>
+    <div><div class="store-panel" id="store-panel"></div></div>
+  </div>
+  <script src="shared.js"></script>
+  <script>renderStorePanel("store-panel");</script>
+</body>
+</html>

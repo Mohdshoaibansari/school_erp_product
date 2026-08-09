@@ -1,7 +1,7 @@
 """C-02 services — published interface.
 
-Note: IdentityUserService is NOT imported here to avoid circular imports.
-Import it directly: from kernel.user.services.service import IdentityUserService
+Note: UserService is NOT imported here to avoid circular imports.
+Import it directly: from kernel.user.services.service import UserService
 """
 
 from kernel.user.services.dtos import (

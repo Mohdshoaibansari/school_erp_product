@@ -70,7 +70,7 @@ async function fetchLookups(token, surfaces, force) {
       results[surface] = LOOKUP_CACHE[surface];
       continue;
     }
-    const url = 'http://127.0.0.1:8000/api/v1/lookups/' + surface;
+    const url = 'http://127.0.0.1:8001/api/v1/lookups/' + surface;
     try {
       const resp = await fetch(url, {
         headers: { Authorization: 'Bearer ' + token }
@@ -149,6 +149,31 @@ function substitute(text) {
   return result;
 }
 
+/**
+ * Guard: check that required env vars are set before running a step.
+ * Returns true if all vars present; false + shows error if any missing.
+ *
+ * Usage in onclick handlers:
+ *   if (!requireVars(['CLIENT_ID', 'INST_ID'], 'result-5')) return;
+ *   runStep({...}, 'result-5');
+ */
+function requireVars(vars, resultElId) {
+  const missing = vars.filter(v => STORE[v] === undefined || STORE[v] === '' || STORE[v] === null);
+  if (missing.length === 0) return true;
+  const el = document.getElementById(resultElId);
+  if (el) {
+    el.innerHTML = '<div style="color:#dc2626;font-weight:bold;">' +
+      '⚠ Missing env var' + (missing.length > 1 ? 's' : '') + ': ' +
+      missing.map(v => '<code>' + v + '</code>').join(', ') +
+      '.<br>Run the prerequisite steps/flows first, then re-run this step.' +
+      '</div>' +
+      '<div style="color:#666;font-size:11px;margin-top:4px;">' +
+      'Current env vars: ' + Object.keys(STORE).sort().join(', ') +
+      '</div>';
+  }
+  return false;
+}
+
 // Apply extraction rules: e.g. [{var: 'CLIENT_ID', path: 'id'}, {var: 'TOKEN', path: 'access_token'}]
 function applyExtractions(data, extractions) {
   if (!extractions) return;
@@ -174,11 +199,13 @@ function resolvePath(obj, path) {
   for (let i = 0; i < path.length; i++) {
     const ch = path[i];
     if (ch === '[') {
-      if (depth > 0) buf += ch;
+      if (depth > 0) buf += ch;  // nested bracket — keep as content
+      else buf = '[';            // opening bracket — start filter token
       depth++;
     } else if (ch === ']') {
       depth--;
       if (depth === 0) {
+        buf += ']';              // closing bracket — end filter token
         parts.push(buf);
         buf = '';
       } else {
@@ -287,7 +314,7 @@ function clearStore() {
 // Run a single step
 // step = {
 //   method: 'POST',
-//   url: 'http://127.0.0.1:8000/api/auth/login',  // may contain $VARS and $LOOKUP
+//   url: 'http://127.0.0.1:8001/api/auth/login',  // may contain $VARS and $LOOKUP
 //   headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer $TOKEN' },
 //   body: '{"email":"...","password":"..."}',  // string, may contain $VARS and $LOOKUP
 //   extractions: [{ var: 'TOKEN', path: 'access_token' }],
@@ -336,7 +363,7 @@ async function runStep(step, resultElId) {
 
     // After a successful step, fetch lookups if requested
     if (resp.ok && step.fetchLookups && step.fetchLookups.length > 0) {
-      const token = (respJson && respJson.access_token) || STORE['TOKEN'] || '';
+      const token = (respJson && respJson.access_token) || STORE['PLATFORM_TOKEN'] || STORE['TOKEN'] || '';
       try {
         const lu = await fetchLookups(token, step.fetchLookups);
         if (lu && Object.keys(lu).length > 0) {
@@ -348,7 +375,7 @@ async function runStep(step, resultElId) {
     }
   } catch (e) {
     log.push('<div style="color:#a00;font-weight:bold;">✗ Error: ' + e.message + '</div>');
-    log.push('<div style="font-size:11px;color:#a00;">Is the backend running on http://127.0.0.1:8000?</div>');
+    log.push('<div style="font-size:11px;color:#a00;">Is the backend running on http://127.0.0.1:8001?</div>');
   }
 
   resultEl.innerHTML = log.join('');

@@ -16,6 +16,18 @@ from sqlalchemy.orm import Session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
+
+def _get_jwt_secret() -> str:
+    """Return the JWT secret for HS256 token minting.
+
+    Reads from SUPABASE_JWT_SECRET env var. Falls back to a test secret.
+
+    TODO (AGENTS.md §8): Replace with config.get('auth.jwtSecret') once it's
+    seeded as a C-08 config key.
+    """
+    return os.environ.get("SUPABASE_JWT_SECRET", "test-secret-for-c01")
+
+
 from kernel.tenant_context import TenantContext
 from kernel.user.repos.user_repo import UserRepository
 from kernel.auth.repos.login_attempt_repo import LoginAttemptRepository
@@ -112,7 +124,7 @@ class AuthService:
             # D3: Mint our own JWT with is_platform_owner claim.
             # Supabase's JWT doesn't carry this claim, so we issue our own.
             from jose import jwt
-            jwt_secret = os.environ.get("SUPABASE_JWT_SECRET", "test-secret-for-c01")
+            jwt_secret = _get_jwt_secret()
             now = datetime.now(timezone.utc)
             from kernel.config.resolver import config
             jwt_expiry = int(config.get('auth.jwtExpirySeconds') or 3600)
@@ -201,6 +213,8 @@ class AuthService:
                 "refresh_token": result["refresh_token"],
                 "token_type": "bearer",
                 "expires_in": jwt_expiry,
+                "user_tier": "institution",
+                "client_id": str(user_dto.client_id),
             }
 
     async def _login_client_leadership(
@@ -240,12 +254,22 @@ class AuthService:
                 )
                 raise AuthError(f"Account is not active. Status: {user_obj.lifecycle_status}.", status_code=403)
 
+            # Cross-tenant check for CD login (D10 bug #4)
+            if ctx.client_id and user_obj.client_id != ctx.client_id and "platform_owner" not in (ctx.roles or []):
+                logger.warning("[AUTH] Cross-tenant CD login blocked: user_id=%s user_client=%s ctx_client=%s",
+                               user_id, user_obj.client_id, ctx.client_id)
+                self._record_login_attempt(
+                    ctx, email, "login_failure",
+                    user_id=user_id, ip_address=ip_address, user_agent=user_agent,
+                )
+                raise AuthError("Access denied. Account does not belong to this client.", status_code=403)
+
             self._record_login_attempt(
                 ctx, email, "login_success",
                 user_id=user_id, ip_address=ip_address, user_agent=user_agent,
             )
 
-            jwt_secret = os.environ.get("SUPABASE_JWT_SECRET", "test-secret-for-c01")
+            jwt_secret = _get_jwt_secret()
             now = datetime.now(timezone.utc)
             jwt_expiry = int(config.get('auth.jwtExpirySeconds') or 3600)
 
@@ -339,9 +363,14 @@ class AuthService:
     ) -> dict[str, str]:
         """Accept invite: verify JWT, set password, transition invited → active (D4, D29).
 
-        Verifies invite JWT, checks user not already active, calls Supabase
-        update_user(uid, password, email_confirm=true), transitions app_user
-        from invited to active.
+        Uses a two-session pattern for the unauthenticated-activate flow:
+        1. Verify the invite token → extract user_id
+        2. Elevated session (is_platform_owner=True) → look up user identity
+        3. Normal session (proper RLS vars) → do the activate work + commit
+        4. Supabase update_user (no DB)
+        5. Emit audit with actor=user_id_from_token (NOT ctx.user_id)
+
+        A6 invariant: _tenant_context_var is NOT mutated by this service.
         """
         logger.info("[AUTH] Activate attempt: invite_token=%s...", invite_token[:20])
         # Verify invite token
@@ -355,45 +384,73 @@ class AuthService:
         user_id = token_data["user_id"]
         email = token_data["email"]
 
+        # ---- Phase 1: Resolve identity from the verified invite token ----
+        from kernel.db import set_rls_session_vars
+        from kernel.user.models.user import User
+        from kernel.user.models.client_user import ClientUser
+
+        user_client_id: uuid.UUID | None = None
+        user_institution_id: uuid.UUID | None = None
+        user_tier: str = ""
+        client_slug: str = "unknown"
+
+        # Privileged session — trust the invite token, bypass RLS
         with self._session_factory() as session:
-            # Look up app_user
-            # Look up app_user by UUID — bypass tenant filter for auth operations
-            from kernel.user.models.user import User
-            from kernel.user.models.client_user import ClientUser
-            user_obj = session.get(User, user_id)
-            client_user_obj = None
-            user_dto = self._user_repo._to_dto(user_obj) if user_obj else None
-            
-            if not user_dto:
-                # Try client_user (client-leadership tier per D2)
-                client_user_obj = session.get(ClientUser, user_id)
-            
-            if not user_dto and not client_user_obj:
-                raise AuthError("User not found", status_code=404)
+            set_rls_session_vars(session, is_platform_owner=True)
 
-            # Determine target
-            target_table = "client_user" if client_user_obj else "app_user"
-            target_lifecycle = client_user_obj.lifecycle_status if client_user_obj else user_dto.lifecycle_status
-
-            # Check user not already active
-            if target_lifecycle == "active":
-                raise AuthError("User is already active", status_code=400)
-
-            # Call Supabase to set password and confirm email
-            try:
-                await self._supabase.update_user(
-                    user_id,
-                    password=password,
-                    email_confirm=True,
-                )
-                logger.info("[AUTH] Supabase user updated: user_id=%s", user_id)
-            except SupabaseAuthError as e:
-                logger.error("[AUTH] Supabase update failed: user_id=%s error=%s", user_id, str(e)[:100])
-                raise AuthError(f"Failed to activate user: {e}", status_code=502) from e
-
-            # Transition app_user or client_user from invited to active (D29)
+            # Look up the user's full identity
+            client_user_obj = session.get(ClientUser, user_id)
             if client_user_obj:
+                user_tier = "client_leadership"
+                user_client_id = client_user_obj.client_id
+                user_institution_id = None
+                # Check not already active
+                if client_user_obj.lifecycle_status == "active":
+                    raise AuthError("User is already active", status_code=400)
+                # Resolve client_slug
+                from sqlalchemy import text as sa_text
+                slug_row = session.execute(
+                    sa_text("SELECT slug FROM client WHERE id = :cid"),
+                    {"cid": user_client_id},
+                ).fetchone()
+                client_slug = slug_row[0] if slug_row else "unknown"
+            else:
+                user_obj = session.get(User, user_id)
+                if not user_obj:
+                    raise AuthError("User not found", status_code=404)
+                user_tier = "institution"
+                user_client_id = user_obj.client_id
+                user_institution_id = user_obj.institution_id
+                # Check not already active
+                user_dto_check = self._user_repo._to_dto(user_obj)
+                if user_dto_check and user_dto_check.lifecycle_status == "active":
+                    raise AuthError("User is already active", status_code=400)
+                # Resolve client_slug
+                from sqlalchemy import text as sa_text
+                slug_row = session.execute(
+                    sa_text(
+                        "SELECT c.slug FROM client c "
+                        "JOIN institution i ON i.client_id = c.id "
+                        "WHERE i.id = :iid"
+                    ),
+                    {"iid": user_institution_id},
+                ).fetchone()
+                client_slug = slug_row[0] if slug_row else "unknown"
+
+        # ---- Phase 2: Do the activate work with the proper identity ----
+        with self._session_factory() as session:
+            set_rls_session_vars(
+                session,
+                user_id=user_id,
+                client_id=user_client_id,
+                institution_id=user_institution_id,
+            )
+
+            if user_tier == "client_leadership":
                 # Client-leadership tier — transition client_user
+                client_user_obj = session.get(ClientUser, user_id)
+                if not client_user_obj:
+                    raise AuthError("User not found", status_code=404)
                 from kernel.user.models.client_user_lifecycle_event import ClientUserLifecycleEvent
                 client_user_obj.lifecycle_status = "active"
                 event = ClientUserLifecycleEvent(
@@ -404,34 +461,54 @@ class AuthService:
                 )
                 session.add(event)
                 session.flush()
-                result_lifecycle = client_user_obj.lifecycle_status
             else:
+                # Institution tier — transition app_user
                 from kernel.user.services.dtos import UserUpdateDTO
                 update_dto = UserUpdateDTO(lifecycle_status="active")
-                result = self._user_repo.update(session, ctx, user_id, update_dto)
-                result_lifecycle = result.lifecycle_status
+                self._user_repo.update(session, ctx, user_id, update_dto)
+
+            # COMMIT DB FIRST (saga pattern)
             session.commit()
 
-            logger.info("[AUTH] User activated: user_id=%s table=%s lifecycle=%s", user_id, target_table, result_lifecycle)
-
-            # Emit audit event
-            self._audit.emit(
-                action="user_activated",
-                client_id=ctx.client_id,
-                institution_id=ctx.institution_id,
-                actor=ctx.user_id,
-                payload={
-                    "user_id": str(user_id),
-                    "email": email,
-                },
+        # ---- Phase 3: Supabase — create Auth user WITH password (D11) ----
+        try:
+            await self._supabase.create_user(
+                user_id, email,
+                password=password,
+                user_metadata={"user_tier": user_tier},
             )
+            logger.info("[AUTH] Supabase user created with password: user_id=%s tier=%s", user_id, user_tier)
+        except SupabaseAuthError as e:
+            logger.error("[AUTH] Supabase create failed after DB commit: user_id=%s error=%s", user_id, str(e)[:100])
+            raise AuthError(f"Failed to activate user: {e}", status_code=502) from e
 
-            return {"message": "User activated successfully", "user_id": str(user_id)}
+        # ---- Phase 4: Audit (actor = user_id from token, not ctx.user_id which is None) ----
+        self._audit.emit(
+            action="user_activated",
+            client_id=user_client_id,
+            institution_id=user_institution_id,
+            actor=user_id,  # From the invite token, not ctx.user_id
+            payload={
+                "user_id": str(user_id),
+                "email": email,
+            },
+        )
+
+        logger.info("[AUTH] User activated: user_id=%s tier=%s slug=%s", user_id, user_tier, client_slug)
+
+        return {
+            "message": "User activated successfully",
+            "user_id": str(user_id),
+            "user_tier": user_tier,
+            "client_slug": client_slug,
+        }
 
     async def request_otp(
         self,
         ctx: TenantContext,
         email: str,
+        *,
+        ip_address: str | None = None,
     ) -> dict[str, str]:
         """Request email OTP (D13).
 
@@ -532,6 +609,8 @@ class AuthService:
                 "refresh_token": result["refresh_token"],
                 "token_type": "bearer",
                 "expires_in": jwt_expiry,
+                "user_tier": "institution",
+                "client_id": str(user_dto.client_id),
             }
 
     async def request_password_reset(

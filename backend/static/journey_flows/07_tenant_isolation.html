@@ -29,7 +29,7 @@
         <div class="step-desc">Greenwood director logs in with <code>Host: test-school.localhost</code> — should fail cross-tenant check.</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8000/api/auth/login",
+          url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "test-school.localhost" },
           body: JSON.stringify({ "email":"director@greenwood.com", "password":"Director@123" }),
           extractions: []
@@ -40,9 +40,9 @@
 
       <div class="step">
         <div><span class="step-num">2</span><span class="step-title">Greenwood Director lists institutions — should see only Greenwood</span></div>
-        <button class="run-btn" onclick='runStep({
+        <button class="run-btn" onclick='if (!requireVars(["DIRECTOR_TOKEN"], "result-2")) return; runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/institutions",
+          url: "http://127.0.0.1:8001/api/v1/institutions",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
           extractions: []
         }, "result-2")'>Run Step 2</button>
@@ -55,7 +55,7 @@
         <div class="step-desc">Get the test-school institution ID first (via platform owner), then try to read it as Greenwood director.</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          url: "http://127.0.0.1:8001/api/v1/platform/clients",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: []
         }, "result-3")'>Run Step 3a — Get clients (platform)</button>
@@ -68,7 +68,7 @@
         '>Set OTHER_INST_ID</button>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/institutions/$OTHER_INST_ID",
+          url: "http://127.0.0.1:8001/api/v1/institutions/$OTHER_INST_ID",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
           extractions: []
         }, "result-3b")'>Run Step 3b — Try to read other tenant's institution</button>
@@ -80,7 +80,7 @@
         <div><span class="step-num">4</span><span class="step-title">Platform Owner lists clients — should see ALL</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/platform/clients",
+          url: "http://127.0.0.1:8001/api/v1/platform/clients",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
           extractions: []
         }, "result-4")'>Run Step 4</button>
@@ -92,7 +92,7 @@
         <div><span class="step-num">5</span><span class="step-title">Greenwood Director lists users — should see only Greenwood users</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8000/api/v1/users",
+          url: "http://127.0.0.1:8001/api/v1/users",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
           extractions: []
         }, "result-5")'>Run Step 5</button>

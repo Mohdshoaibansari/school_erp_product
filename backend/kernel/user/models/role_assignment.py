@@ -23,12 +23,15 @@ class RoleAssignment(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     client_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("client.id"), nullable=False)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("app_user.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_account.id"), nullable=False)
     role_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("role.id"), nullable=False)
     scope: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
     updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
 
     # Relationships
-    user = relationship("User", back_populates="role_assignments")
+    user = relationship("User",
+        primaryjoin="RoleAssignment.user_id == foreign(User.id)",
+        viewonly=True,
+    )
     role = relationship("Role", foreign_keys=[role_id])

@@ -10,10 +10,8 @@ for C-02 admin propagation to Supabase Auth.
 
 from __future__ import annotations
 
-import os
-
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from kernel.db import get_engine
 
 # Lazy singleton — created on first use
 _service = None
@@ -22,34 +20,47 @@ _session_factory: sessionmaker[Session] | None = None
 _supabase_client = None
 
 
-def _get_database_url() -> str:
-    return os.environ.get(
-        "DATABASE_URL",
-        "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
-    )
-
-
 def get_db_session_factory() -> sessionmaker[Session]:
     """Return the module-scoped session factory singleton (A6)."""
     global _session_factory
     if _session_factory is None:
-        engine = create_engine(_get_database_url())
+        engine = get_engine()
         _session_factory = sessionmaker(bind=engine, expire_on_commit=False)
     return _session_factory
 
 
 def get_identity_user_service():
-    """Return the module-scoped service singleton (A6).
+    """Return the module-scoped UserService singleton (A6).
 
+    Returns a UserService with StrategyResolver wired in.
     Endpoints receive it via ``Depends(get_identity_user_service)``.
-    Phase 5 (15.1): Injects SupabaseAuthClient if set.
     """
     global _service
     if _service is None:
-        from kernel.user.services.service import IdentityUserService
-        _service = IdentityUserService(
-            session_factory=get_db_session_factory(),
-            supabase_client=_supabase_client,  # Phase 5 (15.1)
+        from kernel.user.services.service import UserService
+        from kernel.user.services.strategies.cd_strategy import CDStrategy
+        from kernel.user.services.strategies.institution_strategy import InstitutionUserStrategy
+        from kernel.user.services.strategies.resolver import StrategyResolver
+
+        session_factory = get_db_session_factory()
+
+        cd_strategy = CDStrategy(
+            session_factory=session_factory,
+            supabase_client=_supabase_client,
+        )
+        institution_strategy = InstitutionUserStrategy(
+            session_factory=session_factory,
+            supabase_client=_supabase_client,
+        )
+        resolver = StrategyResolver(
+            cd_strategy=cd_strategy,
+            institution_strategy=institution_strategy,
+            session_factory=session_factory,
+        )
+        _service = UserService(
+            session_factory=session_factory,
+            supabase_client=_supabase_client,
+            resolver=resolver,
         )
     return _service
 
@@ -66,24 +77,3 @@ def reset_service_singleton() -> None:
     _service = None
     _session_factory = None
     _supabase_client = None
-
-
-# ============================================================
-# ClientUser service (client-user-bootstrap)
-# ============================================================
-
-_client_user_service = None
-
-
-def get_client_user_service():
-    """Return the module-scoped ClientUserService singleton."""
-    global _client_user_service
-    if _client_user_service is None:
-        from kernel.user.services.client_user_service import ClientUserService
-        from kernel.user.repos.client_user_repo import ClientUserRepository
-        _client_user_service = ClientUserService(
-            repo=ClientUserRepository(),
-            supabase_auth=_supabase_client,
-            session_factory=get_db_session_factory(),
-        )
-    return _client_user_service

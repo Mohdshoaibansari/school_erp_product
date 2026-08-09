@@ -41,15 +41,16 @@ class FakeSupabaseAuth:
         # revoked refresh tokens
         self._revoked_tokens: set[str] = set()
 
-    async def create_user(self, user_id: uuid.UUID, email: str) -> dict:
+    async def create_user(self, user_id: uuid.UUID, email: str, *, password: str | None = None, user_metadata: dict | None = None) -> dict:
         uid = str(user_id)
         if email in self._email_to_id:
             raise SupabaseAuthError(f"User with email {email} already exists")
         self._users[uid] = {
             "email": email,
-            "password": None,
-            "email_confirmed": False,
+            "password": password,
+            "email_confirmed": True if password else False,
             "refresh_tokens": set(),
+            "user_metadata": user_metadata or {},
         }
         self._email_to_id[email] = uid
         return {"user": {"id": uid, "email": email}}
@@ -70,7 +71,7 @@ class FakeSupabaseAuth:
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
-            "user": {"id": uid, "email": email},
+            "user": {"id": uid, "email": email, "user_metadata": user.get("user_metadata", {})},
         }
 
     async def sign_in_with_otp(self, email: str) -> dict:
@@ -103,7 +104,7 @@ class FakeSupabaseAuth:
             return {
                 "access_token": access_token,
                 "refresh_token": refresh_token,
-                "user": {"id": uid, "email": email},
+                "user": {"id": uid, "email": email, "user_metadata": user.get("user_metadata", {})},
             }
         elif type == "recovery":
             pending = self._pending_resets.get(email)
@@ -125,7 +126,7 @@ class FakeSupabaseAuth:
             return {
                 "access_token": access_token,
                 "refresh_token": refresh_token,
-                "user": {"id": uid, "email": email},
+                "user": {"id": uid, "email": email, "user_metadata": user.get("user_metadata", {})},
             }
         else:
             raise SupabaseAuthError(f"Unknown OTP type: {type}")
@@ -149,6 +150,7 @@ class FakeSupabaseAuth:
         password: str | None = None,
         email: str | None = None,
         email_confirm: bool | None = None,
+        user_metadata: dict | None = None,
     ) -> dict:
         uid = str(user_id)
         if uid not in self._users:
@@ -164,6 +166,8 @@ class FakeSupabaseAuth:
             self._email_to_id[email] = uid
         if email_confirm is not None:
             user["email_confirmed"] = email_confirm
+        if user_metadata is not None:
+            user["user_metadata"] = user_metadata  # Overwrite semantics (D10 bug #9)
         return {"user": {"id": uid, "email": user["email"]}}
 
     async def sign_out(self, user_id: uuid.UUID, scope: str = "global") -> None:

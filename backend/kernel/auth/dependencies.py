@@ -7,11 +7,9 @@ Provides:
 
 from __future__ import annotations
 
-import os
-
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
+from kernel.db import get_engine
 from kernel.auth.supabase_client import SupabaseAuthClient, create_supabase_auth_client
 from kernel.auth.services.service import AuthService
 from kernel.audit import DefaultAuditEmitter
@@ -43,11 +41,7 @@ def get_auth_service() -> AuthService:
     if _auth_service is None:
         supabase_client = get_supabase_auth_client()
         # Create session factory from DATABASE_URL env var
-        database_url = os.environ.get(
-            "DATABASE_URL",
-            "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
-        )
-        engine = create_engine(database_url)
+        engine = get_engine()
         session_factory = sessionmaker(bind=engine, expire_on_commit=False)
         audit_emitter = DefaultAuditEmitter()
         _auth_service = AuthService(

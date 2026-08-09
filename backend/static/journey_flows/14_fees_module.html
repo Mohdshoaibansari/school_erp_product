@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 14 — Fees Module</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 14 — Fees Module Journey</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+  <div class="layout">
+    <div class="main-col container">
+      <div class="intro">
+        <strong>This flow:</strong> Client Director logs in → creates fee types → assigns fees to students →
+        records payments → waives a fee → student views their own fee assignments.
+        Covers the full Fees business module lifecycle.
+        <br><br>
+        <strong>All values</strong> (institution_id, user_ids, fee_type_id) come from API lookups or prior flows —
+        nothing is hardcoded.
+      </div>
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Run Flow 1 + Flow 2 first. Stored vars required:
+        <code>DIRECTOR_TOKEN</code>, <code>CLIENT_SLUG</code>, <code>CLIENT_ID</code>,
+        <code>INST_ID</code>, <code>STUDENT_ID</code>.
+      </div>
+
+      <h2>Part A — Setup & Fee Type Creation</h2>
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">Login as Client Director</span></div>
+        <div class="step-desc">Fresh login to ensure we have a valid token for fee operations.</div>
+        <div class="step-request">POST /api/auth/login
+Host: $CLIENT_SLUG.localhost
+body: { "email":"director@greenwood.com", "password":"Director@123" }</div>
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG"], "result-1")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email":"director@greenwood.com", "password":"Director@123" }),
+          extractions: [{ var: "DIRECTOR_TOKEN", path: "access_token" }]
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">Create Fee Type — Annual Tuition Fee</span></div>
+        <div class="step-desc">Creates a fee type scoped to the institution (from <code>$INST_ID</code>). <code>default_amount</code> is in the institution's currency.</div>
+        <div class="step-request">POST /api/v1/fee-types
+Authorization: Bearer $DIRECTOR_TOKEN
+body: { "name":"Annual Tuition Fee", "description":"Full-year tuition", "default_amount":50000, "institution_id":"$INST_ID" }</div>
+        <button class="run-btn" onclick='if (!requireVars(["INST_ID"], "result-2")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/fee-types",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "name": "Annual Tuition Fee",
+            "description": "Full-year tuition for academic year",
+            "default_amount": 50000,
+            "institution_id": "$INST_ID"
+          }),
+          extractions: [{ var: "TUITION_FEE_TYPE_ID", path: "id" }]
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">Create Fee Type — Sports Fee</span></div>
+        <div class="step-desc">Second fee type for annual sports activities.</div>
+        <div class="step-request">POST /api/v1/fee-types
+Authorization: Bearer $DIRECTOR_TOKEN
+body: { "name":"Annual Sports Fee", "description":"Sports & activities", "default_amount":5000, "institution_id":"$INST_ID" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/fee-types",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "name": "Annual Sports Fee",
+            "description": "Sports, games, and physical activities",
+            "default_amount": 5000,
+            "institution_id": "$INST_ID"
+          }),
+          extractions: [{ var: "SPORTS_FEE_TYPE_ID", path: "id" }]
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">List All Fee Types</span></div>
+        <div class="step-desc">Verify both fee types are visible for this institution.</div>
+        <div class="step-request">GET /api/v1/fee-types?institution_id=$INST_ID
+Authorization: Bearer $DIRECTOR_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/fee-types?institution_id=$INST_ID",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+        <div class="note">Should show at least Tuition Fee (₹50,000) and Sports Fee (₹5,000).</div>
+      </div>
+
+      <h2>Part B — Fee Assignment & Payment</h2>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div><span class="step-num">5</span><span class="step-title">Assign Tuition Fee to Student</span></div>
+        <div class="step-desc">Bulk-assign the tuition fee type to a student. <code>user_ids</code> is an array — supports assigning to multiple students at once. All IDs come from stored vars.</div>
+        <div class="step-request">POST /api/v1/fee-assignments
+Authorization: Bearer $DIRECTOR_TOKEN
+body: { "fee_type_id":"$TUITION_FEE_TYPE_ID", "amount":50000, "due_date":"2026-09-30",
+  "academic_term":"2026-2027", "user_ids":["$STUDENT_ID"], "notes":"Full year tuition" }</div>
+        <button class="run-btn" onclick='if (!requireVars(["STUDENT_ID"], "result-5")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/fee-assignments",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "fee_type_id": "$TUITION_FEE_TYPE_ID",
+            "amount": 50000,
+            "due_date": "2026-09-30",
+            "academic_term": "2026-2027",
+            "user_ids": ["$STUDENT_ID"],
+            "notes": "Full year tuition — first installment"
+          }),
+          extractions: [{ var: "TUITION_ASSIGNMENT_ID", path: "0.id" }]
+        }, "result-5")'>Run Step 5</button>
+        <div class="result" id="result-5"></div>
+        <div class="note">Returns an array of assignments. We extract the first (and only) assignment ID via <code>0.id</code>.</div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div><span class="step-num">6</span><span class="step-title">Assign Sports Fee to Student</span></div>
+        <div class="step-desc">Assign the sports fee separately. This one we'll waive later.</div>
+        <div class="step-request">POST /api/v1/fee-assignments
+Authorization: Bearer $DIRECTOR_TOKEN
+body: { "fee_type_id":"$SPORTS_FEE_TYPE_ID", "amount":5000, "due_date":"2026-09-30",
+  "academic_term":"2026-2027", "user_ids":["$STUDENT_ID"], "notes":"Sports activities fee" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/fee-assignments",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "fee_type_id": "$SPORTS_FEE_TYPE_ID",
+            "amount": 5000,
+            "due_date": "2026-09-30",
+            "academic_term": "2026-2027",
+            "user_ids": ["$STUDENT_ID"],
+            "notes": "Annual sports activities fee"
+          }),
+          extractions: [{ var: "SPORTS_ASSIGNMENT_ID", path: "0.id" }]
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div><span class="step-num">7</span><span class="step-title">List Fee Assignments for Student</span></div>
+        <div class="step-desc">Filter by <code>user_id=$STUDENT_ID</code>. Should show both tuition and sports assignments.</div>
+        <div class="step-request">GET /api/v1/fee-assignments?user_id=$STUDENT_ID
+Authorization: Bearer $DIRECTOR_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/fee-assignments?user_id=$STUDENT_ID",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-7")'>Run Step 7</button>
+        <div class="result" id="result-7"></div>
+        <div class="note">Both assignments should appear with <code>status: "pending"</code> and <code>total_paid: "0.00"</code>.</div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div><span class="step-num">8</span><span class="step-title">Record Partial Payment on Tuition Fee</span></div>
+        <div class="step-desc">Record a ₹30,000 payment against the tuition assignment. <code>payment_method</code> is a free-text field. All IDs from stored vars.</div>
+        <div class="step-request">POST /api/v1/payments
+Authorization: Bearer $DIRECTOR_TOKEN
+body: { "fee_assignment_id":"$TUITION_ASSIGNMENT_ID", "amount":30000,
+  "payment_method":"Bank Transfer", "reference_number":"NEFT-2026-001",
+  "notes":"First installment" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/payments",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "fee_assignment_id": "$TUITION_ASSIGNMENT_ID",
+            "amount": 30000,
+            "payment_method": "Bank Transfer",
+            "reference_number": "NEFT-2026-001",
+            "notes": "First installment payment"
+          }),
+          extractions: [{ var: "PAYMENT_ID", path: "id" }]
+        }, "result-8")'>Run Step 8</button>
+        <div class="result" id="result-8"></div>
+        <div class="note">Payment should auto-update the assignment's <code>total_paid</code> and <code>status</code> (pending → partially_paid).</div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div><span class="step-num">9</span><span class="step-title">Get Fee Assignment — Verify Balance</span></div>
+        <div class="step-desc">Fetch the tuition assignment to confirm <code>total_paid=30000</code> and remaining balance.</div>
+        <div class="step-request">GET /api/v1/fee-assignments/$TUITION_ASSIGNMENT_ID
+Authorization: Bearer $DIRECTOR_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/fee-assignments/$TUITION_ASSIGNMENT_ID",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-9")'>Run Step 9</button>
+        <div class="result" id="result-9"></div>
+        <div class="note">Should show <code>amount: 50000</code>, <code>total_paid: 30000</code>, <code>status: "partially_paid"</code>.</div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div><span class="step-num">10</span><span class="step-title">List Payments</span></div>
+        <div class="step-desc">List all payments for this student. Should show the ₹30,000 payment with receipt number.</div>
+        <div class="step-request">GET /api/v1/payments?user_id=$STUDENT_ID
+Authorization: Bearer $DIRECTOR_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/payments?user_id=$STUDENT_ID",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-10")'>Run Step 10</button>
+        <div class="result" id="result-10"></div>
+        <div class="note">Should include the receipt with <code>receipt_number</code>, <code>amount: 30000</code>, <code>payment_method: "Bank Transfer"</code>.</div>
+      </div>
+
+      <h2>Part C — Fee Waiver</h2>
+
+      <!-- Step 11 -->
+      <div class="step">
+        <div><span class="step-num">11</span><span class="step-title">Waive the Sports Fee</span></div>
+        <div class="step-desc">Waive the ₹5,000 sports fee with a reason. Waiver is terminal — assignment moves to <code>waived</code> status.</div>
+        <div class="step-request">POST /api/v1/fee-assignments/$SPORTS_ASSIGNMENT_ID/waive
+Authorization: Bearer $DIRECTOR_TOKEN
+body: { "reason":"Sports scholarship awarded" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/fee-assignments/$SPORTS_ASSIGNMENT_ID/waive",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "reason": "Sports scholarship awarded" }),
+          extractions: []
+        }, "result-11")'>Run Step 11</button>
+        <div class="result" id="result-11"></div>
+        <div class="note">Assignment status should now be <code>waived</code>.</div>
+      </div>
+
+      <!-- Step 12 -->
+      <div class="step">
+        <div><span class="step-num">12</span><span class="step-title">Verify — List Student's Fee Assignments After Waiver</span></div>
+        <div class="step-desc">Final check: one partially_paid, one waived.</div>
+        <div class="step-request">GET /api/v1/fee-assignments?user_id=$STUDENT_ID
+Authorization: Bearer $DIRECTOR_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/fee-assignments?user_id=$STUDENT_ID",
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN" },
+          extractions: []
+        }, "result-12")'>Run Step 12</button>
+        <div class="result" id="result-12"></div>
+        <div class="note">Tuition: <code>partially_paid</code> (₹30,000 / ₹50,000). Sports: <code>waived</code>.</div>
+      </div>
+
+      <h2>Part D — Student View</h2>
+
+      <!-- Step 13 -->
+      <div class="step">
+        <div><span class="step-num">13</span><span class="step-title">Student Login</span></div>
+        <div class="step-desc">Student logs in to view their own fee assignments (tenant + ownership scoped).</div>
+        <div class="step-request">POST /api/auth/login
+Host: $CLIENT_SLUG.localhost
+body: { "email":"student@greenwoodhigh.com", "password":"Student@123" }</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email":"student@greenwoodhigh.com", "password":"Student@123" }),
+          extractions: [{ var: "STUDENT_TOKEN", path: "access_token" }]
+        }, "result-13")'>Run Step 13</button>
+        <div class="result" id="result-13"></div>
+      </div>
+
+      <!-- Step 14 -->
+      <div class="step">
+        <div><span class="step-num">14</span><span class="step-title">Student Views Own Fees</span></div>
+        <div class="step-desc">Student should see their own fee assignments — ownership-filtered, no other student's data.</div>
+        <div class="step-request">GET /api/v1/fee-assignments?user_id=$STUDENT_ID
+Authorization: Bearer $STUDENT_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/fee-assignments?user_id=$STUDENT_ID",
+          headers: { "Authorization": "Bearer $STUDENT_TOKEN" },
+          extractions: []
+        }, "result-14")'>Run Step 14</button>
+        <div class="result" id="result-14"></div>
+        <div class="note">Student sees only their own assignments. If <code>fee_assignment.read</code> permission allows self-access, both assignments should appear.</div>
+      </div>
+
+      <!-- Step 15 -->
+      <div class="step">
+        <div><span class="step-num">15</span><span class="step-title">Student Views Own Payments</span></div>
+        <div class="step-desc">Student should see the ₹30,000 payment recorded against their tuition.</div>
+        <div class="step-request">GET /api/v1/payments?user_id=$STUDENT_ID
+Authorization: Bearer $STUDENT_TOKEN</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/payments?user_id=$STUDENT_ID",
+          headers: { "Authorization": "Bearer $STUDENT_TOKEN" },
+          extractions: []
+        }, "result-15")'>Run Step 15</button>
+        <div class="result" id="result-15"></div>
+        <div class="note">Should show the payment with receipt number and amount.</div>
+      </div>
+
+      <div class="flow-end">
+        ✅ <strong>Flow 14 complete.</strong> Fees module lifecycle verified:
+        <ul>
+          <li>Fee types created (Tuition ₹50,000 + Sports ₹5,000)</li>
+          <li>Fees assigned to student (both types)</li>
+          <li>Partial payment recorded (₹30,000 via Bank Transfer)</li>
+          <li>Sports fee waived (scholarship)</li>
+          <li>Student views own fees and payments (ownership-scoped)</li>
+        </ul>
+        Stored: <code>TUITION_FEE_TYPE_ID</code>, <code>SPORTS_FEE_TYPE_ID</code>,
+        <code>TUITION_ASSIGNMENT_ID</code>, <code>SPORTS_ASSIGNMENT_ID</code>, <code>PAYMENT_ID</code>.
+      </div>
+    </div>
+    <div><div class="store-panel" id="store-panel"></div></div>
+  </div>
+  <script src="shared.js"></script>
+  <script>renderStorePanel("store-panel");</script>
+</body>
+</html>

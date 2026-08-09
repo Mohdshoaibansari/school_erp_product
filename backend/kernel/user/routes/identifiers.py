@@ -6,13 +6,14 @@ Endpoints for creating, listing, deleting user identifiers.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from kernel.tenant_context import TenantContext, get_tenant_context
-from kernel.authz.dependencies import require_permission
+from kernel.authz.dependencies import require_permission, check_permission, get_enforcer
 from kernel.user.dependencies import get_identity_user_service
-from kernel.user.services.service import IdentityUserService
+from kernel.user.services.service import UserService
 from kernel.user.services.dtos import UserIdentifierCreateDTO, UserIdentifierDTO
 
 router = APIRouter(prefix="/api/v1/users/{user_id}/identifiers", tags=["identifiers"])
@@ -24,7 +25,7 @@ def create_identifier(
     dto: UserIdentifierCreateDTO,
     _authz: None = Depends(require_permission("user_identifier", "create")),
     ctx: TenantContext = Depends(get_tenant_context),
-    svc: IdentityUserService = Depends(get_identity_user_service),
+    svc: UserService = Depends(get_identity_user_service),
 ) -> UserIdentifierDTO:
     """Create a UserIdentifier for a User."""
     try:
@@ -38,7 +39,7 @@ def list_identifiers(
     user_id: uuid.UUID,
     _authz: None = Depends(require_permission("user_identifier", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
-    svc: IdentityUserService = Depends(get_identity_user_service),
+    svc: UserService = Depends(get_identity_user_service),
 ) -> list[UserIdentifierDTO]:
     """List UserIdentifiers for a User."""
     return svc.list_identifiers(ctx, user_id)
@@ -48,11 +49,16 @@ def list_identifiers(
 def delete_identifier(
     user_id: uuid.UUID,
     identifier_id: uuid.UUID,
-    _authz: None = Depends(require_permission("user_identifier", "delete")),
     ctx: TenantContext = Depends(get_tenant_context),
-    svc: IdentityUserService = Depends(get_identity_user_service),
+    enforcer: Any = Depends(get_enforcer),
+    svc: UserService = Depends(get_identity_user_service),
 ) -> None:
     """Delete a UserIdentifier."""
+    # ABAC: check via parent user's client/institution
+    user = svc.get_user(ctx, user_id)
+    check_permission(ctx, enforcer, "user_identifier", "delete",
+        obj_client_id=user.client_id if user else ctx.client_id,
+        obj_institution_id=user.institution_id if user else ctx.institution_id)
     try:
         svc.delete_identifier(ctx, identifier_id)
     except ValueError:

@@ -463,9 +463,21 @@ class AuthService:
                 session.flush()
             else:
                 # Institution tier — transition app_user
-                from kernel.user.services.dtos import UserUpdateDTO
-                update_dto = UserUpdateDTO(lifecycle_status="active")
-                self._user_repo.update(session, ctx, user_id, update_dto)
+                # Use direct query (no tenant filter) — user verified via invite token
+                from kernel.user.models.user import User
+                user_obj = session.get(User, user_id)
+                if not user_obj:
+                    raise AuthError("User not found", status_code=404)
+                user_obj.lifecycle_status = "active"
+                from kernel.user.models.user_lifecycle_event import UserLifecycleEvent
+                event = UserLifecycleEvent(
+                    user_id=user_obj.id,
+                    state="active",
+                    reason="Completed invite activation",
+                    actor=str(user_id),
+                )
+                session.add(event)
+                session.flush()
 
             # COMMIT DB FIRST (saga pattern)
             session.commit()

@@ -472,6 +472,7 @@ class AuthService:
                 from kernel.user.models.user_lifecycle_event import UserLifecycleEvent
                 event = UserLifecycleEvent(
                     user_id=user_obj.id,
+                    client_id=user_obj.client_id,
                     state="active",
                     reason="Completed invite activation",
                     actor=str(user_id),

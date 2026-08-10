@@ -79,7 +79,7 @@
         <div><span class="step-num">4</span><span class="step-title">Activate Institution (onboarding → active)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8001/api/v1/institutions/$INST_ID/transition",
+          url: "http://127.0.0.1:8001/api/v1/institutions/cde9692c-9556-492d-9e2a-98f855a48afc/transition",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "new_state":"active", "reason":"Setup complete" }),
           extractions: []

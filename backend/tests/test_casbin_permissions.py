@@ -52,8 +52,28 @@ def register_policies(enforcer) -> None:
         enforcer.add_policy("client_director", "institution", action, "tenant")
     for action in ["read", "update"]:
         enforcer.add_policy("client_director", "client", action, "tenant")
-    for action in ["create", "read", "update", "move", "archive", "reactivate", "reorder"]:
+    for action in ["create", "read", "update", "move", "archive", "reactivate", "reorder", "delete"]:
         enforcer.add_policy("client_director", "org_unit", action, "tenant")
+    # Admin permissions (CD has full admin access within tenant)
+    for action in ["create", "read", "update", "suspend"]:
+        enforcer.add_policy("client_director", "user", action, "tenant")
+    for action in ["read", "update"]:
+        enforcer.add_policy("client_director", "user_profile", action, "tenant")
+    for action in ["create", "read", "delete"]:
+        enforcer.add_policy("client_director", "role_assignment", action, "tenant")
+    for action in ["create", "read", "delete"]:
+        enforcer.add_policy("client_director", "user_identifier", action, "tenant")
+    enforcer.add_policy("client_director", "institution_type", "read", "tenant")
+    for action in ["create", "read", "update", "delete"]:
+        enforcer.add_policy("client_director", "fee", action, "tenant")
+    for action in ["create", "read", "update", "waive"]:
+        enforcer.add_policy("client_director", "fee_assignment", action, "tenant")
+    for action in ["create", "read"]:
+        enforcer.add_policy("client_director", "payment", action, "tenant")
+    enforcer.add_policy("client_director", "receipt", "read", "tenant")
+    enforcer.add_policy("client_director", "homework", "read", "tenant")
+    enforcer.add_policy("client_director", "submission", "read", "tenant")
+    enforcer.add_policy("client_director", "grade", "read", "tenant")
     for action in ["read", "update"]:
         enforcer.add_policy("institution_admin", "institution", action, "institution")
     for action in ["create", "read", "update", "move", "archive", "reactivate", "reorder"]:

@@ -46,12 +46,27 @@ def upgrade() -> None:
         )
 
     # ── Step 3: Migrate client_director role (tenant scope) ──
+    # CD gets all Admin permissions plus CD-specific ones
     _cd_perms = [
+        # CD-specific (C-01 D11 matrix)
         "institution.create", "institution.read", "institution.update",
         "institution.transition_lifecycle", "institution.archive", "institution.list",
         "client.read", "client.update",
         "org_unit.create", "org_unit.read", "org_unit.update", "org_unit.move",
-        "org_unit.archive", "org_unit.reactivate", "org_unit.reorder",
+        "org_unit.archive", "org_unit.reactivate", "org_unit.reorder", "org_unit.delete",
+        # Admin permissions (CD has full admin access within tenant)
+        "user.create", "user.read", "user.update", "user.suspend",
+        "user_profile.read", "user_profile.update",
+        "role_assignment.create", "role_assignment.read", "role_assignment.delete",
+        "user_identifier.create", "user_identifier.read", "user_identifier.delete",
+        "institution_type.read",
+        "fee.create", "fee.read", "fee.update", "fee.delete",
+        "fee_assignment.create", "fee_assignment.read", "fee_assignment.update", "fee_assignment.waive",
+        "payment.create", "payment.read",
+        "receipt.read",
+        "homework.read",
+        "submission.read",
+        "grade.read",
     ]
 
     for perm_name in _cd_perms:

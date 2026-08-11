@@ -35,12 +35,12 @@
         <div><span class="step-num">1</span><span class="step-title">Request Password Reset for Student</span></div>
         <div class="step-desc">Triggers a password reset email for the student user. Email from stored vars — no hardcoding.</div>
         <div class="step-request">POST /api/auth/password/reset/request
-body: { "email":"student@greenwoodhigh.com" }</div>
+body: { "email":"$STUDENT_EMAIL" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/password/reset/request",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ "email": "student@greenwoodhigh.com" }),
+          body: JSON.stringify({ "email": "$STUDENT_EMAIL" }),
           extractions: [
             { var: "PW_RESET_TOKEN", path: "token" },
             { var: "PW_RESET_REDIRECT", path: "redirect_to" }
@@ -55,16 +55,16 @@ body: { "email":"student@greenwoodhigh.com" }</div>
         <div><span class="step-num">2</span><span class="step-title">Confirm Password Reset</span></div>
         <div class="step-desc">Uses the token from Step 1 (or paste from email). Token is substituted from env var.</div>
         <div class="step-request">POST /api/auth/password/reset/confirm
-body: { "token":"$PW_RESET_TOKEN", "new_password":"NewStudent@123" }</div>
+body: { "token":"$PW_RESET_TOKEN", "new_password":"New$STUDENT_PASSWORD" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/password/reset/confirm",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ "token": "$PW_RESET_TOKEN", "new_password": "NewStudent@123" }),
+          body: JSON.stringify({ "token": "$PW_RESET_TOKEN", "new_password": "New$STUDENT_PASSWORD" }),
           extractions: []
         }, "result-2")'>Run Step 2</button>
         <div class="result" id="result-2"></div>
-        <div class="note"><strong>If PW_RESET_TOKEN is empty:</strong> manually set it in the env panel (paste from Supabase email), then re-run this step. The old password is <code>Student@123</code>.</div>
+        <div class="note"><strong>If PW_RESET_TOKEN is empty:</strong> manually set it in the env panel (paste from Supabase email), then re-run this step. The old password is <code>$STUDENT_PASSWORD</code>.</div>
       </div>
 
       <!-- Step 3 -->
@@ -73,12 +73,12 @@ body: { "token":"$PW_RESET_TOKEN", "new_password":"NewStudent@123" }</div>
         <div class="step-desc">Student logs in with the new password to confirm the reset worked.</div>
         <div class="step-request">POST /api/auth/login
 Host: $CLIENT_SLUG.localhost
-body: { "email":"student@greenwoodhigh.com", "password":"NewStudent@123" }</div>
+body: { "email":"$STUDENT_EMAIL", "password":"New$STUDENT_PASSWORD" }</div>
         <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG"], "result-3")) return; runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
-          body: JSON.stringify({ "email": "student@greenwoodhigh.com", "password": "NewStudent@123" }),
+          body: JSON.stringify({ "email": "$STUDENT_EMAIL", "password": "New$STUDENT_PASSWORD" }),
           extractions: [{ var: "STUDENT_NEW_TOKEN", path: "access_token" }]
         }, "result-3")'>Run Step 3</button>
         <div class="result" id="result-3"></div>
@@ -91,12 +91,12 @@ body: { "email":"student@greenwoodhigh.com", "password":"NewStudent@123" }</div>
         <div class="step-desc">Attempt login with the old password — should now fail.</div>
         <div class="step-request">POST /api/auth/login
 Host: $CLIENT_SLUG.localhost
-body: { "email":"student@greenwoodhigh.com", "password":"Student@123" }</div>
+body: { "email":"$STUDENT_EMAIL", "password":"$STUDENT_PASSWORD" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
-          body: JSON.stringify({ "email": "student@greenwoodhigh.com", "password": "Student@123" }),
+          body: JSON.stringify({ "email": "$STUDENT_EMAIL", "password": "$STUDENT_PASSWORD" }),
           extractions: []
         }, "result-4")'>Run Step 4</button>
         <div class="result" id="result-4"></div>
@@ -109,15 +109,15 @@ body: { "email":"student@greenwoodhigh.com", "password":"Student@123" }</div>
       <!-- Step 5 -->
       <div class="step">
         <div><span class="step-num">5</span><span class="step-title">Change Password While Authenticated</span></div>
-        <div class="step-desc">Student changes their own password from NewStudent@123 → FinalStudent@123.</div>
+        <div class="step-desc">Student changes their own password from New$STUDENT_PASSWORD → Final$STUDENT_PASSWORD.</div>
         <div class="step-request">POST /api/auth/password/change
 Authorization: Bearer $STUDENT_NEW_TOKEN
-body: { "current_password":"NewStudent@123", "new_password":"FinalStudent@123" }</div>
+body: { "current_password":"New$STUDENT_PASSWORD", "new_password":"Final$STUDENT_PASSWORD" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/password/change",
           headers: { "Authorization": "Bearer $STUDENT_NEW_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "current_password": "NewStudent@123", "new_password": "FinalStudent@123" }),
+          body: JSON.stringify({ "current_password": "New$STUDENT_PASSWORD", "new_password": "Final$STUDENT_PASSWORD" }),
           extractions: []
         }, "result-5")'>Run Step 5</button>
         <div class="result" id="result-5"></div>
@@ -127,19 +127,19 @@ body: { "current_password":"NewStudent@123", "new_password":"FinalStudent@123" }
       <!-- Step 6 -->
       <div class="step">
         <div><span class="step-num">6</span><span class="step-title">Verify — Login with Changed Password</span></div>
-        <div class="step-desc">Login with FinalStudent@123 — should succeed. Old NewStudent@123 should fail.</div>
+        <div class="step-desc">Login with Final$STUDENT_PASSWORD — should succeed. Old New$STUDENT_PASSWORD should fail.</div>
         <div class="step-request">POST /api/auth/login
 Host: $CLIENT_SLUG.localhost
-body: { "email":"student@greenwoodhigh.com", "password":"FinalStudent@123" }</div>
+body: { "email":"$STUDENT_EMAIL", "password":"Final$STUDENT_PASSWORD" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
-          body: JSON.stringify({ "email": "student@greenwoodhigh.com", "password": "FinalStudent@123" }),
+          body: JSON.stringify({ "email": "$STUDENT_EMAIL", "password": "Final$STUDENT_PASSWORD" }),
           extractions: [{ var: "STUDENT_FINAL_TOKEN", path: "access_token" }]
         }, "result-6")'>Run Step 6</button>
         <div class="result" id="result-6"></div>
-        <div class="note">✅ Login with FinalStudent@123 = password change confirmed.</div>
+        <div class="note">✅ Login with Final$STUDENT_PASSWORD = password change confirmed.</div>
       </div>
 
       <h2>Part C — OTP Login Flow</h2>
@@ -151,12 +151,12 @@ body: { "email":"student@greenwoodhigh.com", "password":"FinalStudent@123" }</di
         <div><span class="step-num">7</span><span class="step-title">Request OTP for Director</span></div>
         <div class="step-desc">Requests an email OTP for the Client Director. Email from stored context.</div>
         <div class="step-request">POST /api/auth/otp/request
-body: { "email":"director@greenwood.com" }</div>
+body: { "email":"$DIRECTOR_EMAIL" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/otp/request",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ "email": "director@greenwood.com" }),
+          body: JSON.stringify({ "email": "$DIRECTOR_EMAIL" }),
           extractions: [
             { var: "OTP_CODE", path: "otp" },
             { var: "OTP_TOKEN", path: "token" }
@@ -171,12 +171,12 @@ body: { "email":"director@greenwood.com" }</div>
         <div><span class="step-num">8</span><span class="step-title">Verify OTP and Get Tokens</span></div>
         <div class="step-desc">Verify the OTP (from env var or paste from email). Returns JWT tokens on success.</div>
         <div class="step-request">POST /api/auth/otp/verify
-body: { "email":"director@greenwood.com", "token":"$OTP_CODE" }</div>
+body: { "email":"$DIRECTOR_EMAIL", "token":"$OTP_CODE" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/otp/verify",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ "email": "director@greenwood.com", "token": "$OTP_CODE" }),
+          body: JSON.stringify({ "email": "$DIRECTOR_EMAIL", "token": "$OTP_CODE" }),
           extractions: [
             { var: "DIRECTOR_OTP_TOKEN", path: "access_token" }
           ]
@@ -212,12 +212,12 @@ Authorization: Bearer $DIRECTOR_OTP_TOKEN</div>
         <div class="step-desc">Login via password to get a fresh token for creating a new invited user.</div>
         <div class="step-request">POST /api/auth/login
 Host: $CLIENT_SLUG.localhost
-body: { "email":"director@greenwood.com", "password":"Director@123" }</div>
+body: { "email":"$DIRECTOR_EMAIL", "password":"$DIRECTOR_PASSWORD" }</div>
         <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG", "INST_ID"], "result-10")) return; runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
-          body: JSON.stringify({ "email": "director@greenwood.com", "password": "Director@123" }),
+          body: JSON.stringify({ "email": "$DIRECTOR_EMAIL", "password": "$DIRECTOR_PASSWORD" }),
           extractions: [{ var: "DIRECTOR_TOKEN", path: "access_token" }],
           fetchLookups: ["user-categories"]
         }, "result-10")'>Run Step 10</button>
@@ -230,13 +230,13 @@ body: { "email":"director@greenwood.com", "password":"Director@123" }</div>
         <div class="step-desc">Creates a new user via the backend API. User starts in <code>invited</code> lifecycle status. The invite token may be returned in the response.</div>
         <div class="step-request">POST /api/v1/users
 Authorization: Bearer $DIRECTOR_TOKEN
-body: { "email":"activate-me@greenwoodhigh.com", "name":"Activate Test", "user_category_id":"$LOOKUP.user-categories.Learner", "institution_id":"$INST_ID" }</div>
+body: { "email":"activate-me@$INST_EMAIL_DOMAIN", "name":"Activate Test", "user_category_id":"$LOOKUP.user-categories.Learner", "institution_id":"$INST_ID" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/v1/users",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
-            "email": "activate-me@greenwoodhigh.com",
+            "email": "activate-me@$INST_EMAIL_DOMAIN",
             "name": "Activate Test User",
             "user_category_id": "$LOOKUP.user-categories.Learner",
             "institution_id": "$INST_ID"
@@ -274,12 +274,12 @@ body: { "invite_token":"$INVITE_TOKEN", "password":"Activate@123" }</div>
         <div class="step-desc">The activated user should now be able to login with their newly set password.</div>
         <div class="step-request">POST /api/auth/login
 Host: $CLIENT_SLUG.localhost
-body: { "email":"activate-me@greenwoodhigh.com", "password":"Activate@123" }</div>
+body: { "email":"activate-me@$INST_EMAIL_DOMAIN", "password":"Activate@123" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
-          body: JSON.stringify({ "email": "activate-me@greenwoodhigh.com", "password": "Activate@123" }),
+          body: JSON.stringify({ "email": "activate-me@$INST_EMAIL_DOMAIN", "password": "Activate@123" }),
           extractions: [{ var: "ACTIVATED_TOKEN", path: "access_token" }]
         }, "result-13")'>Run Step 13</button>
         <div class="result" id="result-13"></div>

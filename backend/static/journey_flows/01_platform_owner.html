@@ -34,12 +34,12 @@
         <div><span class="step-num">1</span><span class="step-title">Login as Platform Owner</span></div>
         <div class="step-desc">No Host header — platform owner is client-independent.</div>
         <div class="step-request">POST /api/auth/login
-body: { "email":"admin@school-erp.com", "password":"Shoby@123" }</div>
+body: { "email":"$PLATFORM_EMAIL", "password":"$PLATFORM_PASSWORD" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ "email":"admin@school-erp.com", "password":"Shoby@123" }),
+          body: JSON.stringify({ "email":"$PLATFORM_EMAIL", "password":"$PLATFORM_PASSWORD" }),
           extractions: [
             { var: "PLATFORM_TOKEN", path: "access_token" },
             { var: "PLATFORM_USER_ID", path: "user.id" }
@@ -70,10 +70,10 @@ Authorization: Bearer $PLATFORM_TOKEN</div>
         <div class="step-desc">Slug = subdomain that this client will use. <strong>Immutable.</strong></div>
         <div class="step-request">POST /api/v1/platform/clients
 body: {
-  "display_name":"Greenwood Academy",
-  "legal_name":"Greenwood Academy Pvt Ltd",
-  "slug":"greenwood",
-  "primary_contact_email":"director@greenwood.com",
+  "display_name":"$CLIENT_DISPLAY_NAME Academy",
+  "legal_name":"$CLIENT_DISPLAY_NAME Academy Pvt Ltd",
+  "slug":"$CLIENT_SLUG",
+  "primary_contact_email":"$DIRECTOR_EMAIL",
   "legal_entity_type_id":"$LOOKUP.legal-entity-types.Pvt Ltd"
 }</div>
         <button class="run-btn" onclick='runStep({
@@ -81,10 +81,10 @@ body: {
           url: "http://127.0.0.1:8001/api/v1/platform/clients",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
-            "display_name":"Greenwood Academy",
-            "legal_name":"Greenwood Academy Pvt Ltd",
-            "slug":"greenwood",
-            "primary_contact_email":"director@greenwood.com",
+            "display_name":"$CLIENT_DISPLAY_NAME Academy",
+            "legal_name":"$CLIENT_DISPLAY_NAME Academy Pvt Ltd",
+            "slug":"$CLIENT_SLUG",
+            "primary_contact_email":"$DIRECTOR_EMAIL",
             "legal_entity_type_id":"$LOOKUP.legal-entity-types.Pvt Ltd"
           }),
           extractions: [
@@ -130,13 +130,13 @@ body: { "new_state":"active", "reason":"Onboarding approved" }</div>
             url: "http://127.0.0.1:8001/api/v1/platform/clients",
             headers: { "Authorization": "Bearer $PLATFORM_TOKEN" },
             extractions: [
-              { var: "CLIENT_ID", path: "[slug=greenwood].id" },
-              { var: "CLIENT_SLUG", path: "[slug=greenwood].slug" }
+              { var: "CLIENT_ID", path: "[slug=$CLIENT_SLUG].id" },
+              { var: "CLIENT_SLUG", path: "[slug=$CLIENT_SLUG].slug" }
             ]
           }, "result-4b");
         '>Fetch CLIENT_ID</button>
         <div class="result" id="result-4b"></div>
-        <div class="note">Extracts <code>CLIENT_ID</code> from the client with slug <code>greenwood</code>. Change the slug in the extraction path if your client has a different slug.</div>
+        <div class="note">Extracts <code>CLIENT_ID</code> from the client with slug <code>$CLIENT_SLUG</code>. Change the slug in the extraction path if your client has a different slug.</div>
       </div>
 
       <!-- Step 5 — Bootstrap Director via backend API -->
@@ -154,8 +154,8 @@ body: { "new_state":"active", "reason":"Onboarding approved" }</div>
         <div class="step-request">POST /api/v1/platform/clients/$CLIENT_ID/users
 Authorization: Bearer $PLATFORM_TOKEN
 body: {
-  "email":"director@greenwood.com",
-  "name":"Greenwood Director",
+  "email":"$DIRECTOR_EMAIL",
+  "name":"$CLIENT_DISPLAY_NAME Director",
   "role_id":"$LOOKUP.roles.client_director",
   "user_category_id":"$LOOKUP.user-categories.Executive Leadership"
 }</div>
@@ -164,8 +164,8 @@ body: {
           url: "http://127.0.0.1:8001/api/v1/platform/clients/$CLIENT_ID/users",
           headers: { "Authorization": "Bearer $PLATFORM_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
-            "email": "director@greenwood.com",
-            "name": "Greenwood Director",
+            "email": "$DIRECTOR_EMAIL",
+            "name": "$CLIENT_DISPLAY_NAME Director",
             "role_id": "$LOOKUP.roles.client_director",
             "user_category_id": "$LOOKUP.user-categories.Executive Leadership"
           }),
@@ -211,19 +211,19 @@ body: {
         <code>invited → active</code> in the <code>client_user</code> lifecycle.
         Response now includes <code>user_tier</code> and <code>client_slug</code> for frontend redirect.</div>
         <div class="step-request">POST /api/auth/activate
-body: { "invite_token":"$INVITE_TOKEN", "password":"Director@123" }</div>
+body: { "invite_token":"$INVITE_TOKEN", "password":"$DIRECTOR_PASSWORD" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/activate",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ "invite_token": "$INVITE_TOKEN", "password": "Director@123" }),
+          body: JSON.stringify({ "invite_token": "$INVITE_TOKEN", "password": "$DIRECTOR_PASSWORD" }),
           extractions: [
             { var: "ACTIVATE_USER_TIER", path: "user_tier" },
             { var: "ACTIVATE_CLIENT_SLUG", path: "client_slug" }
           ]
         }, "result-7")'>Run Step 7</button>
         <div class="result" id="result-7"></div>
-        <div class="note"><strong>Expected:</strong> <code>200 {"message":"...", "user_id":"...", "user_tier":"client_leadership", "client_slug":"greenwood"}</code>.
+        <div class="note"><strong>Expected:</strong> <code>200 {"message":"...", "user_id":"...", "user_tier":"client_leadership", "client_slug":"$CLIENT_SLUG"}</code>.
         Frontend redirects to <code>{client_slug}.localhost:8001/login</code>. Tokens are obtained later via login, not here.</div>
       </div>
 
@@ -232,7 +232,7 @@ body: { "invite_token":"$INVITE_TOKEN", "password":"Director@123" }</div>
         <div class="step-desc">Director logs in with the password just set via activation. Host = client slug.</div>
         <div class="step-request">POST /api/auth/login
 Host: $CLIENT_SLUG.localhost
-body: { "email":"director@greenwood.com", "password":"Director@123" }</div>
+body: { "email":"$DIRECTOR_EMAIL", "password":"$DIRECTOR_PASSWORD" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
@@ -240,7 +240,7 @@ body: { "email":"director@greenwood.com", "password":"Director@123" }</div>
             "Content-Type": "application/json",
             "Host": "$CLIENT_SLUG.localhost"
           },
-          body: JSON.stringify({ "email":"director@greenwood.com", "password":"Director@123" }),
+          body: JSON.stringify({ "email":"$DIRECTOR_EMAIL", "password":"$DIRECTOR_PASSWORD" }),
           extractions: [
             { var: "DIRECTOR_TOKEN", path: "access_token" }
           ]

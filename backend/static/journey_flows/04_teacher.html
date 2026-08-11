@@ -29,7 +29,7 @@
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
-          body: JSON.stringify({ "email":"teacher@greenwoodhigh.com", "password":"Teacher@123" }),
+          body: JSON.stringify({ "email":"$TEACHER_EMAIL", "password":"$TEACHER_PASSWORD" }),
           extractions: [{ var: "TEACHER_TOKEN", path: "access_token" }]
         }, "result-1")'>Run Step 1</button>
         <div class="result" id="result-1"></div>
@@ -75,7 +75,7 @@
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
-          body: JSON.stringify({ "email":"student@greenwoodhigh.com", "password":"Student@123" }),
+          body: JSON.stringify({ "email":"$STUDENT_EMAIL", "password":"$STUDENT_PASSWORD" }),
           extractions: [{ var: "STUDENT_TOKEN_", path: "access_token" }]
         }, "result-4")'>Run Step 4 — Student Login</button>
         <div class="result" id="result-4"></div>

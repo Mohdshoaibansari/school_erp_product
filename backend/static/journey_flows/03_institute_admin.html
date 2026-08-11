@@ -29,7 +29,7 @@
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
-          body: JSON.stringify({ "email":"admin@greenwoodhigh.com", "password":"Admin@123" }),
+          body: JSON.stringify({ "email":"$ADMIN_EMAIL", "password":"$ADMIN_PASSWORD" }),
           extractions: [{ var: "ADMIN_TOKEN", path: "access_token" }]
         }, "result-1")'>Run Step 1</button>
         <div class="result" id="result-1"></div>

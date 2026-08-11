@@ -20,7 +20,6 @@
       <div class="prereq">
         <strong>Prerequisites:</strong> Run Flow 1 first. Stored vars required:
         <code>DIRECTOR_TOKEN</code>, <code>CLIENT_SLUG</code>, <code>CLIENT_ID</code>.
-        Also set <code>SUPABASE_SERVICE_ROLE_KEY</code> on the index page.
       </div>
 
       <h2>Steps</h2>
@@ -32,7 +31,7 @@
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
-          body: JSON.stringify({ "email":"director@greenwood.com", "password":"Director@123" }),
+          body: JSON.stringify({ "email":"$DIRECTOR_EMAIL", "password":"$DIRECTOR_PASSWORD" }),
           extractions: [{ var: "DIRECTOR_TOKEN", path: "access_token" }],
           fetchLookups: ["roles", "user-categories"]
         }, "result-1")'>Run Step 1</button>
@@ -54,17 +53,17 @@
 
       <div class="step">
         <div><span class="step-num">3</span><span class="step-title">Create Institution (School)</span></div>
-        <div class="step-desc">Create "Greenwood High School" under this client. Starts in <code>onboarding</code> state.</div>
+        <div class="step-desc">Create "$INST_NAME" under this client. Starts in <code>onboarding</code> state.</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/v1/institutions",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
-            "display_name":"Greenwood High School",
+            "display_name":"$INST_NAME",
             "institution_type_id":"$INST_TYPE_ID",
-            "legal_name":"Greenwood High School Society",
-            "code":"GHS",
-            "primary_contact_email":"info@greenwoodhigh.com",
+            "legal_name":"$INST_LEGAL_NAME",
+            "code":"$INST_CODE",
+            "primary_contact_email":"info@$INST_EMAIL_DOMAIN",
             "primary_contact_phone":"+91-121-1234567",
             "established_year":1998,
             "affiliation_number":"CBSE/9801234",
@@ -79,7 +78,7 @@
         <div><span class="step-num">4</span><span class="step-title">Activate Institution (onboarding → active)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8001/api/v1/institutions/cde9692c-9556-492d-9e2a-98f855a48afc/transition",
+          url: "http://127.0.0.1:8001/api/v1/institutions/$INST_ID/transition",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "new_state":"active", "reason":"Setup complete" }),
           extractions: []
@@ -101,8 +100,8 @@
           url: "http://127.0.0.1:8001/api/v1/users",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
-            "email":"admin@greenwoodhigh.com",
-            "name":"Anita Verma",
+            "email":"$ADMIN_EMAIL",
+            "name":"$ADMIN_NAME",
             "user_category_id":"$LOOKUP.user-categories.Executive Leadership",
             "institution_id":"$INST_ID"
           }),
@@ -145,11 +144,11 @@
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/activate",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ "invite_token": "$ADMIN_INVITE_TOKEN", "password": "Admin@123" }),
+          body: JSON.stringify({ "invite_token": "$ADMIN_INVITE_TOKEN", "password": "$ADMIN_PASSWORD" }),
           extractions: []
         }, "result-7b")'>Step 7b — Activate (set password + transition invited→active)</button>
         <div class="result" id="result-7b"></div>
-        <div class="note"><strong>Expected:</strong> <code>200</code> with <code>{"message":"...", "user_id":"...", "user_tier":"institution", "client_slug":"greenwood"}</code>.
+        <div class="note"><strong>Expected:</strong> <code>200</code> with <code>{"message":"...", "user_id":"...", "user_tier":"institution", "client_slug":"$CLIENT_SLUG"}</code>.
         No more <code>invited→pending→active</code> two-step transition — activate handles it all.</div>
       </div>
 
@@ -160,8 +159,8 @@
           url: "http://127.0.0.1:8001/api/v1/users",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
-            "email":"teacher@greenwoodhigh.com",
-            "name":"Rahul Sharma",
+            "email":"$TEACHER_EMAIL",
+            "name":"$TEACHER_NAME",
             "user_category_id":"$LOOKUP.user-categories.Academic Staff",
             "institution_id":"$INST_ID"
           }),
@@ -197,7 +196,7 @@
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/activate",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ "invite_token": "$TEACHER_INVITE_TOKEN", "password": "Teacher@123" }),
+          body: JSON.stringify({ "invite_token": "$TEACHER_INVITE_TOKEN", "password": "$TEACHER_PASSWORD" }),
           extractions: []
         }, "result-9c")'>Step 9c — Activate (set password + transition invited→active)</button>
         <div class="result" id="result-9c"></div>
@@ -210,8 +209,8 @@
           url: "http://127.0.0.1:8001/api/v1/users",
           headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
-            "email":"student@greenwoodhigh.com",
-            "name":"Arjun Kumar",
+            "email":"$STUDENT_EMAIL",
+            "name":"$STUDENT_NAME",
             "user_category_id":"$LOOKUP.user-categories.Learner",
             "institution_id":"$INST_ID"
           }),
@@ -247,7 +246,7 @@
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/activate",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ "invite_token": "$STUDENT_INVITE_TOKEN", "password": "Student@123" }),
+          body: JSON.stringify({ "invite_token": "$STUDENT_INVITE_TOKEN", "password": "$STUDENT_PASSWORD" }),
           extractions: []
         }, "result-11c")'>Step 11c — Activate (set password + transition invited→active)</button>
         <div class="result" id="result-11c"></div>
@@ -268,10 +267,10 @@
       <div class="flow-end">
         ✅ <strong>Flow 2 complete.</strong> You now have:
         <ul>
-          <li><code>INST_ID</code> — Greenwood High School (active)</li>
-          <li><code>ADMIN_ID</code> — Institute Admin (admin@greenwoodhigh.com / Admin@123)</li>
-          <li><code>TEACHER_ID</code> — Teacher (teacher@greenwoodhigh.com / Teacher@123)</li>
-          <li><code>STUDENT_ID</code> — Student (student@greenwoodhigh.com / Student@123)</li>
+          <li><code>INST_ID</code> — $INST_NAME (active)</li>
+          <li><code>ADMIN_ID</code> — Institute Admin ($ADMIN_EMAIL / $ADMIN_PASSWORD)</li>
+          <li><code>TEACHER_ID</code> — Teacher ($TEACHER_EMAIL / $TEACHER_PASSWORD)</li>
+          <li><code>STUDENT_ID</code> — Student ($STUDENT_EMAIL / $STUDENT_PASSWORD)</li>
         </ul>
         Continue to <a href="03_institute_admin.html">Flow 3 — Institute Admin</a>,
         <a href="04_teacher.html">Flow 4 — Teacher</a>, or

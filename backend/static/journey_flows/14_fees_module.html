@@ -34,12 +34,12 @@
         <div class="step-desc">Fresh login to ensure we have a valid token for fee operations.</div>
         <div class="step-request">POST /api/auth/login
 Host: $CLIENT_SLUG.localhost
-body: { "email":"director@greenwood.com", "password":"Director@123" }</div>
+body: { "email":"$DIRECTOR_EMAIL", "password":"$DIRECTOR_PASSWORD" }</div>
         <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG"], "result-1")) return; runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
-          body: JSON.stringify({ "email":"director@greenwood.com", "password":"Director@123" }),
+          body: JSON.stringify({ "email":"$DIRECTOR_EMAIL", "password":"$DIRECTOR_PASSWORD" }),
           extractions: [{ var: "DIRECTOR_TOKEN", path: "access_token" }]
         }, "result-1")'>Run Step 1</button>
         <div class="result" id="result-1"></div>
@@ -276,12 +276,12 @@ Authorization: Bearer $DIRECTOR_TOKEN</div>
         <div class="step-desc">Student logs in to view their own fee assignments (tenant + ownership scoped).</div>
         <div class="step-request">POST /api/auth/login
 Host: $CLIENT_SLUG.localhost
-body: { "email":"student@greenwoodhigh.com", "password":"Student@123" }</div>
+body: { "email":"$STUDENT_EMAIL", "password":"$STUDENT_PASSWORD" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
-          body: JSON.stringify({ "email":"student@greenwoodhigh.com", "password":"Student@123" }),
+          body: JSON.stringify({ "email":"$STUDENT_EMAIL", "password":"$STUDENT_PASSWORD" }),
           extractions: [{ var: "STUDENT_TOKEN", path: "access_token" }]
         }, "result-13")'>Run Step 13</button>
         <div class="result" id="result-13"></div>

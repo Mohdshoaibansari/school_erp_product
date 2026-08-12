@@ -153,7 +153,7 @@ class FeesService:
             result = self._payment_repo.create(session, ctx, assignment.institution_id, dto, receipt)
 
             # Auto-update assignment status (D11)
-            total = self._fee_assignment_repo.get_total_payments(session, dto.fee_assignment_id)
+            total = self._payment_repo.get_total_payments(session, dto.fee_assignment_id)
             if total >= assignment.amount:
                 self._fee_assignment_repo.update(session, ctx, dto.fee_assignment_id,
                                                  FeeAssignmentUpdateDTO(status="paid"))

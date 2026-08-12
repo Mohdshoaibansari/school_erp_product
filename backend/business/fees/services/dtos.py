@@ -47,6 +47,7 @@ class FeeAssignmentCreateDTO(BaseModel):
     due_date: date
     academic_term: Optional[str] = None
     user_ids: list[uuid.UUID]
+    institution_id: Optional[uuid.UUID] = None  # Required for CD (ctx has no institution_id)
     notes: Optional[str] = None
 
 

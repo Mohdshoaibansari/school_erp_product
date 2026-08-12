@@ -93,10 +93,11 @@ class FeesService:
                                  f"Invalid user IDs: {[str(r[0]) for r in bad_users]}")
 
             results = []
+            institution_id = dto.institution_id or ctx.institution_id
             for user_id in dto.user_ids:
                 assignment = self._fee_assignment_repo.create(
                     session, ctx, user_id, dto.fee_type_id,
-                    ctx.institution_id, dto.amount, dto.due_date,
+                    institution_id, dto.amount, dto.due_date,
                     dto.academic_term, dto.notes,
                 )
                 results.append(assignment)
@@ -104,7 +105,7 @@ class FeesService:
 
             if self._audit:
                 for r in results:
-                    self._audit.emit(action="fee_assigned", client_id=ctx.client_id, institution_id=ctx.institution_id,
+                    self._audit.emit(action="fee_assigned", client_id=ctx.client_id, institution_id=institution_id,
                                      actor=ctx.user_id or "system",
                                      payload={"assignment_id": str(r.id), "user_id": str(r.user_id),
                                       "amount": str(r.amount), "due_date": str(r.due_date)})

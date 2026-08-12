@@ -125,6 +125,7 @@ body: { "fee_type_id":"$TUITION_FEE_TYPE_ID", "amount":50000, "due_date":"2026-0
             "due_date": "2026-09-30",
             "academic_term": "2026-2027",
             "user_ids": ["$STUDENT_ID"],
+            "institution_id": "$INST_ID",
             "notes": "Full year tuition — first installment"
           }),
           extractions: [{ var: "TUITION_ASSIGNMENT_ID", path: "0.id" }]
@@ -151,6 +152,7 @@ body: { "fee_type_id":"$SPORTS_FEE_TYPE_ID", "amount":5000, "due_date":"2026-09-
             "due_date": "2026-09-30",
             "academic_term": "2026-2027",
             "user_ids": ["$STUDENT_ID"],
+            "institution_id": "$INST_ID",
             "notes": "Annual sports activities fee"
           }),
           extractions: [{ var: "SPORTS_ASSIGNMENT_ID", path: "0.id" }]

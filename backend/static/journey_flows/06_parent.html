@@ -19,7 +19,7 @@
         <code>parent_child_relationship</code> entity which is part of C-02 Phase 2 (future work).
       </div>
       <div class="prereq">
-        <strong>Prerequisites:</strong> Run Flow 2 first. Stored vars: <code>CLIENT_SLUG</code>, <code>CLIENT_ID</code>, <code>INST_ID</code>, <code>DIRECTOR_TOKEN</code>.
+        <strong>Prerequisites:</strong> Run Flow 2 first. Stored vars: <code>CLIENT_SLUG</code>.
       </div>
 
       <h2>Intended Capabilities (Roadmap)</h2>
@@ -33,65 +33,61 @@
       <h2>Steps (Demonstrates Current Limitation)</h2>
 
       <div class="step">
-        <div><span class="step-num">1</span><span class="step-title">Create Parent User</span></div>
-        <div class="step-desc">Create a parent user via backend API (same as Flow 2). Returns invite URL.</div>
-        <button class="run-btn" onclick='if (!requireVars(["CLIENT_ID", "INST_ID", "DIRECTOR_TOKEN"], "result-1")) return; runStep({
-          method: "POST",
-          url: "http://127.0.0.1:8001/api/v1/users",
-          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({
-            "email":"parent@greenwoodhigh.com",
-            "name":"Parent User",
-            "user_category_id":"$LOOKUP.user-categories.Learner",
-            "institution_id":"$INST_ID",
-            "role_id":"$LOOKUP.roles.Parent"
-          }),
-          extractions: [
-            { var: "PARENT_ID", path: "user.id" },
-            { var: "PARENT_INVITE_URL", path: "invite_url" }
-          ]
-        }, "result-1")'>Run Step 1</button>
+        <div><span class="step-num">1</span><span class="step-title">Create Parent User (via Supabase API)</span></div>
+        <div class="step-desc">Manually create a parent user to demonstrate the current 403 behavior.</div>
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_ID", "INST_ID"], "result-1")) return; 
+          STORE.PARENT_ID = crypto.randomUUID();
+          STORE.PARENT_ASSIGN_ID = crypto.randomUUID();
+          saveStore();
+          runStep({
+            method: "POST",
+            url: "$SUPABASE_URL/auth/v1/admin/users",
+            headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
+            body: JSON.stringify({ "id":"$PARENT_ID", "email":"parent@greenwoodhigh.com", "password":"Parent@123", "email_confirm":true }),
+            extractions: []
+          }, "result-1");
+        '>Run Step 1 — Create Auth</button>
         <div class="result" id="result-1"></div>
-      </div>
-
-      <div class="step">
-        <div><span class="step-num">2</span><span class="step-title">Activate Parent (set password)</span></div>
-        <div class="step-desc">Extract invite token and activate. Same as Flow 02 Step 7b.</div>
-        <button class="run-btn" onclick='if (!requireVars(["PARENT_INVITE_URL"], "result-2")) return; runStep({
+        <button class="run-btn" onclick='runStep({
           method: "POST",
-          url: "http://127.0.0.1:8001/api/auth/activate",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            "invite_token": "$PARENT_INVITE_TOKEN",
-            "password": "Parent@123"
-          }),
+          url: "$SUPABASE_URL/rest/v1/app_user",
+          headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
+          body: JSON.stringify({ "id":"$PARENT_ID", "client_id":"$CLIENT_ID", "institution_id":"$INST_ID", "email":"parent@greenwoodhigh.com", "name":"Parent User", "user_category_id":"$LOOKUP.user-categories.Executive Leadership", "lifecycle_status":"active" }),
           extractions: []
-        }, "result-2")'>Run Step 2</button>
-        <div class="result" id="result-2"></div>
-        <div class="note">Extracts invite token from the invite URL stored in Step 1.</div>
+        }, "result-1b")'>Run Step 1b — Insert app_user</button>
+        <div class="result" id="result-1b"></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "$SUPABASE_URL/rest/v1/role_assignment",
+          headers: { "Authorization": "Bearer $SUPABASE_SERVICE_ROLE_KEY", "apikey": "$SUPABASE_SERVICE_ROLE_KEY", "Content-Type": "application/json" },
+          body: JSON.stringify({ "id":"$PARENT_ASSIGN_ID", "client_id":"$CLIENT_ID", "user_id":"$PARENT_ID", "role_id":"$LOOKUP.roles.Parent", "scope":"institution" }),
+          extractions: []
+        }, "result-1c")'>Run Step 1c — Assign Parent Role</button>
+        <div class="result" id="result-1c"></div>
+        <div class="note">role_id resolved from /api/v1/lookups/roles at runtime. Requires lookups cached from Flow 1.</div>
       </div>
 
       <div class="step">
-        <div><span class="step-num">3</span><span class="step-title">Login as Parent</span></div>
+        <div><span class="step-num">2</span><span class="step-title">Login as Parent</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
           body: JSON.stringify({ "email":"parent@greenwoodhigh.com", "password":"Parent@123" }),
           extractions: [{ var: "PARENT_TOKEN", path: "access_token" }]
-        }, "result-3")'>Run Step 3</button>
-        <div class="result" id="result-3"></div>
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
       </div>
 
       <div class="step">
-        <div><span class="step-num">4</span><span class="step-title">Try to view grades (should FAIL — no permissions yet)</span></div>
+        <div><span class="step-num">3</span><span class="step-title">Try to view grades (should FAIL — no permissions yet)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
           url: "http://127.0.0.1:8001/api/v1/grades",
           headers: { "Authorization": "Bearer $PARENT_TOKEN" },
           extractions: []
-        }, "result-4")'>Run Step 4</button>
-        <div class="result" id="result-4"></div>
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
         <div class="note"><strong>Expected:</strong> <code>403 Permission denied — no roles assigned</code> or <code>403 Permission denied</code>.
         This is the current limitation — Parent role has no permissions in C-04 policies.</div>
       </div>

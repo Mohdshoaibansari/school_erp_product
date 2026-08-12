@@ -407,6 +407,13 @@ async function refreshAs(actorKey) {
   } catch(e) { authResult(actorKey, false, 'Refresh request failed.'); }
 }
 
+function updateQuickLoginField(actorKey, fieldKey, value) {
+  const a = ACTORS[actorKey];
+  if (!a) return;
+  STORE[a[fieldKey]] = value;
+  saveStore();
+}
+
 function renderAuthBar() {
   let bar = document.getElementById('global-auth-bar');
   if (!bar) return;
@@ -414,6 +421,8 @@ function renderAuthBar() {
   const a = ACTORS[current];
   const hasToken = !!STORE[a.token];
   const hasRefresh = !!STORE[a.refresh];
+  const email = STORE[a.email] || '';
+  const password = STORE[a.password] || '';
   bar.innerHTML = `
     <div class="auth-left">
       <div class="eyebrow">SESSION</div>
@@ -423,8 +432,13 @@ function renderAuthBar() {
       </select>
       <span class="session-chip ${hasToken?'live':''}">${hasToken?'● token ready':'○ not logged in'}</span>
     </div>
+    <div class="auth-credentials">
+      <input id="quick-login-email" class="quick-login-input" type="text" value="${esc(email)}" placeholder="Username / email" autocomplete="off"
+        oninput="updateQuickLoginField('${current}','email',this.value)" title="Username / email">
+      <input id="quick-login-password" class="quick-login-input password" type="password" value="${esc(password)}" placeholder="Password" autocomplete="off"
+        oninput="updateQuickLoginField('${current}','password',this.value)" title="Password">
+    </div>
     <div class="auth-details">
-      <span>${esc(STORE[a.email] || 'email not set')}</span>
       ${a.host ? `<span>Host: ${esc(STORE[a.host] || 'CLIENT_SLUG not set')}.localhost</span>` : '<span>Platform scope</span>'}
     </div>
     <div class="auth-actions">

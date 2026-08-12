@@ -61,14 +61,14 @@ def update_profile(
     enforcer: Any = Depends(get_enforcer),
     svc: UserService = Depends(get_identity_user_service),
 ) -> UserProfileDTO:
-    """Update a UserProfile. Users can update their own profile; admins can update any."""
+    """Update a UserProfile."""
+    # ABAC: check via parent user's client/institution
     user = svc.get_user(ctx, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     check_permission(ctx, enforcer, "user_profile", "update",
         obj_client_id=user.client_id,
-        obj_institution_id=user.institution_id,
-        owner_id=user_id)  # ownership check: self or admin
+        obj_institution_id=user.institution_id)
     try:
         return svc.update_profile(ctx, user_id, dto)
     except ValueError:

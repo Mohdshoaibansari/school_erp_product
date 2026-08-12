@@ -65,6 +65,11 @@ def _check_impl(
         logger.warning("[AUTHZ] No roles assigned: user=%s resource=%s action=%s", ctx.user_id, resource, action)
         raise HTTPException(status_code=403, detail="Permission denied — no roles assigned")
 
+    # Self-access bypass (D13): if owner_id matches the current user, allow without Casbin
+    if owner_id is not None and ctx.user_id and str(ctx.user_id) == str(owner_id):
+        logger.debug("[AUTHZ] Self-access bypass: user=%s resource=%s action=%s", ctx.user_id, resource, action)
+        return
+
     # Build Casbin subject from TenantContext
     sub = {
         "role": roles[0],

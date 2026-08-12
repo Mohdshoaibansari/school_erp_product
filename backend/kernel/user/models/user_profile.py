@@ -22,7 +22,7 @@ class UserProfile(Base):
     __tablename__ = "user_profile"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("app_user.id"), unique=True, nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_account.id"), unique=True, nullable=False)
     photo: Mapped[str | None] = mapped_column(String(500), nullable=True)
     date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
     gender: Mapped[str | None] = mapped_column(String(20), nullable=True)

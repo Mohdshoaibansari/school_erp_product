@@ -1,6 +1,7 @@
 """C-02 UserProfile routes (task 9.3).
 
 Endpoints for creating, reading, updating user profiles.
+D13: Self-service — any user can manage own profile. Admins can manage any.
 """
 
 from __future__ import annotations
@@ -23,11 +24,13 @@ router = APIRouter(prefix="/api/v1/users/{user_id}/profile", tags=["profiles"])
 def create_profile(
     user_id: uuid.UUID,
     dto: UserProfileCreateDTO,
-    _authz: None = Depends(require_permission("user_profile", "create")),
     ctx: TenantContext = Depends(get_tenant_context),
+    enforcer: Any = Depends(get_enforcer),
     svc: UserService = Depends(get_identity_user_service),
 ) -> UserProfileDTO:
-    """Create a UserProfile for a User."""
+    """Create a UserProfile. Self-creation (owner_id) bypasses permission check.
+    Admin creating on behalf of others uses user_profile.create permission."""
+    check_permission(ctx, enforcer, "user_profile", "create", owner_id=user_id)
     try:
         return svc.create_profile(ctx, user_id, dto)
     except ValueError as e:
@@ -41,15 +44,11 @@ def get_profile(
     enforcer: Any = Depends(get_enforcer),
     svc: UserService = Depends(get_identity_user_service),
 ) -> UserProfileDTO:
-    """Get a UserProfile by user_id."""
+    """Get a UserProfile by user_id. Self-read (owner_id) bypasses permission check."""
     result = svc.get_profile(ctx, user_id)
     if not result:
         raise HTTPException(status_code=404, detail="Profile not found")
-    # ABAC: check via parent user's client/institution
-    user = svc.get_user(ctx, user_id)
-    check_permission(ctx, enforcer, "user_profile", "read",
-        obj_client_id=user.client_id if user else ctx.client_id,
-        obj_institution_id=user.institution_id if user else ctx.institution_id)
+    check_permission(ctx, enforcer, "user_profile", "read", owner_id=user_id)
     return result
 
 
@@ -61,14 +60,8 @@ def update_profile(
     enforcer: Any = Depends(get_enforcer),
     svc: UserService = Depends(get_identity_user_service),
 ) -> UserProfileDTO:
-    """Update a UserProfile."""
-    # ABAC: check via parent user's client/institution
-    user = svc.get_user(ctx, user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    check_permission(ctx, enforcer, "user_profile", "update",
-        obj_client_id=user.client_id,
-        obj_institution_id=user.institution_id)
+    """Update a UserProfile. Self-update (owner_id) bypasses permission check."""
+    check_permission(ctx, enforcer, "user_profile", "update", owner_id=user_id)
     try:
         return svc.update_profile(ctx, user_id, dto)
     except ValueError:

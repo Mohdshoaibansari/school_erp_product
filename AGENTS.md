@@ -121,7 +121,7 @@ This invariant is non-negotiable: `docs/` is always the decisional input; OpenSp
 | Capability | ADR | Status | Next |
 |---|---|---|---|
 | C-01 Tenant & Institution Management | `docs/architecture/adr-c01-tenant-institution-implementation.md` | Decisions final (12 ADR decisions + 10 spec resolutions) | Feed to sdd-stack (Phase 2) |
-| C-02 Identity & User Management | `docs/architecture/adr-c02-identity-user-management-implementation.md` | D11 + D12 applied (models + repos + migration); needs DB migration + runtime test | Apply migration 015 to cloud DB, then test CD creation + login |
+| C-02 Identity & User Management | `docs/architecture/adr-c02-identity-user-management-implementation.md` | D11 + D12 applied; D13 designed (UserProfile self-service); specs created | Apply D13 tasks (migration + route changes) |
 | C-04 Authorization Consolidation | `docs/prd/c-04-authorization-consolidation.md` | Phase 0-4 applied (migration, policy_loader, require_permission, routes, C-01 cleanup, tests); migration 016 applied to cloud DB | Start app, verify journey flows (CD transition, cross-tenant block, PO bypass) |
 
 > This table is the single place to check "where are we." Update it as capabilities move through phases.

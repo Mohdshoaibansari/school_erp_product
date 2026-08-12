@@ -396,6 +396,34 @@ login_attempt.user_id   → FK → user_account.id
 
 ---
 
+### D13 — UserProfile: self-service + ownership + cross-tier FK fix
+
+**Decision:** Any authenticated user can create and update their own profile. Admin/CD/institution_admin can create and update profiles on behalf of users. The `UserProfile.user_id` FK is changed from `app_user.id` to `user_account.id` (same as D12) so CD users can also have profiles.
+
+**Problem:**
+1. `UserProfile.user_id` FK → `app_user.id` — CD users in `client_user` can't have profiles
+2. No role has `user_profile.create` — the permission exists but isn't assigned
+3. No ownership check on profile read/update — any user with permission can access any profile
+4. Teacher/Staff/Student/Parent don't have `user_profile.update` — can't update own profile
+
+**Permission matrix after fix:**
+
+| Role | create | read | update |
+|---|---|---|---|
+| Admin | ✅ (any) | ✅ (any) | ✅ (any) |
+| client_director | ✅ (any in tenant) | ✅ (any in tenant) | ✅ (any in tenant) |
+| institution_admin | ✅ (any in institution) | ✅ (any in institution) | ✅ (any in institution) |
+| Teacher | ❌ | ✅ (self) | ✅ (self) |
+| Staff | ❌ | ✅ (self) | ✅ (self) |
+| Student | ❌ | ✅ (self) | ✅ (self) |
+| Parent | ❌ | ✅ (self) | ✅ (self) |
+
+**Ownership enforcement:** `check_permission` is called with `owner_id=user_id`. The ownership check in `_check_impl` allows access if `owner_id == ctx.user_id` (self) or if the user's role has institution scope (admin bypass).
+
+**Rationale:** Profiles are personal data (DOB, gender, blood group). Users should always be able to view and update their own. Admins need to create profiles on behalf of users (e.g., during bulk import) and update them for administrative reasons.
+
+---
+
 ## 3. Consequences
 
 ### Positive

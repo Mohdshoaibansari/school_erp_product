@@ -31,4 +31,7 @@ class UserProfile(Base):
     updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
 
     # Relationships
-    user = relationship("User", back_populates="profile")
+    user = relationship("User",
+        primaryjoin="UserProfile.user_id == foreign(User.id)",
+        viewonly=True,
+    )

@@ -36,7 +36,11 @@ class User(Base):
 
     # Relationships
     user_category = relationship("UserCategory", foreign_keys=[user_category_id])
-    profile = relationship("UserProfile", back_populates="user", uselist=False)
+    profile = relationship("UserProfile",
+        primaryjoin="User.id == foreign(UserProfile.user_id)",
+        viewonly=True,
+        uselist=False,
+    )
     role_assignments = relationship("RoleAssignment",
         primaryjoin="User.id == foreign(RoleAssignment.user_id)",
         viewonly=True,

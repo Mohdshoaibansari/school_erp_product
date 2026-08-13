@@ -99,7 +99,12 @@ def _check_impl(
     # Step 2: Ownership check (D22)
     if owner_id is not None and ctx.user_id and str(ctx.user_id) != str(owner_id):
         # Check if user has admin scope to bypass ownership
-        admin_obj = {"name": resource, "client_id": "", "institution_id": ""}
+        # Use ctx IDs so scoped policies (tenant/institution) can match
+        admin_obj = {
+            "name": resource,
+            "client_id": str(ctx.client_id) if ctx.client_id else "",
+            "institution_id": str(ctx.institution_id) if ctx.institution_id else "",
+        }
         if not enforcer.enforce(sub, admin_obj, action):
             raise HTTPException(status_code=403, detail="You can only access your own resource")
 

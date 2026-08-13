@@ -96,18 +96,6 @@ def _check_impl(
     logger.debug("[AUTHZ] Permission granted: user=%s roles=%s resource=%s action=%s",
                  ctx.user_id, roles, resource, action)
 
-    # Step 2: Ownership check (D22)
-    if owner_id is not None and ctx.user_id and str(ctx.user_id) != str(owner_id):
-        # Check if user has admin scope to bypass ownership
-        # Use ctx IDs so scoped policies (tenant/institution) can match
-        admin_obj = {
-            "name": resource,
-            "client_id": str(ctx.client_id) if ctx.client_id else "",
-            "institution_id": str(ctx.institution_id) if ctx.institution_id else "",
-        }
-        if not enforcer.enforce(sub, admin_obj, action):
-            raise HTTPException(status_code=403, detail="You can only access your own resource")
-
 
 def check_permission(
     ctx: TenantContext,

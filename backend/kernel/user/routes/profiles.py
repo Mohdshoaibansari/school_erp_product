@@ -1,7 +1,7 @@
-"""C-02 UserProfile routes (task 9.3).
+"""C-02 UserProfile routes.
 
 Endpoints for creating, reading, updating user profiles.
-D13: Self-service — any user can manage own profile. Admins can manage any.
+D13: Self-service (Stage 3 bypass) + admin management (user_profile.admin).
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from kernel.tenant_context import TenantContext, get_tenant_context
-from kernel.authz.dependencies import require_permission, check_permission, get_enforcer
+from kernel.authz.dependencies import check_permission, get_enforcer
 from kernel.user.dependencies import get_identity_user_service
 from kernel.user.services.service import UserService
 from kernel.user.services.dtos import UserProfileCreateDTO, UserProfileDTO, UserProfileUpdateDTO
@@ -28,9 +28,8 @@ def create_profile(
     enforcer: Any = Depends(get_enforcer),
     svc: UserService = Depends(get_identity_user_service),
 ) -> UserProfileDTO:
-    """Create a UserProfile. Self-creation (owner_id) bypasses permission check.
-    Admin creating on behalf of others uses user_profile.create permission."""
-    check_permission(ctx, enforcer, "user_profile", "create", owner_id=user_id)
+    """Create a UserProfile. Self-creation (Stage 3 bypass) or admin (user_profile.admin)."""
+    check_permission(ctx, enforcer, "user_profile", "admin", owner_id=user_id)
     try:
         return svc.create_profile(ctx, user_id, dto)
     except ValueError as e:
@@ -44,11 +43,11 @@ def get_profile(
     enforcer: Any = Depends(get_enforcer),
     svc: UserService = Depends(get_identity_user_service),
 ) -> UserProfileDTO:
-    """Get a UserProfile by user_id. Self-read (owner_id) bypasses permission check."""
+    """Get a UserProfile. Self-read (Stage 3 bypass) or admin (user_profile.admin)."""
     result = svc.get_profile(ctx, user_id)
     if not result:
         raise HTTPException(status_code=404, detail="Profile not found")
-    check_permission(ctx, enforcer, "user_profile", "read", owner_id=user_id)
+    check_permission(ctx, enforcer, "user_profile", "admin", owner_id=user_id)
     return result
 
 
@@ -60,8 +59,8 @@ def update_profile(
     enforcer: Any = Depends(get_enforcer),
     svc: UserService = Depends(get_identity_user_service),
 ) -> UserProfileDTO:
-    """Update a UserProfile. Self-update (owner_id) bypasses permission check."""
-    check_permission(ctx, enforcer, "user_profile", "update", owner_id=user_id)
+    """Update a UserProfile. Self-update (Stage 3 bypass) or admin (user_profile.admin)."""
+    check_permission(ctx, enforcer, "user_profile", "admin", owner_id=user_id)
     try:
         return svc.update_profile(ctx, user_id, dto)
     except ValueError:

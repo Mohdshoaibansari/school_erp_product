@@ -396,9 +396,9 @@ login_attempt.user_id   → FK → user_account.id
 
 ---
 
-### D13 — UserProfile: self-service + ownership + cross-tier FK fix
+### D13 — UserProfile: self-service + admin permission + cross-tier FK fix
 
-**Decision:** Any authenticated user can create and update their own profile. Admin/CD/institution_admin can create and update profiles on behalf of users. The `UserProfile.user_id` FK is changed from `app_user.id` to `user_account.id` (same as D12) so CD users can also have profiles.
+**Decision:** Any authenticated user can create, read, and update their own profile (self-service via `owner_id` check). Admin/CD/institution_admin can manage any profile via a new `user_profile.admin` permission. The `UserProfile.user_id` FK is changed from `app_user.id` to `user_account.id` (same as D12) so CD users can also have profiles.
 
 **Problem:**
 1. `UserProfile.user_id` FK → `app_user.id` — CD users in `client_user` can't have profiles
@@ -406,21 +406,45 @@ login_attempt.user_id   → FK → user_account.id
 3. No ownership check on profile read/update — any user with permission can access any profile
 4. Teacher/Staff/Student/Parent don't have `user_profile.update` — can't update own profile
 
+**Solution:** Use a two-tier permission model instead of a complex ownership check:
+- **Self-service:** `_check_impl` Stage 3 checks `owner_id == ctx.user_id` → return immediately. No Casbin check needed. Any user can manage their own profile.
+- **Admin management:** New `user_profile.admin` permission for Admin/CD/institution_admin. Profile routes check `user_profile.admin` for non-self access. Casbin enforces scope (tenant/institution).
+- **No ownership check (Stage 5):** Removed from `_check_impl`. Casbin + self-access handle all cases.
+
 **Permission matrix after fix:**
 
-| Role | create | read | update |
+| Role | self-service (any action) | user_profile.admin | Scope |
 |---|---|---|---|
-| Admin | ✅ (any) | ✅ (any) | ✅ (any) |
-| client_director | ✅ (any in tenant) | ✅ (any in tenant) | ✅ (any in tenant) |
-| institution_admin | ✅ (any in institution) | ✅ (any in institution) | ✅ (any in institution) |
-| Teacher | ❌ | ✅ (self) | ✅ (self) |
-| Staff | ❌ | ✅ (self) | ✅ (self) |
-| Student | ❌ | ✅ (self) | ✅ (self) |
-| Parent | ❌ | ✅ (self) | ✅ (self) |
+| Admin | ✅ (Stage 3 bypass) | ✅ | institution |
+| client_director | ✅ (Stage 3 bypass) | ✅ | tenant |
+| institution_admin | ✅ (Stage 3 bypass) | ✅ | institution |
+| Teacher | ✅ (Stage 3 bypass) | ❌ | — |
+| Staff | ✅ (Stage 3 bypass) | ❌ | — |
+| Student | ✅ (Stage 3 bypass) | ❌ | — |
+| Parent | ✅ (Stage 3 bypass) | ❌ | — |
 
-**Ownership enforcement:** `check_permission` is called with `owner_id=user_id`. The ownership check in `_check_impl` allows access if `owner_id == ctx.user_id` (self) or if the user's role has institution scope (admin bypass).
+**Authorization flow:**
+```
+Stage 1: Platform Owner bypass (PO can do anything)
+Stage 2: Role validation (must have roles)
+Stage 3: Self-access bypass (owner_id == ctx.user_id → return)
+Stage 4: Casbin check (user_profile.admin for non-self access)
+(Stage 5: REMOVED — no longer needed)
+```
 
-**Rationale:** Profiles are personal data (DOB, gender, blood group). Users should always be able to view and update their own. Admins need to create profiles on behalf of users (e.g., during bulk import) and update them for administrative reasons.
+**Rationale:**
+- Profiles are personal data (DOB, gender, blood group). Users should always manage their own.
+- Admins need to manage profiles on behalf of users (e.g., during bulk import).
+- The `user_profile.admin` permission cleanly separates self-service from admin management.
+- Removing Stage 5 (ownership check) simplifies `_check_impl` and eliminates the broken admin bypass logic.
+
+**Alternatives rejected:**
+
+| Alternative | Reason for rejection |
+|---|---|
+| Keep ownership check with ctx IDs (current fix) | Both Teacher and Admin have same permission at same scope — Casbin can't distinguish them |
+| Hardcode admin role names in bypass | Unmaintainable, doesn't scale |
+| Use different scopes for admin vs non-admin | Overcomplicates the permission model |
 
 ---
 

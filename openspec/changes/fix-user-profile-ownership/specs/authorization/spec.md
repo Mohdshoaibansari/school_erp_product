@@ -1,105 +1,117 @@
 ## Purpose
 
-This delta spec modifies C-04 Authorization to add role-permission mappings for UserProfile operations. It ensures that all roles have appropriate permissions for profile self-service while maintaining admin-level control for creating profiles on behalf of users.
+This delta spec modifies C-04 Authorization to introduce the `user_profile.admin` permission and remove Stage 5 (ownership check) from `_check_impl`. The two-tier model uses Stage 3 (self-service bypass) and Stage 4 (Casbin `user_profile.admin`) to handle all profile authorization scenarios.
 
 **Delta type:** MODIFIED
 **Base spec:** `openspec/changes/archive/2026-07-14-add-c04-authorization/specs/authorization/spec.md`
-**Decisional source:** D13 (UserProfile self-service & ownership)
+**Decisional source:** D13 (UserProfile self-service & admin management)
 
 ---
 
 ## Requirements
 
-### Requirement: Permission Catalog Update
+### Requirement: New user_profile.admin Permission
 
-The `permission` table SHALL include `user_profile.create` in addition to the existing `user_profile.read` and `user_profile.update` permissions. The total C-02 permissions SHALL be 13 (previously 12).
+The `permission` table SHALL include a `user_profile.admin` permission (resource=`user_profile`, action=`admin`). This single permission replaces the per-action permissions (`user_profile.create/read/update`) for non-self profile access.
 
-Trace: D13, AC-3.
+Trace: D13-a, AC-2.
 
-#### Scenario: user_profile.create permission exists
-- **WHEN** querying the `permission` table for `name = 'user_profile.create'`
-- **THEN** a row is returned with `resource = 'user_profile'` and `action = 'create'`
+#### Scenario: user_profile.admin permission exists
+- **WHEN** querying the `permission` table for `name = 'user_profile.admin'`
+- **THEN** a row is returned with `resource = 'user_profile'` and `action = 'admin'`
 
-#### Scenario: Total C-02 permissions count
-- **WHEN** querying the `permission` table for permissions where `resource` starts with `user`, `role_assignment`, or `user_identifier`
-- **THEN** the count is 13 (previously 12)
+### Requirement: Role-Permission Mapping for user_profile.admin
 
-### Requirement: Role-Permission Mapping for UserProfile
-
-The `role_permission` table SHALL be updated to include the following mappings for UserProfile permissions:
+The `role_permission` table SHALL map `user_profile.admin` to Admin, client_director, and institution_admin roles. No other roles receive this permission.
 
 **Admin, client_director, institution_admin:**
-- `user_profile.create` (institution scope)
-- `user_profile.read` (institution scope)
-- `user_profile.update` (institution scope)
+- `user_profile.admin` (institution scope for Admin/institution_admin, tenant scope for client_director)
 
 **Teacher, Staff, Student, Parent:**
-- `user_profile.read` (institution scope)
-- `user_profile.update` (institution scope)
+- No `user_profile.admin` — they use Stage 3 self-service bypass for their own profile
 
-Note: Teacher, Staff, Student, Parent do NOT get `user_profile.create` — they can create their own profile via self-ownership check, but cannot create profiles for other users.
+Trace: D13-a, AC-2, AC-4, AC-5.
 
-Trace: D13, AC-2, AC-3.
-
-#### Scenario: Admin has all user_profile permissions
+#### Scenario: Admin has user_profile.admin
 - **WHEN** querying `role_permission` for the Admin role
-- **THEN** the result set includes `user_profile.create`, `user_profile.read`, and `user_profile.update`
+- **THEN** the result set includes `user_profile.admin`
 
-#### Scenario: Teacher has user_profile.read and user_profile.update
-- **WHEN** querying `role_permission` for the Teacher role
-- **THEN** the result set includes `user_profile.read` and `user_profile.update` but NOT `user_profile.create`
-
-#### Scenario: Student has user_profile.read and user_profile.update
-- **WHEN** querying `role_permission` for the Student role
-- **THEN** the result set includes `user_profile.read` and `user_profile.update` but NOT `user_profile.create`
-
-#### Scenario: Parent has user_profile.read and user_profile.update
-- **WHEN** querying `role_permission` for the Parent role
-- **THEN** the result set includes `user_profile.read` and `user_profile.update` but NOT `user_profile.create`
-
-#### Scenario: client_director has all user_profile permissions
+#### Scenario: client_director has user_profile.admin
 - **WHEN** querying `role_permission` for the client_director role
-- **THEN** the result set includes `user_profile.create`, `user_profile.read`, and `user_profile.update`
+- **THEN** the result set includes `user_profile.admin`
 
-#### Scenario: institution_admin has all user_profile permissions
+#### Scenario: institution_admin has user_profile.admin
 - **WHEN** querying `role_permission` for the institution_admin role
-- **THEN** the result set includes `user_profile.create`, `user_profile.read`, and `user_profile.update`
+- **THEN** the result set includes `user_profile.admin`
 
-### Requirement: Ownership Check Integration with require_permission
+#### Scenario: Teacher does NOT have user_profile.admin
+- **WHEN** querying `role_permission` for the Teacher role
+- **THEN** the result set does NOT include `user_profile.admin`
 
-The `require_permission` dependency SHALL support an `owner_id` parameter for ownership enforcement. When `owner_id` is provided:
-1. If `owner_id == ctx.user_id`, the check passes (self-access)
-2. If `owner_id != ctx.user_id`, the check falls through to Casbin enforcement
-3. If Casbin enforcement passes (user has the permission with institution scope), the check passes (admin bypass)
-4. If Casbin enforcement fails, the dependency raises HTTP 403
+#### Scenario: Student does NOT have user_profile.admin
+- **WHEN** querying `role_permission` for the Student role
+- **THEN** the result set does NOT include `user_profile.admin`
 
-Trace: D13-a, AC-5, AC-6, AC-7.
+### Requirement: Remove Stage 5 (Ownership Check) from _check_impl
 
-#### Scenario: Self-access bypasses Casbin for profile operations
-- **WHEN** a Teacher (user_id=UUID-A) calls `require_permission("user_profile", "read", owner_id=UUID-A)`
-- **THEN** the ownership check passes (`owner_id == ctx.user_id`), Casbin is not consulted, and the dependency returns silently
+The `_check_impl` function in `authz/dependencies.py` SHALL remove Stage 5 (the ownership/admin bypass check). The revised authorization flow is:
 
-#### Scenario: Non-self access requires Casbin enforcement
-- **WHEN** a Teacher (user_id=UUID-A) calls `require_permission("user_profile", "read", owner_id=UUID-B)`
-- **THEN** the ownership check fails (`owner_id != ctx.user_id`), Casbin is consulted, Teacher does NOT have cross-user profile access, and the dependency raises HTTP 403
+1. **Stage 1:** Platform owner bypass
+2. **Stage 2:** Role validation
+3. **Stage 3:** Self-service bypass — if `owner_id is not None and owner_id == ctx.user_id`, pass immediately (no Casbin)
+4. **Stage 4:** Casbin enforcement — check the user's role-permission mapping
 
-#### Scenario: Admin bypasses ownership check via institution scope
-- **WHEN** an Admin (user_id=UUID-X, institution_id=SchoolA) calls `require_permission("user_profile", "read", owner_id=UUID-A)`
-- **THEN** the ownership check fails (`owner_id != ctx.user_id`), Casbin is consulted, Admin has `user_profile.read` at institution scope, and the dependency returns silently
+Stage 5 (ownership check with admin bypass) is deleted. Casbin at Stage 4 handles admin access via `user_profile.admin` permission.
 
-### Requirement: Migration for Role-Permission Seed Data
+Trace: D13-b, AC-6.
 
-Alembic migration 019 (or equivalent) SHALL insert the new `user_profile.create` permission and update role-permission mappings for all roles. The migration SHALL be idempotent — re-running it should not create duplicate entries.
+#### Scenario: Stage 5 removed from _check_impl
+- **WHEN** inspecting `_check_impl` in `authz/dependencies.py`
+- **THEN** there is no ownership/admin bypass stage after the Casbin check
 
-Trace: D13, AC-2, AC-3.
+#### Scenario: Self-service at Stage 3
+- **WHEN** `owner_id == ctx.user_id` is passed to `_check_impl`
+- **THEN** the function returns successfully at Stage 3 without reaching Casbin
 
-#### Scenario: Migration inserts user_profile.create permission
+#### Scenario: Admin access via Casbin at Stage 4
+- **WHEN** `owner_id != ctx.user_id` and the user has `user_profile.admin` in Casbin
+- **THEN** the function returns successfully at Stage 4
+
+#### Scenario: Non-admin cross-user denied at Stage 4
+- **WHEN** `owner_id != ctx.user_id` and the user does NOT have `user_profile.admin` in Casbin
+- **THEN** the function raises HTTP 403 at Stage 4
+
+### Requirement: Profile Routes Use user_profile.admin for Non-Self Access
+
+Profile endpoints SHALL pass `owner_id=user_id` to `require_permission` / `check_permission`. The action parameter for Casbin check SHALL be `admin` (not `create`/`read`/`update`), since the single `user_profile.admin` permission governs all non-self profile operations.
+
+Trace: D13-a, AC-2, AC-4, AC-5.
+
+#### Scenario: POST endpoint checks user_profile.admin for non-self
+- **WHEN** `POST /api/v1/users/{id}/profile` is called with `owner_id != ctx.user_id`
+- **THEN** the endpoint checks `user_profile.admin` via Casbin at Stage 4
+
+#### Scenario: GET endpoint checks user_profile.admin for non-self
+- **WHEN** `GET /api/v1/users/{id}/profile` is called with `owner_id != ctx.user_id`
+- **THEN** the endpoint checks `user_profile.admin` via Casbin at Stage 4
+
+#### Scenario: PATCH endpoint checks user_profile.admin for non-self
+- **WHEN** `PATCH /api/v1/users/{id}/profile` is called with `owner_id != ctx.user_id`
+- **THEN** the endpoint checks `user_profile.admin` via Casbin at Stage 4
+
+### Requirement: Migration for user_profile.admin Permission and Role Mappings
+
+Alembic migration 019 (or equivalent) SHALL insert the `user_profile.admin` permission and map it to Admin, client_director, and institution_admin roles. The migration SHALL be idempotent.
+
+Trace: D13-a, AC-2.
+
+#### Scenario: Migration inserts user_profile.admin permission
 - **WHEN** migration 019 is applied
-- **THEN** the `permission` table contains a row with `name = 'user_profile.create'`
+- **THEN** the `permission` table contains a row with `name = 'user_profile.admin'`
 
-#### Scenario: Migration updates role-permission mappings
+#### Scenario: Migration maps user_profile.admin to admin roles
 - **WHEN** migration 019 is applied
-- **THEN** the `role_permission` table contains the new mappings for Admin, client_director, institution_admin, Teacher, Staff, Student, and Parent roles
+- **THEN** the `role_permission` table contains `user_profile.admin` mappings for Admin, client_director, and institution_admin
 
 #### Scenario: Migration is idempotent
 - **WHEN** migration 019 is applied twice

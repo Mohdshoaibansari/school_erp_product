@@ -10,7 +10,7 @@
     <h1>Flow 7 — Tenant Isolation Cross-Cutting</h1>
     <a class="back-link" href="index.html">← Back to all flows</a>
   </div>
-  <div class="layout">
+  <div class="layout"><aside class="env-rail" id="store-panel"></aside>
     <div class="main-col container">
       <div class="intro">
         <strong>This flow:</strong> Verifies that a user from Client A cannot see or access Client B's
@@ -64,7 +64,7 @@
         <div class="step-request">export OTHER_INST_ID="...paste id..."</div>
         <button class="run-btn" onclick='
           const otherId = prompt("Paste the test-school institution ID:");
-          if (otherId) { STORE.OTHER_INST_ID = otherId; saveStore(); renderStorePanel("store-panel"); alert("Saved OTHER_INST_ID"); }
+          if (otherId) { STORE.OTHER_INST_ID = otherId; saveStore(); injectEnvRail(); alert("Saved OTHER_INST_ID"); }
         '>Set OTHER_INST_ID</button>
         <button class="run-btn" onclick='runStep({
           method: "GET",
@@ -109,9 +109,9 @@
         </ul>
       </div>
     </div>
-    <div><div class="store-panel" id="store-panel"></div></div>
+    
   </div>
   <script src="shared.js"></script>
-  <script>renderStorePanel("store-panel");</script>
+  <script>injectEnvRail();</script>
 </body>
 </html>

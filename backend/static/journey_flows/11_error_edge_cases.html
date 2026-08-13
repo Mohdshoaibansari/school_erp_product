@@ -10,7 +10,7 @@
     <h1>Flow 11 — Error / Edge Cases Cross-Cutting</h1>
     <a class="back-link" href="index.html">← Back to all flows</a>
   </div>
-  <div class="layout">
+  <div class="layout"><aside class="env-rail" id="store-panel"></aside>
     <div class="main-col container">
       <div class="intro">
         <strong>This flow:</strong> Verifies the system correctly rejects invalid input, expired/invalid
@@ -157,9 +157,9 @@
         invalid input with appropriate HTTP status codes and meaningful error messages.
       </div>
     </div>
-    <div><div class="store-panel" id="store-panel"></div></div>
+    
   </div>
   <script src="shared.js"></script>
-  <script>renderStorePanel("store-panel");</script>
+  <script>injectEnvRail();</script>
 </body>
 </html>

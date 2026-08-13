@@ -10,7 +10,7 @@
     <h1>Flow 15 — Auth Lifecycle Journey</h1>
     <a class="back-link" href="index.html">← Back to all flows</a>
   </div>
-  <div class="layout">
+  <div class="layout"><aside class="env-rail" id="store-panel"></aside>
     <div class="main-col container">
       <div class="intro">
         <strong>This flow:</strong> Exercises all remaining C-03 Authentication endpoints not covered by
@@ -302,9 +302,9 @@ body: { "email":"activate-me@$INST_EMAIL_DOMAIN", "password":"Activate@123" }</d
         </div>
       </div>
     </div>
-    <div><div class="store-panel" id="store-panel"></div></div>
+    
   </div>
   <script src="shared.js"></script>
-  <script>renderStorePanel("store-panel");</script>
+  <script>injectEnvRail();</script>
 </body>
 </html>

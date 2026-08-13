@@ -10,7 +10,7 @@
     <h1>Flow 16 — User Profile & Identifiers Journey</h1>
     <a class="back-link" href="index.html">← Back to all flows</a>
   </div>
-  <div class="layout">
+  <div class="layout"><aside class="env-rail" id="store-panel"></aside>
     <div class="main-col container">
       <div class="intro">
         <strong>This flow:</strong> Client Director manages a student's profile (create, read, update)
@@ -246,9 +246,9 @@ body: { "type":"hack", "value":"fake-id" }</div>
         Stored: <code>PROFILE_ID</code>, <code>IDENTIFIER_1_ID</code>.
       </div>
     </div>
-    <div><div class="store-panel" id="store-panel"></div></div>
+    
   </div>
   <script src="shared.js"></script>
-  <script>renderStorePanel("store-panel");</script>
+  <script>injectEnvRail();</script>
 </body>
 </html>

@@ -11,7 +11,7 @@
     <a class="back-link" href="index.html">← Back to all flows</a>
   </div>
 
-  <div class="layout">
+  <div class="layout"><aside class="env-rail" id="store-panel"></aside>
     <div class="main-col container">
 
       <div class="intro">
@@ -122,7 +122,7 @@ body: { "new_state":"active", "reason":"Onboarding approved" }</div>
           if (STORE.CLIENT_ID) {
             document.getElementById("result-4b").innerHTML =
               "<div style=\"color:#0a0;font-weight:bold;\">✓ CLIENT_ID already set: " + STORE.CLIENT_ID + "</div>";
-            renderStorePanel("store-panel");
+            injectEnvRail();
             return;
           }
           runStep({
@@ -198,7 +198,7 @@ body: {
             document.getElementById("result-6").innerHTML =
               "<div style=\"color:#0a0;font-weight:bold;\">✓ extracted INVITE_TOKEN (length: " + (STORE.INVITE_TOKEN ? STORE.INVITE_TOKEN.length : 0) + ")</div>" +
               "<pre style=\"background:#f5f5f5;padding:8px;border-radius:4px;overflow:auto;max-height:80px;font-size:11px;\">" + (STORE.INVITE_TOKEN || "").substring(0, 80) + "...</pre>";
-            renderStorePanel("store-panel");
+            injectEnvRail();
           }
         '>Extract Token</button>
         <div class="result" id="result-6"></div>
@@ -274,7 +274,7 @@ body: { "email":"$DIRECTOR_EMAIL", "password":"$DIRECTOR_PASSWORD" }</div>
       STORE.SUPABASE_URL = "https://ripscmqvzkipsqtmfdry.supabase.co";
       saveStore();
     }
-    renderStorePanel("store-panel");
+    injectEnvRail();
   </script>
 </body>
 </html>

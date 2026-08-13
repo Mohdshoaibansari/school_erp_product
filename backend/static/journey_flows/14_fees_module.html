@@ -10,7 +10,7 @@
     <h1>Flow 14 — Fees Module Journey</h1>
     <a class="back-link" href="index.html">← Back to all flows</a>
   </div>
-  <div class="layout">
+  <div class="layout"><aside class="env-rail" id="store-panel"></aside>
     <div class="main-col container">
       <div class="intro">
         <strong>This flow:</strong> Client Director logs in → creates fee types → assigns fees to students →
@@ -334,9 +334,9 @@ Authorization: Bearer $STUDENT_TOKEN</div>
         <code>TUITION_ASSIGNMENT_ID</code>, <code>SPORTS_ASSIGNMENT_ID</code>, <code>PAYMENT_ID</code>.
       </div>
     </div>
-    <div><div class="store-panel" id="store-panel"></div></div>
+    
   </div>
   <script src="shared.js"></script>
-  <script>renderStorePanel("store-panel");</script>
+  <script>injectEnvRail();</script>
 </body>
 </html>

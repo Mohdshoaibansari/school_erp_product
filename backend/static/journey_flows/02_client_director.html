@@ -10,7 +10,7 @@
     <h1>Flow 2 — Client Director Journey</h1>
     <a class="back-link" href="index.html">← Back to all flows</a>
   </div>
-  <div class="layout">
+  <div class="layout"><aside class="env-rail" id="store-panel"></aside>
     <div class="main-col container">
       <div class="intro">
         <strong>This flow:</strong> Client Director logs in → creates institution → activates it →
@@ -137,7 +137,7 @@
             saveStore();
             document.getElementById("result-7a").innerHTML =
               "<div style=\"color:#0a0;\">✓ extracted ADMIN_INVITE_TOKEN (len: " + (STORE.ADMIN_INVITE_TOKEN||"").length + ")</div>";
-            renderStorePanel("store-panel");
+            injectEnvRail();
           }
         '>Step 7a — Extract Token</button>
         <div class="result" id="result-7a"></div>
@@ -189,7 +189,7 @@
             saveStore();
             document.getElementById("result-9b").innerHTML =
               "<div style=\"color:#0a0;\">✓ extracted TEACHER_INVITE_TOKEN</div>";
-            renderStorePanel("store-panel");
+            injectEnvRail();
           }
         '>Step 9b — Extract Token</button>
         <div class="result" id="result-9b"></div>
@@ -239,7 +239,7 @@
             saveStore();
             document.getElementById("result-11b").innerHTML =
               "<div style=\"color:#0a0;\">✓ extracted STUDENT_INVITE_TOKEN</div>";
-            renderStorePanel("store-panel");
+            injectEnvRail();
           }
         '>Step 11b — Extract Token</button>
         <div class="result" id="result-11b"></div>
@@ -278,12 +278,12 @@
         <a href="05_student.html">Flow 5 — Student</a>.
       </div>
     </div>
-    <div><div class="store-panel" id="store-panel"></div></div>
+    
   </div>
   <script src="shared.js"></script>
   <script>
     if (!STORE.INST_TYPE_CODE) { STORE.INST_TYPE_CODE = "TEST"; saveStore(); }
-    renderStorePanel("store-panel");
+    injectEnvRail();
   </script>
 </body>
 </html>

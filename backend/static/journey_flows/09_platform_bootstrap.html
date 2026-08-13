@@ -10,7 +10,7 @@
     <h1>Flow 9 — Platform Bootstrap (Full E2E)</h1>
     <a class="back-link" href="index.html">← Back to all flows</a>
   </div>
-  <div class="layout">
+  <div class="layout"><aside class="env-rail" id="store-panel"></aside>
     <div class="main-col container">
       <div class="intro">
         <strong>This flow:</strong> Combines Flow 1 + Flow 2 into a single end-to-end bootstrap
@@ -111,7 +111,7 @@ body: { "email":"director@sunrise.edu", "name":"Sunrise Director",
             saveStore();
             document.getElementById("result-5a").innerHTML =
               "<div style=\"color:#0a0;\">✓ extracted token (len: " + (STORE.BOOT_INVITE_TOKEN||"").length + ")</div>";
-            renderStorePanel("store-panel");
+            injectEnvRail();
           }
         '>Step 5a — Extract Token</button>
         <div class="result" id="result-5a"></div>
@@ -196,7 +196,7 @@ body: { "email":"director@sunrise.edu", "name":"Sunrise Director",
             saveStore();
             document.getElementById("result-9c").innerHTML =
               "<div style=\"color:#0a0;\">✓ extracted BOOT_ADMIN_INVITE_TOKEN</div>";
-            renderStorePanel("store-panel");
+            injectEnvRail();
           }
         '>Step 9c — Extract Token</button>
         <div class="result" id="result-9c"></div>
@@ -230,12 +230,12 @@ body: { "email":"director@sunrise.edu", "name":"Sunrise Director",
         Sunrise International is now fully operational. Use the BOOT_* env vars to continue testing flows for this client.
       </div>
     </div>
-    <div><div class="store-panel" id="store-panel"></div></div>
+    
   </div>
   <script src="shared.js"></script>
   <script>
     if (!STORE.INST_TYPE_CODE) { STORE.INST_TYPE_CODE = "TEST"; saveStore(); }
-    renderStorePanel("store-panel");
+    injectEnvRail();
   </script>
 </body>
 </html>

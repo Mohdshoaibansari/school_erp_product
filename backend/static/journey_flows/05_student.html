@@ -10,7 +10,7 @@
     <h1>Flow 5 — Student Journey</h1>
     <a class="back-link" href="index.html">← Back to all flows</a>
   </div>
-  <div class="layout">
+  <div class="layout"><aside class="env-rail" id="store-panel"></aside>
     <div class="main-col container">
       <div class="intro">
         <strong>This flow:</strong> Student logs in → views active homeworks → submits homework →
@@ -110,9 +110,9 @@
         ✅ <strong>Flow 5 complete.</strong> Student can view homeworks, submit, and view grades — but cannot create homework.
       </div>
     </div>
-    <div><div class="store-panel" id="store-panel"></div></div>
+    
   </div>
   <script src="shared.js"></script>
-  <script>renderStorePanel("store-panel");</script>
+  <script>injectEnvRail();</script>
 </body>
 </html>

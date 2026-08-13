@@ -11,7 +11,7 @@
     <a class="back-link" href="index.html">← Back to all flows</a>
   </div>
 
-  <div class="layout">
+  <div class="layout"><aside class="env-rail" id="store-panel"></aside>
     <div class="main-col container">
 
       <div class="intro">
@@ -610,7 +610,7 @@ Authorization: Bearer $PLATFORM_TOKEN</div>
     // Change CD_CLIENT_SLUG / CD_INST_NAME in the env panel to point at a different chain.
     if (!STORE.CD_CLIENT_SLUG) { STORE.CD_CLIENT_SLUG = "meerutpublic"; saveStore(); }
     if (!STORE.CD_INST_NAME)   { STORE.CD_INST_NAME   = "Test Inst";       saveStore(); }
-    renderStorePanel("store-panel");
+    injectEnvRail();
   </script>
 </body>
 </html>

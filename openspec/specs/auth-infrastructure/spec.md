@@ -1,14 +1,8 @@
-# auth-infrastructure — Delta Spec (C-02 User Creation & Activation)
+# auth-infrastructure Specification
 
-> **Change:** `add-c02-user-creation-activation`
-> **Domain:** Kernel / Auth Infrastructure (spanning `supabase_client.py`, middleware, session plumbing)
-> **Delta type:** MODIFIED (bug fixes to existing infrastructure; no prior OpenSpec spec exists for this domain)
-> **Source ADR:** `docs/architecture/adr-c02-identity-user-management-implementation.md` D5
-
----
-
-## MODIFIED Requirements
-
+## Purpose
+TBD - created by archiving change add-c02-user-creation-activation. Update Purpose after archive.
+## Requirements
 ### Requirement: update_user accepts user_metadata parameter
 
 `SupabaseAuthClientImpl.update_user()` (the concrete implementation at `supabase_client.py` line ~253) SHALL accept `user_metadata: dict | None = None` as a keyword-only parameter. The method body already references `user_metadata` at line ~270–271 (`if user_metadata is not None: update_data["user_metadata"] = user_metadata`); adding the parameter to the signature resolves the `NameError`. The abstract base class `SupabaseAuthClient` already declares this parameter in its interface. Per D5.
@@ -78,3 +72,4 @@ The test infrastructure at `tests/conftest.py` line 142 (which currently sets `S
 - **THEN** tests SHALL NOT rely on `conftest.py` line 142 to set RLS variables globally
 - **AND** each test SHALL set only the RLS context it needs (e.g., platform owner, client director, institution user)
 - **AND** the test suite SHALL pass (no regressions)
+

@@ -1,14 +1,8 @@
-# authentication — Delta Spec (C-02 User Creation & Activation)
+# authentication Specification
 
-> **Change:** `add-c02-user-creation-activation`
-> **Domain:** C-03 Authentication
-> **Delta type:** MODIFIED (behavioral change to existing `/api/auth/activate` endpoint; no prior OpenSpec spec exists for this domain)
-> **Source ADR:** `docs/architecture/adr-c02-identity-user-management-implementation.md` D1, D4
-
----
-
-## MODIFIED Requirements
-
+## Purpose
+TBD - created by archiving change add-c02-user-creation-activation. Update Purpose after archive.
+## Requirements
 ### Requirement: Unified activation for both user tiers
 
 `POST /api/auth/activate` SHALL handle both `client_user` and `app_user` tables. It SHALL first look up the user by UUID in `app_user`, and if not found, fall back to `client_user`. The lookup SHALL use `session.get()` (by primary key) for both tables, bypassing tenant filters since the activate endpoint operates without a resolved subdomain. Per D1.
@@ -78,3 +72,4 @@ The response from `POST /api/auth/activate` SHALL be `{message, user_id, user_ti
 - **GIVEN** an invite JWT that is expired or has been tampered with
 - **WHEN** `POST /api/auth/activate` is called
 - **THEN** the response SHALL be `400 Invalid invite token`
+

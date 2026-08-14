@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 20 — Staff</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 20 — Staff Journey</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+  <div class="layout"><aside class="env-rail" id="store-panel"></aside>
+    <div class="main-col container">
+      <div class="intro">
+        <strong>This flow:</strong> Staff logs in → lists users → manages own profile → reads fees →
+        tests permission boundaries.
+      </div>
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Run Flow 2 first. Stored vars required:
+        <code>CLIENT_SLUG</code>, <code>INST_ID</code>, <code>STAFF_EMAIL</code>, <code>STAFF_PASSWORD</code>, <code>STAFF_ID</code>.
+      </div>
+
+      <h2>Login</h2>
+
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">Login as Staff</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG"], "result-1")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email":"$STAFF_EMAIL", "password":"$STAFF_PASSWORD" }),
+          extractions: [{ var: "STAFF_TOKEN", path: "access_token" }]
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+      </div>
+
+      <h2>User Management (Read-only)</h2>
+
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">List Users</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/users",
+          headers: { "Authorization": "Bearer $STAFF_TOKEN" },
+          extractions: []
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+      </div>
+
+      <h2>Profile Management (Self)</h2>
+
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">Read Own Profile</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["STAFF_ID"], "result-3")) return; runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/users/$STAFF_ID/profile",
+          headers: { "Authorization": "Bearer $STAFF_TOKEN" },
+          extractions: []
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">Update Own Profile</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["STAFF_ID"], "result-4")) return; runStep({
+          method: "PATCH",
+          url: "http://127.0.0.1:8001/api/v1/users/$STAFF_ID/profile",
+          headers: { "Authorization": "Bearer $STAFF_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "blood_group":"O+" }),
+          extractions: []
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+      </div>
+
+      <h2>Read-Only Access</h2>
+
+      <div class="step">
+        <div><span class="step-num">5</span><span class="step-title">Read Fee Assignments</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/fee-assignments",
+          headers: { "Authorization": "Bearer $STAFF_TOKEN" },
+          extractions: []
+        }, "result-5")'>Run Step 5</button>
+        <div class="result" id="result-5"></div>
+      </div>
+
+      <h2>Failure Scenarios</h2>
+
+      <div class="step">
+        <div><span class="step-num">6</span><span class="step-title">Staff tries to create user (should FAIL)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/users",
+          headers: { "Authorization": "Bearer $STAFF_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "email":"test@test.com", "name":"Test", "user_category_id":"$LOOKUP.user-categories.Academic Staff", "institution_id":"$INST_ID" }),
+          extractions: []
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+        <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Staff has <code>user.read/update</code> but NOT <code>user.create</code>.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">7</span><span class="step-title">Staff tries to create homework (should FAIL)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/homeworks",
+          headers: { "Authorization": "Bearer $STAFF_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "title":"Test", "institution_id":"$INST_ID", "subject":"Math", "grade_level":"Grade 5", "due_date":"2026-09-15" }),
+          extractions: []
+        }, "result-7")'>Run Step 7</button>
+        <div class="result" id="result-7"></div>
+        <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Staff has no <code>homework.*</code> permissions.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">8</span><span class="step-title">Staff tries to manage org units (should FAIL)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/org-units",
+          headers: { "Authorization": "Bearer $STAFF_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "institution_id":"$INST_ID", "name":"Test", "type_id":"$ORG_TYPE_DEPARTMENT_ID" }),
+          extractions: []
+        }, "result-8")'>Run Step 8</button>
+        <div class="result" id="result-8"></div>
+        <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Staff has no <code>org_unit.*</code> permissions.</div>
+      </div>
+
+      <div class="flow-end">
+        ✅ <strong>Flow 20 complete.</strong> Staff can list users, manage own profile, and read fees. Cannot create users, homework, or org units.
+      </div>
+    </div>
+  </div>
+  <script src="shared.js"></script>
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 21 — Cross-institution</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 21 — Cross-institution Role</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+  <div class="layout"><aside class="env-rail" id="store-panel"></aside>
+    <div class="main-col container">
+      <div class="intro">
+        <strong>This flow:</strong> Cross-institution role (e.g., Regional Manager) logs in → reads client info →
+        lists institutions across the client → reads org units → tests permission boundaries.
+      </div>
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Run Flow 2 first. Stored vars required:
+        <code>CLIENT_SLUG</code>, <code>CLIENT_ID</code>, <code>INST_ID</code>, <code>CROSS_INST_EMAIL</code>, <code>CROSS_INST_PASSWORD</code>.
+      </div>
+
+      <h2>Login</h2>
+
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">Login as Cross-institution Role</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG"], "result-1")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email":"$CROSS_INST_EMAIL", "password":"$CROSS_INST_PASSWORD" }),
+          extractions: [{ var: "CROSS_INST_TOKEN", path: "access_token" }]
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+      </div>
+
+      <h2>Read-Only Access</h2>
+
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">Read Client Info</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_ID"], "result-2")) return; runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/clients/$CLIENT_ID",
+          headers: { "Authorization": "Bearer $CROSS_INST_TOKEN" },
+          extractions: []
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">List Institutions (cross-institution view)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/institutions?cross_institution=true",
+          headers: { "Authorization": "Bearer $CROSS_INST_TOKEN" },
+          extractions: []
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">Read Institution</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["INST_ID"], "result-4")) return; runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/institutions/$INST_ID",
+          headers: { "Authorization": "Bearer $CROSS_INST_TOKEN" },
+          extractions: []
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">5</span><span class="step-title">List Org Units</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["INST_ID"], "result-5")) return; runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/org-units?institution_id=$INST_ID&cross_institution=true",
+          headers: { "Authorization": "Bearer $CROSS_INST_TOKEN" },
+          extractions: []
+        }, "result-5")'>Run Step 5</button>
+        <div class="result" id="result-5"></div>
+      </div>
+
+      <h2>Failure Scenarios</h2>
+
+      <div class="step">
+        <div><span class="step-num">6</span><span class="step-title">Cross-institution tries to create institution (should FAIL)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/institutions",
+          headers: { "Authorization": "Bearer $CROSS_INST_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "display_name":"Test", "institution_type_id":"$INST_TYPE_ID" }),
+          extractions: []
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+        <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Cross-institution has only read permissions.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">7</span><span class="step-title">Cross-institution tries to update institution (should FAIL)</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["INST_ID"], "result-7")) return; runStep({
+          method: "PATCH",
+          url: "http://127.0.0.1:8001/api/v1/institutions/$INST_ID",
+          headers: { "Authorization": "Bearer $CROSS_INST_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "display_name":"Hacked" }),
+          extractions: []
+        }, "result-7")'>Run Step 7</button>
+        <div class="result" id="result-7"></div>
+        <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Cross-institution has no <code>institution.update</code>.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">8</span><span class="step-title">Cross-institution tries to create user (should FAIL)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/users",
+          headers: { "Authorization": "Bearer $CROSS_INST_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "email":"test@test.com", "name":"Test", "user_category_id":"$LOOKUP.user-categories.Academic Staff", "institution_id":"$INST_ID" }),
+          extractions: []
+        }, "result-8")'>Run Step 8</button>
+        <div class="result" id="result-8"></div>
+        <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Cross-institution has no <code>user.*</code> permissions.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">9</span><span class="step-title">Cross-institution tries to manage org units (should FAIL)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/org-units",
+          headers: { "Authorization": "Bearer $CROSS_INST_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "institution_id":"$INST_ID", "name":"Test", "type_id":"$ORG_TYPE_DEPARTMENT_ID" }),
+          extractions: []
+        }, "result-9")'>Run Step 9</button>
+        <div class="result" id="result-9"></div>
+        <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Cross-institution has no <code>org_unit.create</code>.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">10</span><span class="step-title">Cross-institution tries to manage fees (should FAIL)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/fee-types",
+          headers: { "Authorization": "Bearer $CROSS_INST_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "name":"Test Fee", "default_amount":100, "institution_id":"$INST_ID" }),
+          extractions: []
+        }, "result-10")'>Run Step 10</button>
+        <div class="result" id="result-10"></div>
+        <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Cross-institution has no <code>fee.*</code> permissions.</div>
+      </div>
+
+      <div class="flow-end">
+        ✅ <strong>Flow 21 complete.</strong> Cross-institution role can read clients, institutions, and org units across the client. Cannot create or modify any data.
+      </div>
+    </div>
+  </div>
+  <script src="shared.js"></script>
+</body>
+</html>

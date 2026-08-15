@@ -4,10 +4,10 @@
 > **Version:** 1.0
 > **Last Updated:** 2026-08-03
 > **Author:** Architecture (collaborative grill-me session)
-> **Source:** [platform-capabilities-v3.md](../../Shared_Platform_Capabilities_v3.md) §C-02, §C-03; [architecture-v1.md](../architecture-v1.md); [c-01 ADR](../architecture/adr-c01-tenant-institution-implementation.md); [client-user-bootstrap PRD](../../prd/client-user-bootstrap.md); grill-me session 2026-08-03
+> **Source:** [platform-capabilities-v3.md](../platform-capabilities/platform-capabilities-v3.md) §C-02, §C-03; [architecture-v1.md](../reference/architecture-v1.md); [c-01 ADR](../architecture/adr-c01-tenant-institution-implementation.md); [client-user-bootstrap PRD](../../prd/client-user-bootstrap.md); grill-me session 2026-08-03
 > **Purpose:** Capture the 5 implementation-level decisions for the unified user-creation-and-activation flow across both Client Director (client_user table) and institution-scoped users (app_user table). These decisions close gaps left by the existing bootstrap PRD and unify the two currently-disconnected creation-plus-activation paths.
 > **Cross-References:**
-> - [Platform Capabilities v3](../../Shared_Platform_Capabilities_v3.md) §C-02 (Identity & User Management), §C-03 (Authentication)
+> - [Platform Capabilities v3](../platform-capabilities/platform-capabilities-v3.md) §C-02 (Identity & User Management), §C-03 (Authentication)
 > - [Architecture v1](../architecture-v1.md) §3, §5.3
 > - [C-01 ADR](../architecture/adr-c01-tenant-institution-implementation.md) — tenant isolation, two-tier model
 > - [Client User Bootstrap PRD](../../prd/client-user-bootstrap.md) — D1-D14 for client_user bootstrap

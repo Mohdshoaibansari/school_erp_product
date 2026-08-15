@@ -8,7 +8,7 @@
 > **Derived From:**  
 > - `Functional_Requirement.md` — Full capability catalog  
 > - `School_ERP_Architecture_v1.md` — Architecture principles & decisions  
-> - `Shared_Platform_Capabilities.md` — Initial capability definitions  
+> - `docs/reference/shared-platform-capabilities-v1.md` — Initial capability definitions  
 > - `StartUp_Strategy.md` — Phased delivery philosophy  
 > - Gap analysis against real-world School ERP requirements  
 >

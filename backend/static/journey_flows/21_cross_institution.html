@@ -30,7 +30,8 @@
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
           body: JSON.stringify({ "email":"$CROSS_INST_EMAIL", "password":"$CROSS_INST_PASSWORD" }),
-          extractions: [{ var: "CROSS_INST_TOKEN", path: "access_token" }]
+          extractions: [{ var: "CROSS_INST_TOKEN", path: "access_token" }],
+          fetchLookups: ["institution-types", "org-unit-types"]
         }, "result-1")'>Run Step 1</button>
         <div class="result" id="result-1"></div>
       </div>
@@ -89,7 +90,7 @@
           method: "POST",
           url: "http://127.0.0.1:8001/api/v1/institutions",
           headers: { "Authorization": "Bearer $CROSS_INST_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "display_name":"Test", "institution_type_id":"$INST_TYPE_ID" }),
+          body: JSON.stringify({ "display_name":"Test", "institution_type_id":"$LOOKUP.institution-types.0.id" }),
           extractions: []
         }, "result-6")'>Run Step 6</button>
         <div class="result" id="result-6"></div>
@@ -128,7 +129,7 @@
           method: "POST",
           url: "http://127.0.0.1:8001/api/v1/org-units",
           headers: { "Authorization": "Bearer $CROSS_INST_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "institution_id":"$INST_ID", "name":"Test", "type_id":"$ORG_TYPE_DEPARTMENT_ID" }),
+          body: JSON.stringify({ "institution_id":"$INST_ID", "name":"Test", "type_id":"$LOOKUP.org-unit-types.Department" }),
           extractions: []
         }, "result-9")'>Run Step 9</button>
         <div class="result" id="result-9"></div>
@@ -154,5 +155,6 @@
     </div>
   </div>
   <script src="shared.js"></script>
+  <script>injectEnvRail();</script>
 </body>
 </html>

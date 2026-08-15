@@ -18,7 +18,7 @@
       </div>
       <div class="prereq">
         <strong>Prerequisites:</strong> Run Flow 2 first. Stored vars required:
-        <code>CLIENT_SLUG</code>, <code>INST_ID</code>, <code>PRINCIPAL_EMAIL</code>, <code>PRINCIPAL_PASSWORD</code>.
+        <code>CLIENT_SLUG</code>, <code>INST_ID</code>, <code>STUDENT_ID</code>, <code>PRINCIPAL_EMAIL</code>, <code>PRINCIPAL_PASSWORD</code>.
       </div>
 
       <h2>Login</h2>
@@ -30,7 +30,8 @@
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
           body: JSON.stringify({ "email":"$PRINCIPAL_EMAIL", "password":"$PRINCIPAL_PASSWORD" }),
-          extractions: [{ var: "PRINCIPAL_TOKEN", path: "access_token" }]
+          extractions: [{ var: "PRINCIPAL_TOKEN", path: "access_token" }],
+          fetchLookups: ["org-unit-types"]
         }, "result-1")'>Run Step 1</button>
         <div class="result" id="result-1"></div>
       </div>
@@ -82,7 +83,7 @@
           body: JSON.stringify({
             "institution_id":"$INST_ID",
             "name":"Administrative Wing",
-            "type_id":"$ORG_TYPE_DEPARTMENT_ID",
+            "type_id":"$LOOKUP.org-unit-types.Department",
             "sort_order":3
           }),
           extractions: [{ var: "ADMIN_WING_ID", path: "id" }]
@@ -161,5 +162,6 @@
     </div>
   </div>
   <script src="shared.js"></script>
+  <script>injectEnvRail();</script>
 </body>
 </html>

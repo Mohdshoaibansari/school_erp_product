@@ -30,7 +30,8 @@
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
           body: JSON.stringify({ "email":"$STAFF_EMAIL", "password":"$STAFF_PASSWORD" }),
-          extractions: [{ var: "STAFF_TOKEN", path: "access_token" }]
+          extractions: [{ var: "STAFF_TOKEN", path: "access_token" }],
+          fetchLookups: ["user-categories", "org-unit-types"]
         }, "result-1")'>Run Step 1</button>
         <div class="result" id="result-1"></div>
       </div>
@@ -120,7 +121,7 @@
           method: "POST",
           url: "http://127.0.0.1:8001/api/v1/org-units",
           headers: { "Authorization": "Bearer $STAFF_TOKEN", "Content-Type": "application/json" },
-          body: JSON.stringify({ "institution_id":"$INST_ID", "name":"Test", "type_id":"$ORG_TYPE_DEPARTMENT_ID" }),
+          body: JSON.stringify({ "institution_id":"$INST_ID", "name":"Test", "type_id":"$LOOKUP.org-unit-types.Department" }),
           extractions: []
         }, "result-8")'>Run Step 8</button>
         <div class="result" id="result-8"></div>
@@ -133,5 +134,6 @@
     </div>
   </div>
   <script src="shared.js"></script>
+  <script>injectEnvRail();</script>
 </body>
 </html>

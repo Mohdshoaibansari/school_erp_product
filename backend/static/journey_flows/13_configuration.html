@@ -37,12 +37,12 @@
         <div><span class="step-num">1</span><span class="step-title">Login as Platform Owner</span></div>
         <div class="step-desc">No Host header — platform owner is client-independent.</div>
         <div class="step-request">POST /api/auth/login
-body: { "email":"admin@school-erp.com", "password":"Shoby@123" }</div>
+body: { "email":"$PLATFORM_EMAIL", "password":"$PLATFORM_PASSWORD" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ "email":"admin@school-erp.com", "password":"Shoby@123" }),
+          body: JSON.stringify({ "email":"$PLATFORM_EMAIL", "password":"$PLATFORM_PASSWORD" }),
           extractions: [
             { var: "PLATFORM_TOKEN", path: "access_token" }
           ]
@@ -177,20 +177,20 @@ Authorization: Bearer $PLATFORM_TOKEN</div>
         <div><span class="step-num">7</span><span class="step-title">Login as Client Director</span></div>
         <div class="step-desc">Client Director manages all institutions under their client. Uses Host header for tenant resolution.</div>
         <div class="step-request">POST /api/auth/login
-body: { "email":"shoby.ansari586@gmail.com", "password":"Admin@123" }
-Host: meerutpublic.localhost</div>
+body: { "email":"$DIRECTOR_EMAIL", "password":"$DIRECTOR_PASSWORD" }
+Host: $CLIENT_SLUG.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
-          headers: { "Content-Type": "application/json", "Host": "meerutpublic.localhost" },
-          body: JSON.stringify({ "email":"shoby.ansari586@gmail.com", "password":"Admin@123" }),
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email":"$DIRECTOR_EMAIL", "password":"$DIRECTOR_PASSWORD" }),
           extractions: [
-            { var: "CD_TOKEN", path: "access_token" },
-            { var: "CD_USER_ID", path: "user.id" }
+            { var: "DIRECTOR_TOKEN", path: "access_token" },
+            { var: "DIRECTOR_USER_ID", path: "user.id" }
           ]
         }, "result-7")'>Run Step 7</button>
         <div class="result" id="result-7"></div>
-        <div class="note">After this, use $CD_TOKEN with Host: meerutpublic.localhost for Client Director actions.</div>
+        <div class="note">After this, use $DIRECTOR_TOKEN with Host: $CLIENT_SLUG.localhost for Client Director actions.</div>
       </div>
 
       <!-- Step 8 -->
@@ -198,18 +198,18 @@ Host: meerutpublic.localhost</div>
         <div><span class="step-num">8</span><span class="step-title">Get the client ID for the school chain</span></div>
         <div class="step-desc">Client Director needs the client_id to set client-scope overrides.</div>
         <div class="step-request">GET /api/v1/platform/clients
-Authorization: Bearer $CD_TOKEN
-Host: meerutpublic.localhost</div>
+Authorization: Bearer $DIRECTOR_TOKEN
+Host: $CLIENT_SLUG.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
           url: "http://127.0.0.1:8001/api/v1/platform/clients",
-          headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Host": "$CLIENT_SLUG.localhost" },
           extractions: [
-            { var: "CLIENT_ID", path: "[slug=$CD_CLIENT_SLUG].id" }
+            { var: "CLIENT_ID", path: "[slug=$CLIENT_SLUG].id" }
           ]
         }, "result-8")'>Run Step 8</button>
         <div class="result" id="result-8"></div>
-        <div class="note">Filters by <code>CD_CLIENT_SLUG</code> env var (default: <code>meerutpublic</code>). Change in the env panel to point at a different client.</div>
+        <div class="note">Filters by <code>CLIENT_SLUG</code> env var.</div>
       </div>
 
       <!-- Step 9 -->
@@ -217,14 +217,14 @@ Host: meerutpublic.localhost</div>
         <div><span class="step-num">9</span><span class="step-title">Get an institution ID for the school</span></div>
         <div class="step-desc">Client Director lists institutions to get an institution_id for overrides.</div>
         <div class="step-request">GET /api/v1/institutions
-Authorization: Bearer $CD_TOKEN
-Host: meerutpublic.localhost</div>
+Authorization: Bearer $DIRECTOR_TOKEN
+Host: $CLIENT_SLUG.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
           url: "http://127.0.0.1:8001/api/v1/institutions",
-          headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Host": "$CLIENT_SLUG.localhost" },
           extractions: [
-            { var: "INST_ID", path: "[display_name=$CD_INST_NAME].id" }
+            { var: "INST_ID", path: "[name=$INST_NAME].id" }
           ]
         }, "result-9")'>Run Step 9</button>
         <div class="result" id="result-9"></div>
@@ -236,12 +236,12 @@ Host: meerutpublic.localhost</div>
         <div class="step-desc">Client Director wants all schools in the chain to have ["present","absent","half_day","leave"].<br>
         Uses append_lists merge — adds to the platform default.</div>
         <div class="step-request">GET /api/v1/config/keys?key=attendance.statuses
-Authorization: Bearer $CD_TOKEN
-Host: meerutpublic.localhost</div>
+Authorization: Bearer $DIRECTOR_TOKEN
+Host: $CLIENT_SLUG.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
           url: "http://127.0.0.1:8001/api/v1/config/keys?key=attendance.statuses",
-          headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Host": "$CLIENT_SLUG.localhost" },
           extractions: [
             { var: "ATT_KEY_ID", path: "items.0.id" }
           ]
@@ -249,13 +249,13 @@ Host: meerutpublic.localhost</div>
         <div class="result" id="result-10a"></div>
 
         <div class="step-request">POST /api/v1/config/values
-Authorization: Bearer $CD_TOKEN
-Host: meerutpublic.localhost
+Authorization: Bearer $DIRECTOR_TOKEN
+Host: $CLIENT_SLUG.localhost
 body: { "key_id":"$ATT_KEY_ID", "scope_type":"client", "scope_id":"$CLIENT_ID", "value":["half_day","leave"] }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/v1/config/values",
-          headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost", "Content-Type": "application/json" },
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Host": "$CLIENT_SLUG.localhost", "Content-Type": "application/json" },
           body: JSON.stringify({ "key_id": "$ATT_KEY_ID", "scope_type": "client", "scope_id": "$CLIENT_ID", "value": ["half_day","leave"] }),
           extractions: [
             { var: "CLIENT_ATT_VALUE_ID", path: "id" }
@@ -270,13 +270,13 @@ body: { "key_id":"$ATT_KEY_ID", "scope_type":"client", "scope_id":"$CLIENT_ID", 
         <div><span class="step-num">11</span><span class="step-title">Override homework.lateSubmissionPolicy = "late" for the chain</span></div>
         <div class="step-desc">Client Director wants all schools to mark late submissions as "late" (not just "submitted").</div>
         <div class="step-request">POST /api/v1/config/values
-Authorization: Bearer $CD_TOKEN
-Host: meerutpublic.localhost
+Authorization: Bearer $DIRECTOR_TOKEN
+Host: $CLIENT_SLUG.localhost
 body: { "key_id":"$LATE_POLICY_KEY_ID", "scope_type":"client", "scope_id":"$CLIENT_ID", "value":"late" }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/v1/config/values",
-          headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost", "Content-Type": "application/json" },
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Host": "$CLIENT_SLUG.localhost", "Content-Type": "application/json" },
           body: JSON.stringify({ "key_id": "$LATE_POLICY_KEY_ID", "scope_type": "client", "scope_id": "$CLIENT_ID", "value": "late" }),
           extractions: [
             { var: "CLIENT_LATE_POLICY_VALUE_ID", path: "id" }
@@ -291,12 +291,12 @@ body: { "key_id":"$LATE_POLICY_KEY_ID", "scope_type":"client", "scope_id":"$CLIE
         <div><span class="step-num">12</span><span class="step-title">Resolve attendance.statuses for an institution (inherits client)</span></div>
         <div class="step-desc">Resolve for a specific institution — should inherit the client override (append_lists).</div>
         <div class="step-request">GET /api/v1/config/resolve/attendance.statuses?institution_id=$INST_ID&client_id=$CLIENT_ID
-Authorization: Bearer $CD_TOKEN
-Host: meerutpublic.localhost</div>
+Authorization: Bearer $DIRECTOR_TOKEN
+Host: $CLIENT_SLUG.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
           url: "http://127.0.0.1:8001/api/v1/config/resolve/attendance.statuses?institution_id=$INST_ID&client_id=$CLIENT_ID",
-          headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Host": "$CLIENT_SLUG.localhost" },
           extractions: []
         }, "result-12")'>Run Step 12</button>
         <div class="result" id="result-12"></div>
@@ -308,12 +308,12 @@ Host: meerutpublic.localhost</div>
         <div><span class="step-num">13</span><span class="step-title">Resolve homework.lateSubmissionPolicy for an institution</span></div>
         <div class="step-desc">Inherits the client override "late" (not the platform default "submitted").</div>
         <div class="step-request">GET /api/v1/config/resolve/homework.lateSubmissionPolicy?institution_id=$INST_ID&client_id=$CLIENT_ID
-Authorization: Bearer $CD_TOKEN
-Host: meerutpublic.localhost</div>
+Authorization: Bearer $DIRECTOR_TOKEN
+Host: $CLIENT_SLUG.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
           url: "http://127.0.0.1:8001/api/v1/config/resolve/homework.lateSubmissionPolicy?institution_id=$INST_ID&client_id=$CLIENT_ID",
-          headers: { "Authorization": "Bearer $CD_TOKEN", "Host": "meerutpublic.localhost" },
+          headers: { "Authorization": "Bearer $DIRECTOR_TOKEN", "Host": "$CLIENT_SLUG.localhost" },
           extractions: []
         }, "result-13")'>Run Step 13</button>
         <div class="result" id="result-13"></div>
@@ -327,20 +327,21 @@ Host: meerutpublic.localhost</div>
         <div><span class="step-num">14</span><span class="step-title">Login as Institute Admin</span></div>
         <div class="step-desc">Admin of a specific school. Uses Host header for tenant resolution.</div>
         <div class="step-request">POST /api/auth/login
-body: { "email":"admin@test-school.com", "password":"Admin@123" }
-Host: test-school.localhost</div>
+body: { "email":"$ADMIN_EMAIL", "password":"$ADMIN_PASSWORD" }
+Host: $CLIENT_SLUG.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
-          headers: { "Content-Type": "application/json", "Host": "test-school.localhost" },
-          body: JSON.stringify({ "email":"admin@test-school.com", "password":"Admin@123" }),
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email":"$ADMIN_EMAIL", "password":"$ADMIN_PASSWORD" }),
           extractions: [
             { var: "ADMIN_TOKEN", path: "access_token" },
+            { var: "INST_ID", path: "user.institution_id" },
             { var: "ADMIN_INST_ID", path: "user.institution_id" }
           ]
         }, "result-14")'>Run Step 14</button>
         <div class="result" id="result-14"></div>
-        <div class="note">After this, use $ADMIN_TOKEN with Host: test-school.localhost for Institute Admin actions.</div>
+        <div class="note">After this, use $ADMIN_TOKEN with Host: $CLIENT_SLUG.localhost for Institute Admin actions.</div>
       </div>
 
       <!-- Step 15 -->
@@ -350,11 +351,11 @@ Host: test-school.localhost</div>
         Sets closedStatusValues = ["active", "closed"].</div>
         <div class="step-request">GET /api/v1/config/keys?key=homework.closedStatusValues
 Authorization: Bearer $ADMIN_TOKEN
-Host: test-school.localhost</div>
+Host: $CLIENT_SLUG.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
           url: "http://127.0.0.1:8001/api/v1/config/keys?key=homework.closedStatusValues",
-          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "$CLIENT_SLUG.localhost" },
           extractions: [
             { var: "CLOSED_KEY_ID", path: "items.0.id" }
           ]
@@ -363,13 +364,13 @@ Host: test-school.localhost</div>
 
         <div class="step-request">POST /api/v1/config/values
 Authorization: Bearer $ADMIN_TOKEN
-Host: test-school.localhost
-body: { "key_id":"$CLOSED_KEY_ID", "scope_type":"institution", "scope_id":"$ADMIN_INST_ID", "value":["active","closed"] }</div>
+Host: $CLIENT_SLUG.localhost
+body: { "key_id":"$CLOSED_KEY_ID", "scope_type":"institution", "scope_id":"$INST_ID", "value":["active","closed"] }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/v1/config/values",
-          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost", "Content-Type": "application/json" },
-          body: JSON.stringify({ "key_id": "$CLOSED_KEY_ID", "scope_type": "institution", "scope_id": "$ADMIN_INST_ID", "value": ["active","closed"] }),
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "$CLIENT_SLUG.localhost", "Content-Type": "application/json" },
+          body: JSON.stringify({ "key_id": "$CLOSED_KEY_ID", "scope_type": "institution", "scope_id": "$INST_ID", "value": ["active","closed"] }),
           extractions: [
             { var: "INST_CLOSED_VALUE_ID", path: "id" }
           ]
@@ -385,13 +386,13 @@ body: { "key_id":"$CLOSED_KEY_ID", "scope_type":"institution", "scope_id":"$ADMI
         With append_lists: platform ["present","absent"] + client ["half_day","leave"] + institution ["excused"] = all 5.</div>
         <div class="step-request">POST /api/v1/config/values
 Authorization: Bearer $ADMIN_TOKEN
-Host: test-school.localhost
-body: { "key_id":"$ATT_KEY_ID", "scope_type":"institution", "scope_id":"$ADMIN_INST_ID", "value":["excused"] }</div>
+Host: $CLIENT_SLUG.localhost
+body: { "key_id":"$ATT_KEY_ID", "scope_type":"institution", "scope_id":"$INST_ID", "value":["excused"] }</div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/v1/config/values",
-          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost", "Content-Type": "application/json" },
-          body: JSON.stringify({ "key_id": "$ATT_KEY_ID", "scope_type": "institution", "scope_id": "$ADMIN_INST_ID", "value": ["excused"] }),
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "$CLIENT_SLUG.localhost", "Content-Type": "application/json" },
+          body: JSON.stringify({ "key_id": "$ATT_KEY_ID", "scope_type": "institution", "scope_id": "$INST_ID", "value": ["excused"] }),
           extractions: [
             { var: "INST_ATT_VALUE_ID", path: "id" }
           ]
@@ -404,13 +405,13 @@ body: { "key_id":"$ATT_KEY_ID", "scope_type":"institution", "scope_id":"$ADMIN_I
       <div class="step">
         <div><span class="step-num">17</span><span class="step-title">Resolve attendance.statuses for this school (full chain)</span></div>
         <div class="step-desc">Should show all 5 statuses: platform + client + institution merged via append_lists.</div>
-        <div class="step-request">GET /api/v1/config/resolve/attendance.statuses?institution_id=$ADMIN_INST_ID
+        <div class="step-request">GET /api/v1/config/resolve/attendance.statuses?institution_id=$INST_ID
 Authorization: Bearer $ADMIN_TOKEN
-Host: test-school.localhost</div>
+Host: $CLIENT_SLUG.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8001/api/v1/config/resolve/attendance.statuses?institution_id=$ADMIN_INST_ID",
-          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
+          url: "http://127.0.0.1:8001/api/v1/config/resolve/attendance.statuses?institution_id=$INST_ID",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "$CLIENT_SLUG.localhost" },
           extractions: []
         }, "result-17")'>Run Step 17</button>
         <div class="result" id="result-17"></div>
@@ -421,13 +422,13 @@ Host: test-school.localhost</div>
       <div class="step">
         <div><span class="step-num">18</span><span class="step-title">Resolve homework.closedStatusValues for this school</span></div>
         <div class="step-desc">Should return ["active","closed"] (institution override, not platform default).</div>
-        <div class="step-request">GET /api/v1/config/resolve/homework.closedStatusValues?institution_id=$ADMIN_INST_ID
+        <div class="step-request">GET /api/v1/config/resolve/homework.closedStatusValues?institution_id=$INST_ID
 Authorization: Bearer $ADMIN_TOKEN
-Host: test-school.localhost</div>
+Host: $CLIENT_SLUG.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8001/api/v1/config/resolve/homework.closedStatusValues?institution_id=$ADMIN_INST_ID",
-          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
+          url: "http://127.0.0.1:8001/api/v1/config/resolve/homework.closedStatusValues?institution_id=$INST_ID",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "$CLIENT_SLUG.localhost" },
           extractions: []
         }, "result-18")'>Run Step 18</button>
         <div class="result" id="result-18"></div>
@@ -440,13 +441,13 @@ Host: test-school.localhost</div>
       <div class="step">
         <div><span class="step-num">19</span><span class="step-title">Resolve auth.jwtExpirySeconds (always platform default)</span></div>
         <div class="step-desc">No institution or client override exists — falls back to platform default 7200.</div>
-        <div class="step-request">GET /api/v1/config/resolve/auth.jwtExpirySeconds?institution_id=$ADMIN_INST_ID
+        <div class="step-request">GET /api/v1/config/resolve/auth.jwtExpirySeconds?institution_id=$INST_ID
 Authorization: Bearer $ADMIN_TOKEN
-Host: test-school.localhost</div>
+Host: $CLIENT_SLUG.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8001/api/v1/config/resolve/auth.jwtExpirySeconds?institution_id=$ADMIN_INST_ID",
-          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
+          url: "http://127.0.0.1:8001/api/v1/config/resolve/auth.jwtExpirySeconds?institution_id=$INST_ID",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "$CLIENT_SLUG.localhost" },
           extractions: []
         }, "result-19")'>Run Step 19</button>
         <div class="result" id="result-19"></div>
@@ -459,11 +460,11 @@ Host: test-school.localhost</div>
         <div class="step-desc">No override — falls back to platform default "https://school-erp.com/reset-password".</div>
         <div class="step-request">GET /api/v1/config/resolve/auth.passwordResetRedirectUrl
 Authorization: Bearer $ADMIN_TOKEN
-Host: test-school.localhost</div>
+Host: $CLIENT_SLUG.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
           url: "http://127.0.0.1:8001/api/v1/config/resolve/auth.passwordResetRedirectUrl",
-          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "$CLIENT_SLUG.localhost" },
           extractions: []
         }, "result-20")'>Run Step 20</button>
         <div class="result" id="result-20"></div>
@@ -474,13 +475,13 @@ Host: test-school.localhost</div>
       <div class="step">
         <div><span class="step-num">21</span><span class="step-title">Resolve homework.lateSubmissionPolicy (client override)</span></div>
         <div class="step-desc">This school's client set "late" — should inherit from client scope, not platform.</div>
-        <div class="step-request">GET /api/v1/config/resolve/homework.lateSubmissionPolicy?institution_id=$ADMIN_INST_ID
+        <div class="step-request">GET /api/v1/config/resolve/homework.lateSubmissionPolicy?institution_id=$INST_ID
 Authorization: Bearer $ADMIN_TOKEN
-Host: test-school.localhost</div>
+Host: $CLIENT_SLUG.localhost</div>
         <button class="run-btn" onclick='runStep({
           method: "GET",
-          url: "http://127.0.0.1:8001/api/v1/config/resolve/homework.lateSubmissionPolicy?institution_id=$ADMIN_INST_ID",
-          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "test-school.localhost" },
+          url: "http://127.0.0.1:8001/api/v1/config/resolve/homework.lateSubmissionPolicy?institution_id=$INST_ID",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Host": "$CLIENT_SLUG.localhost" },
           extractions: []
         }, "result-21")'>Run Step 21</button>
         <div class="result" id="result-21"></div>
@@ -606,10 +607,6 @@ Authorization: Bearer $PLATFORM_TOKEN</div>
 
   <script src="shared.js"></script>
   <script>
-    // Default identifier for the school chain the configuration flow operates on.
-    // Change CD_CLIENT_SLUG / CD_INST_NAME in the env panel to point at a different chain.
-    if (!STORE.CD_CLIENT_SLUG) { STORE.CD_CLIENT_SLUG = "meerutpublic"; saveStore(); }
-    if (!STORE.CD_INST_NAME)   { STORE.CD_INST_NAME   = "Test Inst";       saveStore(); }
     injectEnvRail();
   </script>
 </body>

@@ -82,75 +82,99 @@
         <div class="result" id="result-5"></div>
       </div>
 
+      <h2>Academic Structure (Read-only)</h2>
+
+      <div class="step">
+        <div><span class="step-num">6</span><span class="step-title">List Academic Years (across institutions)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/academic-years",
+          headers: { "Authorization": "Bearer $CROSS_INST_TOKEN" },
+          extractions: [{ var: "ACADEMIC_YEAR_ID", path: "0.id" }]
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">7</span><span class="step-title">View Academic Structure for Institution</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["ACADEMIC_YEAR_ID"], "result-7")) return; runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/academic-years/$ACADEMIC_YEAR_ID/structure",
+          headers: { "Authorization": "Bearer $CROSS_INST_TOKEN" },
+          extractions: []
+        }, "result-7")'>Run Step 7</button>
+        <div class="result" id="result-7"></div>
+      </div>
+
       <h2>Failure Scenarios</h2>
 
       <div class="step">
-        <div><span class="step-num">6</span><span class="step-title">Cross-institution tries to create institution (should FAIL)</span></div>
+        <div><span class="step-num">8</span><span class="step-title">Cross-institution tries to create institution (should FAIL)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/v1/institutions",
           headers: { "Authorization": "Bearer $CROSS_INST_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "display_name":"Test", "institution_type_id":"$LOOKUP.institution-types.0.id" }),
           extractions: []
-        }, "result-6")'>Run Step 6</button>
-        <div class="result" id="result-6"></div>
+        }, "result-8")'>Run Step 8</button>
+        <div class="result" id="result-8"></div>
         <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Cross-institution has only read permissions.</div>
       </div>
 
       <div class="step">
-        <div><span class="step-num">7</span><span class="step-title">Cross-institution tries to update institution (should FAIL)</span></div>
-        <button class="run-btn" onclick='if (!requireVars(["INST_ID"], "result-7")) return; runStep({
+        <div><span class="step-num">9</span><span class="step-title">Cross-institution tries to update institution (should FAIL)</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["INST_ID"], "result-9")) return; runStep({
           method: "PATCH",
           url: "http://127.0.0.1:8001/api/v1/institutions/$INST_ID",
           headers: { "Authorization": "Bearer $CROSS_INST_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "display_name":"Hacked" }),
           extractions: []
-        }, "result-7")'>Run Step 7</button>
-        <div class="result" id="result-7"></div>
+        }, "result-9")'>Run Step 9</button>
+        <div class="result" id="result-9"></div>
         <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Cross-institution has no <code>institution.update</code>.</div>
       </div>
 
       <div class="step">
-        <div><span class="step-num">8</span><span class="step-title">Cross-institution tries to create user (should FAIL)</span></div>
+        <div><span class="step-num">10</span><span class="step-title">Cross-institution tries to create user (should FAIL)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/v1/users",
           headers: { "Authorization": "Bearer $CROSS_INST_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "email":"test@test.com", "name":"Test", "user_category_id":"$LOOKUP.user-categories.Academic Staff", "institution_id":"$INST_ID" }),
           extractions: []
-        }, "result-8")'>Run Step 8</button>
-        <div class="result" id="result-8"></div>
+        }, "result-10")'>Run Step 10</button>
+        <div class="result" id="result-10"></div>
         <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Cross-institution has no <code>user.*</code> permissions.</div>
       </div>
 
       <div class="step">
-        <div><span class="step-num">9</span><span class="step-title">Cross-institution tries to manage org units (should FAIL)</span></div>
+        <div><span class="step-num">11</span><span class="step-title">Cross-institution tries to manage org units (should FAIL)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/v1/org-units",
           headers: { "Authorization": "Bearer $CROSS_INST_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "institution_id":"$INST_ID", "name":"Test", "type_id":"$LOOKUP.org-unit-types.Department" }),
           extractions: []
-        }, "result-9")'>Run Step 9</button>
-        <div class="result" id="result-9"></div>
+        }, "result-11")'>Run Step 11</button>
+        <div class="result" id="result-11"></div>
         <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Cross-institution has no <code>org_unit.create</code>.</div>
       </div>
 
       <div class="step">
-        <div><span class="step-num">10</span><span class="step-title">Cross-institution tries to manage fees (should FAIL)</span></div>
+        <div><span class="step-num">12</span><span class="step-title">Cross-institution tries to manage fees (should FAIL)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/v1/fee-types",
           headers: { "Authorization": "Bearer $CROSS_INST_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "name":"Test Fee", "default_amount":100, "institution_id":"$INST_ID" }),
           extractions: []
-        }, "result-10")'>Run Step 10</button>
-        <div class="result" id="result-10"></div>
+        }, "result-12")'>Run Step 12</button>
+        <div class="result" id="result-12"></div>
         <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Cross-institution has no <code>fee.*</code> permissions.</div>
       </div>
 
       <div class="flow-end">
-        ✅ <strong>Flow 21 complete.</strong> Cross-institution role can read clients, institutions, and org units across the client. Cannot create or modify any data.
+        ✅ <strong>Flow 21 complete.</strong> Cross-institution role can read clients, institutions, org units, and academic structure across the client. Cannot create or modify any data.
       </div>
     </div>
   </div>

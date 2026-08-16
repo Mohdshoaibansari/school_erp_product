@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 22 — Institution Setup (Users + Academic Structure)</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 22 — Institution Setup</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+  <div class="layout"><aside class="env-rail" id="store-panel"></aside>
+    <div class="main-col container">
+      <div class="intro">
+        <strong>This flow:</strong> Create all user types (Principal, HOD, Staff, Parent) + set up academic structure
+        (AcademicYear, enrollment, teacher assignment). Completes the institution setup started in Flow 02.
+      </div>
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Run Flow 02 first. Stored vars required:
+        <code>CLIENT_SLUG</code>, <code>INST_ID</code>, <code>ADMIN_EMAIL</code>, <code>ADMIN_PASSWORD</code>,
+        <code>TEACHER_ID</code>, <code>STUDENT_ID</code>.
+      </div>
+
+      <h2>Login</h2>
+
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">Login as Admin</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG"], "result-1")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email":"$ADMIN_EMAIL", "password":"$ADMIN_PASSWORD" }),
+          extractions: [{ var: "ADMIN_TOKEN", path: "access_token" }],
+          fetchLookups: ["roles", "user-categories"]
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+      </div>
+
+      <h2>Create Users</h2>
+
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">Create Principal</span></div>
+        <div class="step-desc">Creates a Principal user for the institution.</div>
+        <button class="run-btn" onclick='if (!requireVars(["INST_ID"], "result-2")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/users",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "email":"principal@test.com",
+            "name":"Dr. Principal",
+            "user_category_id":"$LOOKUP.user-categories.Executive Leadership",
+            "institution_id":"$INST_ID"
+          }),
+          extractions: [{ var: "PRINCIPAL_ID", path: "user.id" }, { var: "PRINCIPAL_INVITE", path: "invite_url" }]
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">Assign Principal Role</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["PRINCIPAL_ID"], "result-3")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/users/$PRINCIPAL_ID/roles",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "role_id":"$LOOKUP.roles.Principal" }),
+          extractions: []
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">Create HOD (Head of Department)</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["INST_ID"], "result-4")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/users",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "email":"hod@test.com",
+            "name":"Mr. HOD",
+            "user_category_id":"$LOOKUP.user-categories.Academic Staff",
+            "institution_id":"$INST_ID"
+          }),
+          extractions: [{ var: "HOD_ID", path: "user.id" }, { var: "HOD_INVITE", path: "invite_url" }]
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">5</span><span class="step-title">Assign HOD Role</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["HOD_ID"], "result-5")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/users/$HOD_ID/roles",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "role_id":"$LOOKUP.roles.HOD" }),
+          extractions: []
+        }, "result-5")'>Run Step 5</button>
+        <div class="result" id="result-5"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">6</span><span class="step-title">Create Staff</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["INST_ID"], "result-6")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/users",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "email":"staff@test.com",
+            "name":"Ms. Staff",
+            "user_category_id":"$LOOKUP.user-categories.Support Staff",
+            "institution_id":"$INST_ID"
+          }),
+          extractions: [{ var: "STAFF_ID", path: "user.id" }, { var: "STAFF_INVITE", path: "invite_url" }]
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">7</span><span class="step-title">Assign Staff Role</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["STAFF_ID"], "result-7")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/users/$STAFF_ID/roles",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "role_id":"$LOOKUP.roles.Staff" }),
+          extractions: []
+        }, "result-7")'>Run Step 7</button>
+        <div class="result" id="result-7"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">8</span><span class="step-title">Create Parent</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["INST_ID"], "result-8")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/users",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "email":"parent@test.com",
+            "name":"Mrs. Parent",
+            "user_category_id":"$LOOKUP.user-categories.Guardian",
+            "institution_id":"$INST_ID"
+          }),
+          extractions: [{ var: "PARENT_ID", path: "user.id" }, { var: "PARENT_INVITE", path: "invite_url" }]
+        }, "result-8")'>Run Step 8</button>
+        <div class="result" id="result-8"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">9</span><span class="step-title">Assign Parent Role</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["PARENT_ID"], "result-9")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/users/$PARENT_ID/roles",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "role_id":"$LOOKUP.roles.Parent" }),
+          extractions: []
+        }, "result-9")'>Run Step 9</button>
+        <div class="result" id="result-9"></div>
+      </div>
+
+      <h2>Academic Structure</h2>
+
+      <div class="step">
+        <div><span class="step-num">10</span><span class="step-title">Create AcademicYear (from template)</span></div>
+        <div class="step-desc">Creates academic year "2025-26". Template auto-generates GradeLevels 1-12, Classes, Sections, Subjects.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/academic-years",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "name":"2025-26",
+            "start_date":"2025-04-01",
+            "end_date":"2026-03-31"
+          }),
+          extractions: [{ var: "ACADEMIC_YEAR_ID", path: "id" }]
+        }, "result-10")'>Run Step 10</button>
+        <div class="result" id="result-10"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">11</span><span class="step-title">View Academic Structure</span></div>
+        <div class="step-desc">Get the full structure — terms, grade levels, classes, sections, subjects.</div>
+        <button class="run-btn" onclick='if (!requireVars(["ACADEMIC_YEAR_ID"], "result-11")) return; runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/academic-years/$ACADEMIC_YEAR_ID/structure",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
+          extractions: [
+            { var: "FIRST_SECTION_ID", path: "sections.0.id" },
+            { var: "FIRST_SUBJECT_ID", path: "subjects.0.id" }
+          ]
+        }, "result-11")'>Run Step 11</button>
+        <div class="result" id="result-11"></div>
+      </div>
+
+      <h2>Enrollment & Teacher Assignment</h2>
+
+      <div class="step">
+        <div><span class="step-num">12</span><span class="step-title">Enroll Student in Section</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["FIRST_SECTION_ID", "STUDENT_ID"], "result-12")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/sections/$FIRST_SECTION_ID/enrollments",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "student_id":"$STUDENT_ID", "section_id":"$FIRST_SECTION_ID" }),
+          extractions: [{ var: "ENROLLMENT_ID", path: "id" }]
+        }, "result-12")'>Run Step 12</button>
+        <div class="result" id="result-12"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">13</span><span class="step-title">Assign Teacher to Subject</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["FIRST_SECTION_ID", "FIRST_SUBJECT_ID", "TEACHER_ID"], "result-13")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/teacher-assignments",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "teacher_id":"$TEACHER_ID", "section_id":"$FIRST_SECTION_ID", "subject_id":"$FIRST_SUBJECT_ID" }),
+          extractions: [{ var: "ASSIGNMENT_ID", path: "id" }]
+        }, "result-13")'>Run Step 13</button>
+        <div class="result" id="result-13"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">14</span><span class="step-title">Transition AcademicYear to Active</span></div>
+        <div class="step-desc">Activates the academic year. Previous year (if any) is auto-closed.</div>
+        <button class="run-btn" onclick='if (!requireVars(["ACADEMIC_YEAR_ID"], "result-14")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/academic-years/$ACADEMIC_YEAR_ID/transition",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "new_state":"active" }),
+          extractions: []
+        }, "result-14")'>Run Step 14</button>
+        <div class="result" id="result-14"></div>
+      </div>
+
+      <h2>Failure Scenarios</h2>
+
+      <div class="step">
+        <div><span class="step-num">15</span><span class="step-title">Try to create duplicate AcademicYear (should FAIL)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/academic-years",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "name":"2025-26", "start_date":"2025-04-01", "end_date":"2026-03-31" }),
+          extractions: []
+        }, "result-15")'>Run Step 15</button>
+        <div class="result" id="result-15"></div>
+        <div class="note"><strong>Expected:</strong> <code>400 Bad Request</code>. Duplicate year name for same institution.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">16</span><span class="step-title">Try to transition closed year (should FAIL)</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["ACADEMIC_YEAR_ID"], "result-16")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/academic-years/$ACADEMIC_YEAR_ID/transition",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "new_state":"planning" }),
+          extractions: []
+        }, "result-16")'>Run Step 16</button>
+        <div class="result" id="result-16"></div>
+        <div class="note"><strong>Expected:</strong> <code>400 Bad Request</code>. Active → planning is not a valid transition.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">17</span><span class="step-title">Try to enroll student without permission (should FAIL)</span></div>
+        <div class="step-desc">Login as Teacher and try to enroll a student.</div>
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG"], "result-17")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email":"teacher@test.com", "password":"Teacher@123" }),
+          extractions: [{ var: "TEACHER_TOKEN_TMP", path: "access_token" }]
+        }, "result-17")'>Run Step 17a — Login as Teacher</button>
+        <div class="result" id="result-17a"></div>
+        <button class="run-btn" onclick='if (!requireVars(["FIRST_SECTION_ID", "STUDENT_ID", "TEACHER_TOKEN_TMP"], "result-17b")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/sections/$FIRST_SECTION_ID/enrollments",
+          headers: { "Authorization": "Bearer $TEACHER_TOKEN_TMP", "Content-Type": "application/json" },
+          body: JSON.stringify({ "student_id":"$STUDENT_ID", "section_id":"$FIRST_SECTION_ID" }),
+          extractions: []
+        }, "result-17b")'>Run Step 17b — Try to Enroll (should 403)</button>
+        <div class="result" id="result-17b"></div>
+        <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Teacher has <code>enrollment.read</code> but NOT <code>enrollment.create</code>.</div>
+      </div>
+
+      <div class="flow-end">
+        ✅ <strong>Flow 22 complete.</strong> Institution now has all user types (Admin, Principal, HOD, Teacher, Staff, Student, Parent) and academic structure (year, enrollments, teacher assignments).
+      </div>
+    </div>
+  </div>
+  <script src="shared.js"></script>
+  <script>injectEnvRail();</script>
+</body>
+</html>

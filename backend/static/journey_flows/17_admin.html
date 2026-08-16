@@ -141,48 +141,101 @@
         <div class="result" id="result-8"></div>
       </div>
 
+      <h2>Academic Structure</h2>
+
+      <div class="step">
+        <div><span class="step-num">9</span><span class="step-title">Create AcademicYear</span></div>
+        <div class="step-desc">Creates academic year from template. Auto-generates GradeLevels 1-12, Classes, Sections, Subjects.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/academic-years",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "name":"2025-26", "start_date":"2025-04-01", "end_date":"2026-03-31" }),
+          extractions: [{ var: "ACADEMIC_YEAR_ID", path: "id" }]
+        }, "result-9")'>Run Step 9</button>
+        <div class="result" id="result-9"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">10</span><span class="step-title">View Academic Structure</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["ACADEMIC_YEAR_ID"], "result-10")) return; runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/academic-years/$ACADEMIC_YEAR_ID/structure",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
+          extractions: [
+            { var: "FIRST_SECTION_ID", path: "sections.0.id" },
+            { var: "FIRST_SUBJECT_ID", path: "subjects.0.id" }
+          ]
+        }, "result-10")'>Run Step 10</button>
+        <div class="result" id="result-10"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">11</span><span class="step-title">Enroll Student in Section</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["FIRST_SECTION_ID", "STUDENT_ID"], "result-11")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/sections/$FIRST_SECTION_ID/enrollments",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "student_id":"$STUDENT_ID", "section_id":"$FIRST_SECTION_ID" }),
+          extractions: [{ var: "ENROLLMENT_ID", path: "id" }]
+        }, "result-11")'>Run Step 11</button>
+        <div class="result" id="result-11"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">12</span><span class="step-title">Assign Teacher to Subject</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["FIRST_SECTION_ID", "FIRST_SUBJECT_ID", "NEW_TEACHER_ID"], "result-12")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/teacher-assignments",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "teacher_id":"$NEW_TEACHER_ID", "section_id":"$FIRST_SECTION_ID", "subject_id":"$FIRST_SUBJECT_ID" }),
+          extractions: [{ var: "ASSIGNMENT_ID", path: "id" }]
+        }, "result-12")'>Run Step 12</button>
+        <div class="result" id="result-12"></div>
+      </div>
+
       <h2>Failure Scenarios</h2>
 
       <div class="step">
-        <div><span class="step-num">9</span><span class="step-title">Admin tries to create institution (should FAIL)</span></div>
+        <div><span class="step-num">13</span><span class="step-title">Admin tries to create institution (should FAIL)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/v1/institutions",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "display_name":"Test", "institution_type_id":"00000000-0000-0000-0000-000000000000" }),
           extractions: []
-        }, "result-9")'>Run Step 9</button>
-        <div class="result" id="result-9"></div>
+        }, "result-13")'>Run Step 13</button>
+        <div class="result" id="result-13"></div>
         <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Admin has <code>institution.read/update</code> but NOT <code>institution.create</code>.</div>
       </div>
 
       <div class="step">
-        <div><span class="step-num">10</span><span class="step-title">Admin tries to manage platform config (should FAIL)</span></div>
+        <div><span class="step-num">14</span><span class="step-title">Admin tries to manage platform config (should FAIL)</span></div>
         <button class="run-btn" onclick='runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/v1/config/keys",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({ "key":"test.key", "type":"string", "default_value":"test" }),
           extractions: []
-        }, "result-10")'>Run Step 10</button>
-        <div class="result" id="result-10"></div>
+        }, "result-14")'>Run Step 14</button>
+        <div class="result" id="result-14"></div>
         <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Admin has <code>config.value.*</code> but NOT <code>config.key.create</code>.</div>
       </div>
 
       <div class="step">
-        <div><span class="step-num">11</span><span class="step-title">Admin tries to delete user (should FAIL)</span></div>
-        <button class="run-btn" onclick='if (!requireVars(["NEW_TEACHER_ID"], "result-11")) return; runStep({
+        <div><span class="step-num">15</span><span class="step-title">Admin tries to delete user (should FAIL)</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["NEW_TEACHER_ID"], "result-15")) return; runStep({
           method: "DELETE",
           url: "http://127.0.0.1:8001/api/v1/users/$NEW_TEACHER_ID",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
           extractions: []
-        }, "result-11")'>Run Step 11</button>
-        <div class="result" id="result-11"></div>
+        }, "result-15")'>Run Step 15</button>
+        <div class="result" id="result-15"></div>
         <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Admin has <code>user.create/read/update/suspend</code> but NOT <code>user.delete</code>.</div>
       </div>
 
       <div class="flow-end">
-        ✅ <strong>Flow 17 complete.</strong> Admin can manage users, fees, profiles within their institution. Cannot create institutions or manage platform config.
+        ✅ <strong>Flow 17 complete.</strong> Admin can manage users, fees, profiles, and academic structure within their institution. Cannot create institutions or manage platform config.
       </div>
     </div>
   </div>

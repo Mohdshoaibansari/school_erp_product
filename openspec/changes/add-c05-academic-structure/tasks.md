@@ -11,19 +11,19 @@
 
 ### Phase 1: Models + Migration
 
-- [ ] **T01** Create `academic_year` model (`kernel/academic/models/academic_year.py`)
-- [ ] **T02** Create `term` model (`kernel/academic/models/term.py`)
-- [ ] **T03** Create `grade_level` model (`kernel/academic/models/grade_level.py`)
-- [ ] **T04** Create `class` model (`kernel/academic/models/class_entity.py`)
-- [ ] **T05** Create `section` model (`kernel/academic/models/section.py`)
-- [ ] **T06** Create `subject` model (`kernel/academic/models/subject.py`)
-- [ ] **T07** Create `subject_group` + `subject_group_member` models (`kernel/academic/models/subject_group.py`)
-- [ ] **T08** Create `teacher_assignment` model (`kernel/academic/models/teacher_assignment.py`)
-- [ ] **T09** Create `student_enrollment` model (`kernel/academic/models/student_enrollment.py`)
-- [ ] **T10** Create Alembic migration 020 (tables + RLS policies)
-- [ ] **T11** Seed config keys in migration (academic.schoolTemplate, etc.)
-- [ ] **T12** Seed permissions in migration (10 new permissions)
-- [ ] **T13** Seed role-permission mappings in migration
+- [x] **T01** Create `academic_year` model (`kernel/academic/models/academic_year.py`)
+- [x] **T02** Create `term` model (`kernel/academic/models/term.py`)
+- [x] **T03** Create `grade_level` model (`kernel/academic/models/grade_level.py`)
+- [x] **T04** Create `class` model (`kernel/academic/models/class_entity.py`)
+- [x] **T05** Create `section` model (`kernel/academic/models/section.py`)
+- [x] **T06** Create `subject` model (`kernel/academic/models/subject.py`)
+- [x] **T07** Create `subject_group` + `subject_group_member` models (`kernel/academic/models/subject_group.py`)
+- [x] **T08** Create `teacher_assignment` model (`kernel/academic/models/teacher_assignment.py`)
+- [x] **T09** Create `student_enrollment` model (`kernel/academic/models/student_enrollment.py`)
+- [x] **T10** Create Alembic migration 020 (tables + RLS policies)
+- [x] **T11** Seed config keys in migration (academic.schoolTemplate, etc.)
+- [x] **T12** Seed permissions in migration (10 new permissions)
+- [x] **T13** Seed role-permission mappings in migration
 
 ### Phase 2: Repos
 

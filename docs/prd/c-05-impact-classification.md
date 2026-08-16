@@ -9,11 +9,11 @@
 
 ## 1. Impact Summary
 
-C-05 is a **new kernel capability** that adds 14 new entities and modifies 2 existing business modules. It is a cross-cutting feature that touches the academic domain, configuration framework, and downstream business modules.
+C-05 is a **new kernel capability** that adds 12 new entities and modifies 2 existing business modules. It is a cross-cutting feature that touches the academic domain, configuration framework, and downstream business modules.
 
 | Impact Type | Count |
 |---|---|
-| **ADDED** (new domain) | 14 new entities |
+| **ADDED** (new domain) | 12 new entities + 4 config keys |
 | **MODIFIED** (existing behavior) | 2 existing modules |
 | **REMOVED** (deprecated behavior) | 0 |
 | **CROSS-CUTTING** (multiple domains) | 3 capabilities affected |
@@ -39,6 +39,8 @@ C-05 is a **new kernel capability** that adds 14 new entities and modifies 2 exi
 | TeacherAssignment | `teacher_assignment` | Teacher → Section + Subject + AcademicYear |
 | StudentEnrollment | `student_enrollment` | Student → Section + AcademicYear |
 | AcademicStructureTemplate | (config) | Template stored in C-08 config keys |
+
+**Note (D19):** Room and Building are NOT in C-05 scope. They remain as OrgUnit types for future Timetable integration. Template creates academic structure only (12 tables).
 
 ### 2.2 New Config Keys (C-08)
 
@@ -180,7 +182,7 @@ CREATE POLICY academic_year_ins ON academic_year FOR INSERT WITH CHECK (
 
 ### 5.1 Alembic Migration (020)
 
-1. Create C-05 tables (14 tables)
+1. Create C-05 tables (12 tables — excludes Room and Building per D19)
 2. Seed config keys in `configuration_key`
 3. Seed permissions in `permission` and `role_permission`
 4. Seed default SubjectGroup "General" and default Subjects

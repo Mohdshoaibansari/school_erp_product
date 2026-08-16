@@ -195,7 +195,7 @@ Student logs in
 | AC-8 | Config key `academic.schoolTemplate` defines default structure |
 | AC-9 | Template is editable per client (different clients can have different templates) |
 | AC-10 | First AcademicYear uses config template; subsequent years clone from previous |
-| AC-11 | Template generates GradeLevels, Classes, Sections, Subjects, Terms |
+| AC-11 | Template generates GradeLevels, Classes, Sections, Subjects, Terms (NOT Rooms/Buildings — D19) |
 
 ### 5.3 Enrollment
 
@@ -240,6 +240,9 @@ Student logs in
 | AC-28 | Homework references section_id and subject_id (not free text) |
 | AC-29 | FeeAssignment references academic_term via FK (not free text) |
 | AC-30 | Existing free-text data migrated to FK references |
+| AC-31 | Clone skips archived/deleted entities from previous year (D22) |
+| AC-32 | Closing AcademicYear is non-blocking — in-flight homework becomes read-only, not cancelled (D20) |
+| AC-33 | Homework creation is allowed in planning year — year status doesn't gate content creation (D24) |
 
 ---
 
@@ -258,14 +261,16 @@ Student logs in
 
 ## 7. Open Questions
 
-| # | Question | Status |
+All questions resolved. Decisions D19–D24 applied.
+
+| # | Question | Decision |
 |---|---|---|
-| Q1 | Should the template auto-create Rooms and Buildings, or are those managed separately? | Open |
-| Q2 | What happens to in-flight Homework when an AcademicYear is closed? | Open |
-| Q3 | Should StudentEnrollment support mid-year grade promotion (e.g., Grade 9 → Grade 10 within the same year)? | Open |
-| Q4 | How does the clone handle deleted subjects from previous year? | Open |
-| Q5 | Should there be a "promote students" bulk operation at year-end? | Open |
-| Q6 | Should the system prevent creating Homework for a "planning" year? | Open |
+| Q1 | Should the template auto-create Rooms and Buildings? | D19: No — manual management |
+| Q2 | What happens to in-flight Homework when an AcademicYear is closed? | D20: Soft-close — read-only, not cancelled |
+| Q3 | Mid-year grade promotion (Grade 9 → Grade 10 in same year)? | D21: Phase 2 — transfer mechanism is workaround |
+| Q4 | How does the clone handle deleted subjects from previous year? | D22: Skip archived/deleted |
+| Q5 | Should there be a "promote students" bulk operation? | D23: Phase 2 — individual transfers for Phase 1 |
+| Q6 | Should the system prevent creating Homework for a "planning" year? | D24: Allow — year status doesn't gate content creation |
 
 ---
 

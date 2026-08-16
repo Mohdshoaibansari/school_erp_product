@@ -264,12 +264,96 @@ Downstream modules (Attendance, Exams, Timetable, Report Cards) all need a share
 
 **Decision:** The current AcademicYear is the one with `status = 'active'`. No separate `is_current` flag.
 
-**Rationale:
+**Rationale:**
 - Lifecycle state IS the indicator — no redundant field
 - Only one year can be active at a time (enforced in code)
 - Simpler queries: `WHERE status = 'active'`
 
 **Rejected Alternative:** `is_current` boolean flag — redundant with lifecycle status, requires additional management.
+
+---
+
+### D19: Template Excludes Room and Building
+
+**Decision:** The academic structure template does NOT auto-create Rooms and Buildings. These are manually managed by admin.
+
+**Rationale:**
+- Rooms and Buildings are physical infrastructure — every school has a different layout
+- Template can't guess how many buildings or rooms exist
+- "Building A" and "Room 101" are meaningless without real names
+- Creating5-10 buildings and30-50 rooms is a one-time10-minute manual task
+- Template handles ACADEMIC structure (grades, sections, subjects) — physical infrastructure is a separate concern
+
+**Impact:**12 tables instead of 14. Rooms and Buildings are managed via separate admin APIs.
+
+---
+
+### D20: AcademicYear Close Is Non-Blocking (Soft-Close)
+
+**Decision:** Closing an AcademicYear is non-blocking. In-flight homework and other entities become read-only, not cancelled.
+
+**Rationale:**
+- Indian schools close the year on a fixed schedule (March). Teachers might not finish grading for weeks.
+- Blocking close until all homework is graded creates an unworkable dependency.
+- Auto-cancelling homework destroys teacher work.
+- Soft-close lets the year close on schedule. Teachers can still view and grade existing homework, but no new homework or submissions are allowed.
+
+**Rejected Alternatives:**
+- Hard-reject: Block close if active homework exists — unworkable in Indian schools
+- Auto-transition: Auto-cancel in-flight homework — destroys teacher work
+
+---
+
+### D21: Mid-Year Grade Promotion Is Phase 2
+
+**Decision:** Mid-year grade promotion (e.g., Grade 9 → Grade 10 within the same academic year) is a Phase 2 non-goal.
+
+**Rationale:**
+- Mid-year promotion is extremely rare (maybe once a year per school)
+- Current workaround: Admin transfers student via StudentEnrollment (deactivate old section, create new enrollment in new section)
+- True promotion requires changing GradeLevel, not just Section — needs a dedicated "promotion" operation
+
+**Phase 1 workaround:** Individual transfer via StudentEnrollment.
+
+---
+
+### D22: Clone Skips Archived/Deleted Entities
+
+**Decision:** When cloning from a previous year, only active entities are cloned. Archived or deleted entities are skipped.
+
+**Rationale:**
+- Deleted subjects shouldn't reappear in a new year
+- Admin deleted them for a reason — cloning them back is annoying
+- Admin can always add new subjects to the cloned year
+
+**Behavior:** Clone only active GradeLevels, Classes, Sections, Subjects, and Terms. Archived/deleted entities stay dead.
+
+---
+
+### D23: Student Promotion Bulk Operation Is Phase 2
+
+**Decision:** A bulk "promote all students" operation at year-end is a Phase 2 non-goal.
+
+**Rationale:**
+- Phase 1 supports individual transfers via StudentEnrollment
+- Year-end promotion (500 students moving from Grade 9 to Grade 10) is tedious one-by-one but works
+- Phase 2 adds bulk operations: promote all, retain students, graduate students
+
+**Phase 1 workaround:** Individual transfers via StudentEnrollment.
+
+---
+
+### D24: Homework Allowed in Planning Year
+
+**Decision:** Homework creation is allowed in an AcademicYear with `status = 'planning'`. Year status does not gate content creation.
+
+**Rationale:**
+- Planning year has academic structure already set up (grades, sections, subjects, teachers assigned)
+- Teachers often prepare homework before the year officially starts
+- Homework with no students enrolled is harmless — it just has an empty submission list
+- Year status gates enrollment and lifecycle transitions, not content creation
+
+**Rejected Alternative:** Block homework in planning year — unnecessarily restrictive, frustrating for teachers preparing early.
 
 ---
 
@@ -286,10 +370,11 @@ Downstream modules (Attendance, Exams, Timetable, Report Cards) all need a share
 
 ### Negative
 
-1. **More tables** — ~14 new entities (vs 2-3 if we used OrgUnit types)
+1. **More tables** —12 new entities (vs 2-3 if we used OrgUnit types)
 2. **Year-specific cloning** — each year creates many records (12 grade levels × 3 sections × 6 subjects = 216+ records per year)
 3. **Migration complexity** — existing free-text fields in Homework and FeeAssignment need data migration
 4. **Downstream module changes** — Homework, Fees, Attendance, Exams all need to update their FK references
+5. **Soft-close complexity** — in-flight entities must be handled gracefully on year close
 
 ### Neutral
 
@@ -349,18 +434,33 @@ Institution created (type: "School")
     └── Terms (Term 1, Term 2)
 ```
 
+Note: Rooms and Buildings are NOT auto-created by the template (D19). Admin creates them manually.
+
 ### Year Cloning Flow
 
 ```
 Admin creates AcademicYear 2026-27
   → System finds latest closed year (2025-26)
-  → Clones:
-    ├── GradeLevels (same set)
-    ├── Classes (same set)
-    ├── Sections (same set, homeroom_teacher cleared)
-    ├── Subjects (same set)
-    └── Terms (same set, dates adjusted)
+  → Clones only ACTIVE entities (D22):
+    ├── GradeLevels (active only)
+    ├── Classes (active only)
+    ├── Sections (active only, homeroom_teacher cleared)
+    ├── Subjects (active only)
+    └── Terms (active only, dates adjusted)
+  → Skips archived/deleted entities
   → Admin customizes as needed
+```
+
+### Year Close Flow (Soft-Close — D20)
+
+```
+Admin transitions AcademicYear 2025-26 to "closed"
+  → System:
+    ├── Sets year status to "closed"
+    ├── In-flight homework → read-only (can view/grade, no new submissions)
+    ├── In-flight enrollments → read-only (no new transfers)
+    ├── In-flight teacher assignments → read-only
+    └── No data is cancelled or deleted
 ```
 
 ---
@@ -406,9 +506,11 @@ Admin creates AcademicYear 2026-27
 
 ## 8. Open Questions
 
-| # | Question | Status |
-|---|---|---|
-| Q1 | Should the template auto-create Rooms and Buildings, or are those managed separately? | Open |
-| Q2 | What happens to in-flight Homework when an AcademicYear is closed? | Open |
-| Q3 | Should StudentEnrollment support mid-year grade promotion (e.g., Grade 9 → Grade 10 within the same year)? | Open |
-| Q4 | How does the clone handle deleted subjects from previous year? | Open |
+| # | Question | Status | Decision |
+|---|---|---|---|
+| Q1 | Should the template auto-create Rooms and Buildings? | Resolved | D19: No — manual management |
+| Q2 | What happens to in-flight Homework when an AcademicYear is closed? | Resolved | D20: Soft-close — read-only, not cancelled |
+| Q3 | Mid-year grade promotion (Grade 9 → Grade 10 in same year)? | Resolved | D21: Phase 2 — transfer mechanism is workaround |
+| Q4 | How does the clone handle deleted subjects from previous year? | Resolved | D22: Skip archived/deleted |
+| Q5 | Should there be a "promote students" bulk operation? | Resolved | D23: Phase 2 — individual transfers for Phase 1 |
+| Q6 | Should the system prevent creating Homework for a "planning" year? | Resolved | D24: Allow — year status doesn't gate content creation |

@@ -27,17 +27,17 @@ class HomeworkService:
 
     # -- Homework CRUD --
     def create_homework(self, ctx: TenantContext, dto: HomeworkCreateDTO) -> HomeworkDTO:
-        logger.info("[HOMEWORK] Create homework: title=%s subject=%s grade=%s", dto.title, dto.subject, dto.grade_level)
+        logger.info("[HOMEWORK] Create homework: title=%s subject_id=%s grade_level_id=%s", dto.title, dto.subject_id, dto.grade_level_id)
         with self._session_factory() as s:
             r = self._hw_repo.create(s, ctx, dto); s.commit()
             logger.info("[HOMEWORK] Homework created: id=%s title=%s", r.id, r.title)
-            if self._audit: self._audit.emit(action="homework_created", client_id=ctx.client_id, institution_id=ctx.institution_id, actor=ctx.user_id or "system", payload={"homework_id": str(r.id), "title": r.title, "grade_level": r.grade_level or "", "subject": r.subject or "", "due_date": str(r.due_date)})
+            if self._audit: self._audit.emit(action="homework_created", client_id=ctx.client_id, institution_id=ctx.institution_id, actor=ctx.user_id or "system", payload={"homework_id": str(r.id), "title": r.title, "subject_id": str(r.subject_id) if r.subject_id else "", "due_date": str(r.due_date)})
             return r
 
-    def list_homeworks(self, ctx: TenantContext, subject: str | None = None, grade_level: str | None = None, status: str | None = None) -> list[HomeworkDTO]:
-        logger.debug("[HOMEWORK] List homeworks: subject=%s grade=%s status=%s", subject, grade_level, status)
+    def list_homeworks(self, ctx: TenantContext, subject_id: uuid.UUID | None = None, grade_level_id: uuid.UUID | None = None, section_id: uuid.UUID | None = None, status: str | None = None) -> list[HomeworkDTO]:
+        logger.debug("[HOMEWORK] List homeworks: subject_id=%s grade_level_id=%s status=%s", subject_id, grade_level_id, status)
         with self._session_factory() as s:
-            return self._hw_repo.list_filtered(s, ctx, subject, grade_level, status)
+            return self._hw_repo.list_filtered(s, ctx, subject_id, grade_level_id, section_id, status)
 
     def get_homework(self, ctx: TenantContext, hw_id: uuid.UUID) -> HomeworkDTO | None:
         logger.debug("[HOMEWORK] Get homework: id=%s", hw_id)

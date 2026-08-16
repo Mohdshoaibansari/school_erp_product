@@ -35,7 +35,7 @@ class FeeAssignment(Base):
     fee_type_id = Column(UUID(as_uuid=True), ForeignKey("fee_type.id"), nullable=False)
     amount = Column(Numeric(10, 2), nullable=False)
     due_date = Column(Date, nullable=False)
-    academic_term = Column(Text, nullable=True)
+    term_id = Column(UUID(as_uuid=True), ForeignKey("term.id"), nullable=True)
     status = Column(String(20), nullable=False, default="pending")
     assigned_by = Column(UUID(as_uuid=True), ForeignKey("user_account.id"), nullable=True)
     notes = Column(Text, nullable=True)

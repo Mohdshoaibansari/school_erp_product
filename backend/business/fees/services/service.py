@@ -98,7 +98,7 @@ class FeesService:
                 assignment = self._fee_assignment_repo.create(
                     session, ctx, user_id, dto.fee_type_id,
                     institution_id, dto.amount, dto.due_date,
-                    dto.academic_term, dto.notes,
+                    dto.term_id, dto.notes,
                 )
                 results.append(assignment)
             session.commit()

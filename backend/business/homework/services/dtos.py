@@ -10,9 +10,9 @@ from pydantic import BaseModel, Field
 class HomeworkCreateDTO(BaseModel):
     title: str = Field(..., min_length=1)
     description: Optional[str] = None
-    subject: Optional[str] = None
-    grade_level: Optional[str] = None
-    section: Optional[str] = None
+    subject_id: Optional[uuid.UUID] = None
+    grade_level_id: Optional[uuid.UUID] = None
+    section_id: Optional[uuid.UUID] = None
     due_date: date
     max_score: Optional[int] = None
 
@@ -20,9 +20,9 @@ class HomeworkCreateDTO(BaseModel):
 class HomeworkUpdateDTO(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    subject: Optional[str] = None
-    grade_level: Optional[str] = None
-    section: Optional[str] = None
+    subject_id: Optional[uuid.UUID] = None
+    grade_level_id: Optional[uuid.UUID] = None
+    section_id: Optional[uuid.UUID] = None
     due_date: Optional[date] = None
     max_score: Optional[int] = None
     status: Optional[str] = None
@@ -31,7 +31,7 @@ class HomeworkUpdateDTO(BaseModel):
 class HomeworkDTO(BaseModel):
     id: uuid.UUID; client_id: uuid.UUID; institution_id: uuid.UUID
     title: str; description: Optional[str] = None
-    subject: Optional[str] = None; grade_level: Optional[str] = None; section: Optional[str] = None
+    subject_id: Optional[uuid.UUID] = None; grade_level_id: Optional[uuid.UUID] = None; section_id: Optional[uuid.UUID] = None
     due_date: date; max_score: Optional[int] = None; status: str
     assigned_by: Optional[uuid.UUID] = None; created_at: datetime
     submission_count: int = 0

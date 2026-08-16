@@ -45,7 +45,7 @@ class FeeAssignmentCreateDTO(BaseModel):
     fee_type_id: uuid.UUID
     amount: Decimal
     due_date: date
-    academic_term: Optional[str] = None
+    term_id: Optional[uuid.UUID] = None
     user_ids: list[uuid.UUID]
     institution_id: Optional[uuid.UUID] = None  # Required for CD (ctx has no institution_id)
     notes: Optional[str] = None
@@ -54,7 +54,7 @@ class FeeAssignmentCreateDTO(BaseModel):
 class FeeAssignmentUpdateDTO(BaseModel):
     amount: Optional[Decimal] = None
     due_date: Optional[date] = None
-    academic_term: Optional[str] = None
+    term_id: Optional[uuid.UUID] = None
     notes: Optional[str] = None
     status: Optional[str] = None
 
@@ -71,7 +71,7 @@ class FeeAssignmentDTO(BaseModel):
     fee_type_id: uuid.UUID
     amount: Decimal
     due_date: date
-    academic_term: Optional[str] = None
+    term_id: Optional[uuid.UUID] = None
     status: str
     assigned_by: Optional[uuid.UUID] = None
     notes: Optional[str] = None

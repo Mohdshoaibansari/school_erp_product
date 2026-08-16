@@ -20,27 +20,28 @@ class HomeworkRepository(TenantAwareRepositoryBase[Homework]):
     def _to_dto(self, obj: Homework) -> HomeworkDTO:
         return HomeworkDTO(
             id=obj.id, client_id=obj.client_id, institution_id=obj.institution_id,
-            title=obj.title, description=obj.description, subject=obj.subject,
-            grade_level=obj.grade_level, section=obj.section, due_date=obj.due_date,
+            title=obj.title, description=obj.description, subject_id=obj.subject_id,
+            grade_level_id=obj.grade_level_id, section_id=obj.section_id, due_date=obj.due_date,
             max_score=obj.max_score, status=obj.status, assigned_by=obj.assigned_by,
             created_at=obj.created_at,
         )
 
     def create(self, session: Session, ctx: TenantContext, dto: HomeworkCreateDTO) -> HomeworkDTO:
         obj = Homework(client_id=ctx.client_id, institution_id=ctx.institution_id,
-                       title=dto.title, description=dto.description, subject=dto.subject,
-                       grade_level=dto.grade_level, section=dto.section,
+                       title=dto.title, description=dto.description, subject_id=dto.subject_id,
+                       grade_level_id=dto.grade_level_id, section_id=dto.section_id,
                        due_date=dto.due_date, max_score=dto.max_score,
                        assigned_by=uuid.UUID(ctx.user_id) if ctx.user_id else None)
         session.add(obj); session.flush(); return self._to_dto(obj)
 
     def list_filtered(self, session: Session, ctx: TenantContext,
-                      subject: str | None = None, grade_level: str | None = None,
-                      status: str | None = None) -> list[HomeworkDTO]:
+                      subject_id: uuid.UUID | None = None, grade_level_id: uuid.UUID | None = None,
+                      section_id: uuid.UUID | None = None, status: str | None = None) -> list[HomeworkDTO]:
         stmt = select(Homework)
         stmt = self._apply_tenant_filter(stmt, ctx)
-        if subject: stmt = stmt.where(Homework.subject == subject)
-        if grade_level: stmt = stmt.where(Homework.grade_level == grade_level)
+        if subject_id: stmt = stmt.where(Homework.subject_id == subject_id)
+        if grade_level_id: stmt = stmt.where(Homework.grade_level_id == grade_level_id)
+        if section_id: stmt = stmt.where(Homework.section_id == section_id)
         if status: stmt = stmt.where(Homework.status == status)
         else: stmt = stmt.where(Homework.status.in_(["active", "closed"]))
         stmt = stmt.order_by(Homework.created_at.desc())

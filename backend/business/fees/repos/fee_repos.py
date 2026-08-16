@@ -70,19 +70,19 @@ class FeeAssignmentRepository(TenantAwareRepositoryBase[FeeAssignment]):
         return FeeAssignmentDTO(
             id=obj.id, client_id=obj.client_id, institution_id=obj.institution_id,
             user_id=obj.user_id, fee_type_id=obj.fee_type_id,
-            amount=obj.amount, due_date=obj.due_date, academic_term=obj.academic_term,
+            amount=obj.amount, due_date=obj.due_date, term_id=obj.term_id,
             status=obj.status, assigned_by=obj.assigned_by, notes=obj.notes,
             created_at=obj.created_at, total_paid=Decimal("0.00"),
         )
 
     def create(self, session: Session, ctx: TenantContext, user_id: uuid.UUID,
                fee_type_id: uuid.UUID, institution_id: uuid.UUID,
-               amount: Decimal, due_date: date, academic_term: str | None,
+               amount: Decimal, due_date: date, term_id: uuid.UUID | None,
                notes: str | None) -> FeeAssignmentDTO:
         obj = FeeAssignment(
             client_id=ctx.client_id, institution_id=institution_id,
             user_id=user_id, fee_type_id=fee_type_id,
-            amount=amount, due_date=due_date, academic_term=academic_term,
+            amount=amount, due_date=due_date, term_id=term_id,
             status="pending", assigned_by=uuid.UUID(ctx.user_id) if ctx.user_id else None,
             notes=notes,
         )

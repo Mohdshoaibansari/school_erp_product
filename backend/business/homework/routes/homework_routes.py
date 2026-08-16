@@ -22,14 +22,14 @@ def create_homework(dto: HomeworkCreateDTO, _a: None = Depends(require_permissio
     except ValueError as e: raise HTTPException(400, detail=str(e))
 
 @hw_router.get("", response_model=list[HomeworkDTO], summary="List homeworks")
-def list_homeworks(subject: str | None = None, grade_level: str | None = None, status: str | None = None,
+def list_homeworks(subject_id: uuid.UUID | None = None, grade_level_id: uuid.UUID | None = None, section_id: uuid.UUID | None = None, status: str | None = None,
                    _a: None = Depends(require_permission("homework", "read")),
                    ctx: TenantContext = Depends(get_tenant_context), svc: HomeworkService = Depends(get_homework_service)):
-    """List homeworks, optionally filtered by subject, grade_level, or status.
+    """List homeworks, optionally filtered by subject_id, grade_level_id, section_id, or status.
 
     Permission: homework.read. Tenant-scoped.
     """
-    return svc.list_homeworks(ctx, subject, grade_level, status)
+    return svc.list_homeworks(ctx, subject_id, grade_level_id, section_id, status)
 
 @hw_router.get("/{hw_id}", response_model=HomeworkDTO, summary="Get homework")
 def get_homework(hw_id: uuid.UUID, _a: None = Depends(require_permission("homework", "read")),

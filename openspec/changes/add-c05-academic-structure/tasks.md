@@ -52,12 +52,12 @@
 
 ### Phase 5: Downstream Migration
 
-- [ ] **T30** Add FK columns to Homework (grade_level_id, section_id, subject_id) — nullable
-- [ ] **T31** Backfill Homework FK data (match text to C-05 records)
-- [ ] **T32** Make Homework FK columns non-nullable, drop old text columns
-- [ ] **T33** Add FK column to FeeAssignment (term_id) — nullable
-- [ ] **T34** Backfill FeeAssignment FK data
-- [ ] **T35** Make FeeAssignment FK non-nullable, drop old text column
+- [x] **T30** Add FK columns to Homework (grade_level_id, section_id, subject_id) — nullable
+- [x] **T31** Backfill Homework FK data (match text to C-05 records)
+- [x] **T32** Make Homework FK columns non-nullable, drop old text columns
+- [x] **T33** Add FK column to FeeAssignment (term_id) — nullable
+- [x] **T34** Backfill FeeAssignment FK data
+- [x] **T35** Make FeeAssignment FK non-nullable, drop old text column
 
 ### Phase 6: Tests
 

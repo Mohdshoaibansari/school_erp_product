@@ -124,7 +124,7 @@ This invariant is non-negotiable: `docs/` is always the decisional input; OpenSp
 | C-02 Identity & User Management | `docs/architecture/adr-c02-identity-user-management-implementation.md` | D11 + D12 + D13 applied; all changes archived | — |
 | C-05 Academic Structure | `docs/architecture/adr-c05-academic-structure-implementation.md` | Applied; archived | — |
 | C-04 Authorization Consolidation | `docs/prd/c-04-authorization-consolidation.md` | Applied; archived | — |
-| Frontend (Web + Mobile UI) | `docs/architecture/adr-frontend-implementation.md` | ADR + PRD final; proposal + 8 spec deltas + design + tasks generated (`openspec/changes/add-frontend-web-mobile-ui/`) | Apply → verify → archive (sdd-stack) |
+| Frontend (Web + Mobile UI) | `docs/architecture/adr-frontend-implementation.md` | Applied (frontend built, 92 tests green); verify conditional — 4 items deferred (R6, R9–R11); archive HELD | Manual testing → re-verify → archive |
 
 > This table is the single place to check "where are we." Update it as capabilities move through phases.
 

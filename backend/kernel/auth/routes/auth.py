@@ -8,7 +8,7 @@ Error responses follow D19 format (distinct status codes per failure mode).
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from kernel.tenant_context import TenantContext, get_tenant_context
 from kernel.auth.dependencies import get_auth_service
@@ -23,70 +23,70 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 # ============================================================
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: str = Field(..., description="User email")
+    password: str = Field(..., description="User password")
 
 
 class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-    expires_in: int = 3600
+    access_token: str = Field(..., description="JWT access token")
+    refresh_token: str = Field(..., description="JWT refresh token")
+    token_type: str = Field("bearer", description="Token type (always bearer)")
+    expires_in: int = Field(3600, description="Access token lifetime in seconds")
 
 
 class LoginResponse(BaseModel):
     """Unified login response with optional tier fields (D9)."""
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-    expires_in: int = 3600
-    is_platform_owner: bool | None = None
-    user_tier: str | None = None
-    client_id: str | None = None
+    access_token: str = Field(..., description="JWT access token")
+    refresh_token: str = Field(..., description="JWT refresh token")
+    token_type: str = Field("bearer", description="Token type (always bearer)")
+    expires_in: int = Field(3600, description="Access token lifetime in seconds")
+    is_platform_owner: bool | None = Field(None, description="True if the user is a platform owner")
+    user_tier: str | None = Field(None, description="User tier (client_leadership or institution)")
+    client_id: str | None = Field(None, description="Client ID when login is client-scoped")
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str = Field(..., description="JWT refresh token")
 
 
 class LogoutRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str = Field(..., description="JWT refresh token to revoke")
 
 
 class ActivateRequest(BaseModel):
-    invite_token: str
-    password: str
+    invite_token: str = Field(..., description="Invite JWT from the activation link")
+    password: str = Field(..., description="New password to set on activation")
 
 
 class ActivateResponse(BaseModel):
     """Response DTO for activate endpoint (D4)."""
-    message: str
-    user_id: str
-    user_tier: str
-    client_slug: str
+    message: str = Field(..., description="Success message")
+    user_id: str = Field(..., description="Activated user's ID")
+    user_tier: str = Field(..., description="User tier (client_leadership or institution)")
+    client_slug: str = Field(..., description="Client slug for login redirect")
 
 
 class OtpRequest(BaseModel):
-    email: str
+    email: str = Field(..., description="Email to send the OTP to")
 
 
 class OtpVerifyRequest(BaseModel):
-    email: str
-    token: str
+    email: str = Field(..., description="Email that requested the OTP")
+    token: str = Field(..., description="OTP code to verify")
 
 
 class PasswordResetRequest(BaseModel):
-    email: str
+    email: str = Field(..., description="Email to send the password reset link to")
 
 
 class PasswordResetConfirmRequest(BaseModel):
-    token: str
-    new_password: str
+    token: str = Field(..., description="Password reset token from the email link")
+    new_password: str = Field(..., description="New password to set")
 
 
 class PasswordChangeRequest(BaseModel):
-    current_password: str
-    new_password: str
+    current_password: str = Field(..., description="Current password")
+    new_password: str = Field(..., description="New password to set")
 
 
 # ============================================================

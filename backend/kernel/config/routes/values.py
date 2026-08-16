@@ -20,14 +20,14 @@ router = APIRouter(prefix="/api/v1/config/values", tags=["Configuration Values"]
 
 
 class CreateValueRequest(BaseModel):
-    key_id: uuid.UUID
-    scope_type: str = Field(..., pattern="^(client|institution)$")
-    scope_id: uuid.UUID
-    value: Any
+    key_id: uuid.UUID = Field(..., description="ID of the configuration key being overridden")
+    scope_type: str = Field(..., pattern="^(client|institution)$", description="Scope level of the override (client or institution)")
+    scope_id: uuid.UUID = Field(..., description="ID of the client or institution scope")
+    value: Any = Field(..., description="The override value to store at this scope")
 
 
 class UpdateValueRequest(BaseModel):
-    value: Any
+    value: Any = Field(..., description="New value for the configuration override")
 
 
 def _serialize_value(v: Any) -> dict:

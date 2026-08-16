@@ -17,11 +17,11 @@ router = APIRouter(prefix="/api/v1/config/resolve", tags=["Configuration Resolve
 
 
 class ResolveRequest(BaseModel):
-    key: str = Field(..., min_length=1)
-    scope_type: str | None = Field(default=None, pattern="^(platform|client|institution)$")
-    scope_id: str | None = None
-    institution_id: str | None = None
-    client_id: str | None = None
+    key: str = Field(..., min_length=1, description="Config key name to resolve")
+    scope_type: str | None = Field(default=None, pattern="^(platform|client|institution)$", description="Scope level to resolve at")
+    scope_id: str | None = Field(None, description="ID of the scope (used with scope_type)")
+    institution_id: str | None = Field(None, description="Institution ID for resolution context")
+    client_id: str | None = Field(None, description="Client ID for resolution context")
 
 
 @router.post(

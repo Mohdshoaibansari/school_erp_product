@@ -27,27 +27,27 @@ router = APIRouter(prefix="/api/v1/config/keys", tags=["Configuration Keys"])
 
 
 class CreateKeyRequest(BaseModel):
-    key: str = Field(..., min_length=1, max_length=255)
-    type: str = Field(..., pattern="^(string|number|boolean|json|date)$")
-    default_value: Any
-    category: str = Field(..., pattern="^(Business Rules|Display|Academic|Notifications|Feature Toggles|Platform|Integrations)$")
-    description: str = Field(..., min_length=1)
-    merge_strategy: str = Field(default="replace", pattern="^(replace|append_lists|deep_merge)$")
-    module: str | None = None
-    is_feature_toggle: bool = False
-    allowed_values: Any | None = None
+    key: str = Field(..., min_length=1, max_length=255, description="Unique config key name")
+    type: str = Field(..., pattern="^(string|number|boolean|json|date)$", description="Value type of the config key")
+    default_value: Any = Field(..., description="Default value used at platform scope")
+    category: str = Field(..., pattern="^(Business Rules|Display|Academic|Notifications|Feature Toggles|Platform|Integrations)$", description="Config category grouping")
+    description: str = Field(..., min_length=1, description="Human-readable purpose of the key")
+    merge_strategy: str = Field(default="replace", pattern="^(replace|append_lists|deep_merge)$", description="Merge strategy when scope values inherit")
+    module: str | None = Field(None, description="Module namespace (e.g., 'academic', 'homework')")
+    is_feature_toggle: bool = Field(default=False, description="Whether this key is a feature on/off toggle")
+    allowed_values: Any | None = Field(None, description="Optional hint array of allowed values")
 
 
 class UpdateKeyRequest(BaseModel):
-    default_value: Any | None = None
-    description: str | None = None
-    merge_strategy: str | None = Field(default=None, pattern="^(replace|append_lists|deep_merge)$")
-    category: str | None = Field(default=None, pattern="^(Business Rules|Display|Academic|Notifications|Feature Toggles|Platform|Integrations)$")
-    module: str | None = None
-    is_feature_toggle: bool | None = None
-    allowed_values: Any | None = None
-    is_deprecated: bool | None = None
-    replacement_key: str | None = None
+    default_value: Any | None = Field(None, description="New default value for the key")
+    description: str | None = Field(None, description="New human-readable description")
+    merge_strategy: str | None = Field(default=None, pattern="^(replace|append_lists|deep_merge)$", description="New merge strategy")
+    category: str | None = Field(default=None, pattern="^(Business Rules|Display|Academic|Notifications|Feature Toggles|Platform|Integrations)$", description="New config category")
+    module: str | None = Field(None, description="New module namespace")
+    is_feature_toggle: bool | None = Field(None, description="Whether key is a feature toggle")
+    allowed_values: Any | None = Field(None, description="New allowed-values hint")
+    is_deprecated: bool | None = Field(None, description="Set true to soft-delete the key")
+    replacement_key: str | None = Field(None, description="Key to use in place of a deprecated key")
 
 
 def _serialize_key(k: Any) -> dict:

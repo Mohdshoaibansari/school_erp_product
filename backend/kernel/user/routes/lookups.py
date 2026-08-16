@@ -12,7 +12,7 @@ from kernel.authz.dependencies import require_permission
 from kernel.user.models.user_category import UserCategory
 from kernel.user.models.role import Role
 from kernel.user.services.dtos import UserCategoryDTO, RoleDTO
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select, text
 from kernel.user.dependencies import get_db_session_factory
 
@@ -21,22 +21,22 @@ router = APIRouter(prefix="/api/v1/lookups", tags=["lookups"])
 
 class InstitutionTypeLookupDTO(BaseModel):
     """Minimal DTO for institution type dropdown."""
-    id: str
-    code: str | None = None
+    id: str = Field(..., description="Institution type ID")
+    code: str | None = Field(None, description="Institution type code")
 
     model_config = {"from_attributes": True}
 
 class OrgUnitTypeLookupDTO(BaseModel):
     """Minimal DTO for org unit type dropdown."""
-    id: str
-    name: str
+    id: str = Field(..., description="Org unit type ID")
+    name: str = Field(..., description="Org unit type name")
 
     model_config = {"from_attributes": True}
 
 class LegalEntityTypeLookupDTO(BaseModel):
     """Minimal DTO for legal entity type dropdown."""
-    id: str
-    name: str
+    id: str = Field(..., description="Legal entity type ID")
+    name: str = Field(..., description="Legal entity type name")
 
     model_config = {"from_attributes": True}
 

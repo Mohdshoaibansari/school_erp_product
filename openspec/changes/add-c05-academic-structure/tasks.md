@@ -1,0 +1,88 @@
+# Tasks — C-05 Academic Structure Framework
+
+> **Change:** add-c05-academic-structure
+> **Status:** Draft
+> **Last updated:** 2026-08-14
+> **Source:** `design.md`, `specs/`
+
+---
+
+## Task List
+
+### Phase 1: Models + Migration
+
+- [ ] **T01** Create `academic_year` model (`kernel/academic/models/academic_year.py`)
+- [ ] **T02** Create `term` model (`kernel/academic/models/term.py`)
+- [ ] **T03** Create `grade_level` model (`kernel/academic/models/grade_level.py`)
+- [ ] **T04** Create `class` model (`kernel/academic/models/class_entity.py`)
+- [ ] **T05** Create `section` model (`kernel/academic/models/section.py`)
+- [ ] **T06** Create `subject` model (`kernel/academic/models/subject.py`)
+- [ ] **T07** Create `subject_group` + `subject_group_member` models (`kernel/academic/models/subject_group.py`)
+- [ ] **T08** Create `teacher_assignment` model (`kernel/academic/models/teacher_assignment.py`)
+- [ ] **T09** Create `student_enrollment` model (`kernel/academic/models/student_enrollment.py`)
+- [ ] **T10** Create Alembic migration 020 (tables + RLS policies)
+- [ ] **T11** Seed config keys in migration (academic.schoolTemplate, etc.)
+- [ ] **T12** Seed permissions in migration (10 new permissions)
+- [ ] **T13** Seed role-permission mappings in migration
+
+### Phase 2: Repos
+
+- [ ] **T14** Create `AcademicYearRepo` (`kernel/academic/repos/academic_repo.py`)
+- [ ] **T15** Create `StructureRepo` for GradeLevel, Class, Section (`kernel/academic/repos/structure_repo.py`)
+- [ ] **T16** Create `SubjectRepo` for Subject, SubjectGroup (`kernel/academic/repos/subject_repo.py`)
+- [ ] **T17** Create `EnrollmentRepo` for StudentEnrollment (`kernel/academic/repos/enrollment_repo.py`)
+- [ ] **T18** Create `AssignmentRepo` for TeacherAssignment (`kernel/academic/repos/assignment_repo.py`)
+
+### Phase 3: Services
+
+- [ ] **T19** Create `TemplateService` — generate structure from config template (`kernel/academic/services/template_service.py`)
+- [ ] **T20** Create `CloneService` — clone structure from previous year (`kernel/academic/services/clone_service.py`)
+- [ ] **T21** Create `LifecycleService` — AcademicYear state transitions (`kernel/academic/services/lifecycle_service.py`)
+- [ ] **T22** Create `AcademicService` — CRUD for all entities (`kernel/academic/services/service.py`)
+- [ ] **T23** Create DTOs (`kernel/academic/services/dtos.py`)
+
+### Phase 4: Routes
+
+- [ ] **T24** Create AcademicYear routes (`kernel/academic/routes/academic_years.py`)
+- [ ] **T25** Create Enrollment routes (`kernel/academic/routes/enrollments.py`)
+- [ ] **T26** Create TeacherAssignment routes (`kernel/academic/routes/assignments.py`)
+- [ ] **T27** Create lookup routes for Subject, SubjectGroup (`kernel/academic/routes/lookups.py`)
+- [ ] **T28** Create manifest (`kernel/academic/manifest.py`)
+- [ ] **T29** Register manifest in app factory
+
+### Phase 5: Downstream Migration
+
+- [ ] **T30** Add FK columns to Homework (grade_level_id, section_id, subject_id) — nullable
+- [ ] **T31** Backfill Homework FK data (match text to C-05 records)
+- [ ] **T32** Make Homework FK columns non-nullable, drop old text columns
+- [ ] **T33** Add FK column to FeeAssignment (term_id) — nullable
+- [ ] **T34** Backfill FeeAssignment FK data
+- [ ] **T35** Make FeeAssignment FK non-nullable, drop old text column
+
+### Phase 6: Tests
+
+- [ ] **T36** Unit tests for TemplateService
+- [ ] **T37** Unit tests for CloneService
+- [ ] **T38** Unit tests for LifecycleService
+- [ ] **T39** Integration tests for AcademicYear CRUD + lifecycle
+- [ ] **T40** Integration tests for Enrollment + TeacherAssignment
+- [ ] **T41** Authorization tests (10 new permissions)
+- [ ] **T42** Migration tests (Homework/FeeAssignment backfill)
+
+---
+
+## Evidence Map
+
+| Task | Evidence |
+|---|---|
+| T01-T09 | Model files exist, `python -c "from kernel.academic.models import ..."` works |
+| T10 | Migration runs on clean DB, tables exist with RLS |
+| T11-T13 | Config keys and permissions exist in DB after migration |
+| T14-T18 | Repo CRUD operations work |
+| T19 | Template generates correct structure for "School" type |
+| T20 | Clone creates identical structure from previous year (minus archived) |
+| T21 | Lifecycle transitions work: planning → active → closed |
+| T22-T23 | Service CRUD operations work |
+| T24-T29 | API endpoints return correct responses |
+| T30-T35 | Homework/FeeAssignment FKs work, old columns dropped |
+| T36-T42 | All tests pass |

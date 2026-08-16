@@ -40,6 +40,7 @@ from kernel.authz.manifest import manifest as c04_manifest
 from kernel.config.manifest import manifest as c08_manifest
 from business.fees.manifest import manifest as fees_manifest
 from business.homework.manifest import manifest as homework_manifest
+from kernel.academic.manifest import manifest as c05_manifest
 
 # Initialize Supabase Auth client and inject into C-02 and C-03
 supabase_client = SupabaseAuthClientImpl(
@@ -55,6 +56,7 @@ app = create_app([
     c03_manifest,
     c04_manifest,
     c08_manifest,
+    c05_manifest,
     fees_manifest,
     homework_manifest,
 ])

@@ -27,28 +27,28 @@
 
 ### Phase 2: Repos
 
-- [ ] **T14** Create `AcademicYearRepo` (`kernel/academic/repos/academic_repo.py`)
-- [ ] **T15** Create `StructureRepo` for GradeLevel, Class, Section (`kernel/academic/repos/structure_repo.py`)
-- [ ] **T16** Create `SubjectRepo` for Subject, SubjectGroup (`kernel/academic/repos/subject_repo.py`)
-- [ ] **T17** Create `EnrollmentRepo` for StudentEnrollment (`kernel/academic/repos/enrollment_repo.py`)
-- [ ] **T18** Create `AssignmentRepo` for TeacherAssignment (`kernel/academic/repos/assignment_repo.py`)
+- [x] **T14** Create `AcademicYearRepo` (`kernel/academic/repos/academic_repo.py`)
+- [x] **T15** Create `StructureRepo` for GradeLevel, Class, Section (`kernel/academic/repos/structure_repo.py`)
+- [x] **T16** Create `SubjectRepo` for Subject, SubjectGroup (`kernel/academic/repos/subject_repo.py`)
+- [x] **T17** Create `EnrollmentRepo` for StudentEnrollment (`kernel/academic/repos/enrollment_repo.py`)
+- [x] **T18** Create `AssignmentRepo` for TeacherAssignment (`kernel/academic/repos/assignment_repo.py`)
 
 ### Phase 3: Services
 
-- [ ] **T19** Create `TemplateService` — generate structure from config template (`kernel/academic/services/template_service.py`)
-- [ ] **T20** Create `CloneService` — clone structure from previous year (`kernel/academic/services/clone_service.py`)
-- [ ] **T21** Create `LifecycleService` — AcademicYear state transitions (`kernel/academic/services/lifecycle_service.py`)
-- [ ] **T22** Create `AcademicService` — CRUD for all entities (`kernel/academic/services/service.py`)
-- [ ] **T23** Create DTOs (`kernel/academic/services/dtos.py`)
+- [x] **T19** Create `TemplateService` — generate structure from config template (`kernel/academic/services/template_service.py`)
+- [x] **T20** Create `CloneService` — clone structure from previous year (`kernel/academic/services/clone_service.py`)
+- [x] **T21** Create `LifecycleService` — AcademicYear state transitions (`kernel/academic/services/lifecycle_service.py`)
+- [x] **T22** Create `AcademicService` — CRUD for all entities (`kernel/academic/services/service.py`)
+- [x] **T23** Create DTOs (`kernel/academic/services/dtos.py`)
 
 ### Phase 4: Routes
 
-- [ ] **T24** Create AcademicYear routes (`kernel/academic/routes/academic_years.py`)
-- [ ] **T25** Create Enrollment routes (`kernel/academic/routes/enrollments.py`)
-- [ ] **T26** Create TeacherAssignment routes (`kernel/academic/routes/assignments.py`)
-- [ ] **T27** Create lookup routes for Subject, SubjectGroup (`kernel/academic/routes/lookups.py`)
-- [ ] **T28** Create manifest (`kernel/academic/manifest.py`)
-- [ ] **T29** Register manifest in app factory
+- [x] **T24** Create AcademicYear routes (`kernel/academic/routes/academic_years.py`)
+- [x] **T25** Create Enrollment routes (`kernel/academic/routes/enrollments.py`)
+- [x] **T26** Create TeacherAssignment routes (`kernel/academic/routes/assignments.py`)
+- [x] **T27** Create lookup routes for Subject, SubjectGroup (`kernel/academic/routes/lookups.py`)
+- [x] **T28** Create manifest (`kernel/academic/manifest.py`)
+- [x] **T29** Register manifest in app factory
 
 ### Phase 5: Downstream Migration
 

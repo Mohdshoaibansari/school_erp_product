@@ -83,6 +83,7 @@ class AcademicService:
         else:
             self.template_service.generate_from_template(year.id, client_id, institution_id, dto.start_date, dto.end_date)
 
+        self.db.commit()
         return year
 
     def get_academic_year(self, year_id: uuid.UUID) -> AcademicYear | None:
@@ -99,7 +100,9 @@ class AcademicService:
         year = self.year_repo.get_by_id(year_id)
         if not year:
             raise ValueError(f"AcademicYear {year_id} not found")
-        return self.lifecycle_service.transition(year, dto.new_state, dto.reason)
+        result = self.lifecycle_service.transition(year, dto.new_state, dto.reason)
+        self.db.commit()
+        return result
 
     # ============================================================
     # Structure (GradeLevel, Class, Section)
@@ -124,7 +127,9 @@ class AcademicService:
         section = self.section_repo.get_by_id(section_id)
         if not section:
             raise ValueError(f"Section {section_id} not found")
-        return self.section_repo.update(section, homeroom_teacher_id=dto.homeroom_teacher_id)
+        result = self.section_repo.update(section, homeroom_teacher_id=dto.homeroom_teacher_id)
+        self.db.commit()
+        return result
 
     # ============================================================
     # Enrollment
@@ -142,10 +147,13 @@ class AcademicService:
         if not section:
             raise ValueError(f"Section {dto.section_id} not found")
 
-        return self.enrollment_repo.create(
+        enrollment = self.enrollment_repo.create(
             client_id, institution_id, academic_year_id,
             dto.student_id, dto.section_id,
         )
+
+        self.db.commit()
+        return enrollment
 
     def list_enrollments(self, section_id: uuid.UUID) -> Sequence[StudentEnrollment]:
         return self.enrollment_repo.list_by_section(section_id)
@@ -166,6 +174,7 @@ class AcademicService:
             new_section_id, "active",
         )
 
+        self.db.commit()
         return old_enrollment, new_enrollment
 
     # ============================================================
@@ -188,10 +197,13 @@ class AcademicService:
         if not subject:
             raise ValueError(f"Subject {dto.subject_id} not found")
 
-        return self.assignment_repo.create(
+        assignment = self.assignment_repo.create(
             client_id, institution_id, academic_year_id,
             dto.teacher_id, dto.section_id, dto.subject_id,
         )
+
+        self.db.commit()
+        return assignment
 
     def list_teacher_assignments(
         self,
@@ -211,4 +223,6 @@ class AcademicService:
         assignment = self.assignment_repo.get_by_id(assignment_id)
         if not assignment:
             raise ValueError(f"TeacherAssignment {assignment_id} not found")
-        return self.assignment_repo.deactivate(assignment)
+        result = self.assignment_repo.deactivate(assignment)
+        self.db.commit()
+        return result

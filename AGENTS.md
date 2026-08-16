@@ -124,6 +124,7 @@ This invariant is non-negotiable: `docs/` is always the decisional input; OpenSp
 | C-02 Identity & User Management | `docs/architecture/adr-c02-identity-user-management-implementation.md` | D11 + D12 + D13 applied; all changes archived | — |
 | C-05 Academic Structure | `docs/architecture/adr-c05-academic-structure-implementation.md` | Applied; archived | — |
 | C-04 Authorization Consolidation | `docs/prd/c-04-authorization-consolidation.md` | Applied; archived | — |
+| Frontend (Web + Mobile UI) | `docs/architecture/adr-frontend-implementation.md` | ADR final (D1–D7 + R1–R8); PRD final | Feed to sdd-stack (Phase 2: impact classification → proposal → specs) |
 
 > This table is the single place to check "where are we." Update it as capabilities move through phases.
 

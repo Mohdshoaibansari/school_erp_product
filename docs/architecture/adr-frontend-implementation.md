@@ -48,6 +48,9 @@ The product owner ran a structured grill session and locked seven decisions (D1�
 | R6 | Fee assignment target unit | **Cohort bulk + per-student** — assign a fee to a section/grade in one action with per-student overrides. ⚠️ Depends on the Fees backend supporting cohort-level targets. |
 | R7 | Homework author | **Management roles only** — Institution Admin authors/grades homework; teacher UI deferred with the teacher role. |
 | R8 | Permission-denied handling | **Friendly 403 UI** — when the backend blocks an action the role-based UI allowed (e.g., future ABAC scope), render a clear permission-denied message, never a raw error. |
+| R9 | Subjects & subject groups (C-05) | **Read-only in this build** — the backend exposes GET-only lookups (`/subjects`, `/subject-groups`); create/edit/assign is deferred until C-05 exposes write routes. |
+| R10 | Institution-type deactivate (C-01) | **Deferred** — the backend has no deactivate endpoint; the UI offers list/create/edit only. |
+| R11 | Fee-assignment remove (Fees) | **Deferred** — the backend `fee-assignments` router has no DELETE; the UI offers create/edit/waive only. |
 
 ## 3. Consequences
 
@@ -62,6 +65,7 @@ The product owner ran a structured grill session and locked seven decisions (D1�
 - The built modules are admin/config-heavy; there is no polished "landing" experience until later phases (Dashboard is out of scope this build).
 - Responsive tables are hard on phones; data tables must collapse/scroll on narrow screens (a known weakness of the Figma output).
 - **R6 may require a backend change.** Cohort-level fee assignment depends on the Fees backend supporting section/grade targets; if the current `fee_assignment` model is per-student only, a separate Fees backend change is required before Phase 3 (flagged in the PRD).
+- **Four capabilities are UI-deferred pending backend routes** (R6 + R9–R11): subjects/subject-groups create/edit/assign, institution-type deactivate, fee-assignment remove, and cohort bulk fee assignment — all require backend routes that do not exist yet.
 
 ## 4. Model
 

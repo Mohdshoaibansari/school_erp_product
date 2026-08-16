@@ -43,13 +43,13 @@ The app SHALL allow an Institution Admin to transition an academic year's lifecy
 
 ---
 
-### REQ-FE-AC-04: Subjects and Subject Groups
+### REQ-FE-AC-04: Subjects and Subject Groups (read-only; management deferred)
 
-The app SHALL provide listing and management (create/edit/assign) of subjects and subject groups via the subjects/subject-groups endpoints (P2-AC-4).
+The app SHALL provide read-only listing of subjects and subject groups via the GET-only subjects/subject-groups endpoints. Create/edit/assign is DEFERRED pending C-05 write routes (P2-AC-4, ADR R9).
 
-#### Scenario: Manage subjects and subject groups
+#### Scenario: List subjects and subject groups
 - **WHEN** an Institution Admin works with subjects and subject groups
-- **THEN** they can list, create, edit, and assign them
+- **THEN** they can list them (read-only); create/edit/assign is deferred
 
 ---
 

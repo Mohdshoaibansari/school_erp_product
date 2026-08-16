@@ -21,11 +21,11 @@ The app SHALL provide a Fee Types screen where the Institution Admin can list, c
 
 ### REQ-FE-FEE-02: Fee Assignment Management
 
-The app SHALL provide a Fee Assignments screen where the Institution Admin can create, edit, and remove fee assignments, including recording a fee waiver for a student (P3-AC-2).
+The app SHALL provide a Fee Assignments screen where the Institution Admin can create, edit, and waive fee assignments. Remove is DEFERRED — the backend fee-assignments router has no DELETE endpoint (P3-AC-2, ADR R11).
 
-#### Scenario: Assign, edit, remove, and waive fees
+#### Scenario: Assign, edit, and waive fees
 - **WHEN** an Institution Admin works on fee assignments
-- **THEN** they can create, edit, remove assignments, and record a fee waiver
+- **THEN** they can create, edit, and waive assignments (remove deferred)
 
 ---
 

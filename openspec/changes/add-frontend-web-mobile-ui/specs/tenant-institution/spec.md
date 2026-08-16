@@ -21,11 +21,11 @@ The app SHALL provide a Clients screen where the Platform Owner can list (search
 
 ### REQ-FE-TI-02: Platform Owner — Institution Types Screen
 
-The app SHALL provide an Institution Types catalog screen where the Platform Owner can list, create, edit, and deactivate institution types (P1-AC-14).
+The app SHALL provide an Institution Types catalog screen where the Platform Owner can list, create, and edit institution types. Deactivate is DEFERRED — the backend exposes no deactivate endpoint (P1-AC-14, ADR R10).
 
 #### Scenario: Manage institution types
 - **WHEN** a Platform Owner acts on the Institution Types screen
-- **THEN** they can list, create, edit, and deactivate institution types
+- **THEN** they can list, create, and edit institution types (deactivate deferred)
 
 ---
 

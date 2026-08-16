@@ -61,13 +61,13 @@
 
 ### Phase 6: Tests
 
-- [ ] **T36** Unit tests for TemplateService
-- [ ] **T37** Unit tests for CloneService
-- [ ] **T38** Unit tests for LifecycleService
-- [ ] **T39** Integration tests for AcademicYear CRUD + lifecycle
-- [ ] **T40** Integration tests for Enrollment + TeacherAssignment
-- [ ] **T41** Authorization tests (10 new permissions)
-- [ ] **T42** Migration tests (Homework/FeeAssignment backfill)
+- [x] **T36** Unit tests for TemplateService
+- [x] **T37** Unit tests for CloneService
+- [x] **T38** Unit tests for LifecycleService
+- [x] **T39** Integration tests for AcademicYear CRUD + lifecycle
+- [x] **T40** Integration tests for Enrollment + TeacherAssignment
+- [x] **T41** Authorization tests (10 new permissions)
+- [x] **T42** Migration tests (Homework/FeeAssignment backfill)
 
 ---
 

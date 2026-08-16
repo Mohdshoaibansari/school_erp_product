@@ -18,7 +18,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
 revision = "020_add_c05_academic_structure"
-down_revision = "019_user_profile_permissions"
+down_revision = "019b"
 branch_labels = None
 depends_on = None
 

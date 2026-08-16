@@ -10,8 +10,8 @@ Down revision: 018
 from alembic import op
 import sqlalchemy as sa
 
-revision = "019"
-down_revision = "018"
+revision = "019b"
+down_revision = "019"
 branch_labels = None
 depends_on = None
 

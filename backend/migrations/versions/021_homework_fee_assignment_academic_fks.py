@@ -16,7 +16,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
-revision = "021_homework_fee_assignment_academic_fks"
+revision = "021_homework_fee_academic_fks"
 down_revision = "020_add_c05_academic_structure"
 branch_labels = None
 depends_on = None

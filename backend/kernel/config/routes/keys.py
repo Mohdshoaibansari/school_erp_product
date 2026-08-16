@@ -81,6 +81,11 @@ def create_key(
     ctx: TenantContext = Depends(get_tenant_context),
     _perm: None = Depends(require_permission("config.key", "create")),
 ):
+    """Create a new configuration key.
+
+    Permission: config.key.create (Platform Owner only).
+    The key name must be globally unique. Returns 400 if key already exists or validation fails.
+    """
     try:
         k = service.create_key(
             key_name=body.key,
@@ -115,6 +120,11 @@ def list_keys(
     service: ConfigurationService = Depends(get_configuration_service),
     _perm: None = Depends(require_permission("config.key", "list")),
 ):
+    """List configuration keys with pagination and filtering.
+
+    Permission: config.key.list. Returns paginated results.
+    Filter by key name, category, module, deprecation status, or feature toggle status.
+    """
     keys, total = service.repo.list_keys(
         key=key,
         category=category,
@@ -142,6 +152,10 @@ def get_key(
     service: ConfigurationService = Depends(get_configuration_service),
     _perm: None = Depends(require_permission("config.key", "list")),
 ):
+    """Get a single configuration key by ID.
+
+    Permission: config.key.list. Returns 404 if key not found.
+    """
     k = service.repo.get_key_by_id(key_id)
     if k is None:
         raise HTTPException(status_code=404, detail="Configuration key not found")
@@ -159,6 +173,12 @@ def update_key(
     ctx: TenantContext = Depends(get_tenant_context),
     _perm: None = Depends(require_permission("config.key", "update")),
 ):
+    """Update a configuration key's metadata.
+
+    Permission: config.key.update (Platform Owner only).
+    Can update default_value, description, merge_strategy, category, module, is_feature_toggle, allowed_values.
+    To deprecate, set is_deprecated=true with replacement_key. Returns 404 if key not found.
+    """
     if body.is_deprecated is True:
         k = service.soft_delete_key(
             key_id,
@@ -188,6 +208,10 @@ def delete_key(
     key_id: uuid.UUID,
     _perm: None = Depends(require_permission("config.key", "deprecate")),
 ):
+    """Hard delete is NOT supported.
+
+    Returns 405 Method Not Allowed. Use PATCH with is_deprecated=true and replacement_key to soft-delete.
+    """
     raise HTTPException(
         status_code=405,
         detail="Hard delete is not supported. Use PATCH with is_deprecated=true and replacement_key to soft-delete.",

@@ -37,6 +37,12 @@ def list_audit(
     ctx: TenantContext = Depends(get_tenant_context),
     _perm: None = Depends(require_permission("config.audit", "read")),
 ):
+    """Read the configuration audit log with filtering and pagination.
+
+    Permission: config.audit.read. Role-scoped: Platform Owner sees all entries,
+    Client Director sees their client's entries, Admin sees their institution's entries.
+    Filter by key_id, scope_type, scope_id, action, actor_user_id, and timestamp range.
+    """
     rows, total = service.list_audit(
         actor=ctx,
         key_id=key_id,

@@ -55,6 +55,12 @@ def create_value(
     ctx: TenantContext = Depends(get_tenant_context),
     _perm: None = Depends(require_permission("config.value", "create")),
 ):
+    """Create a configuration value override at client or institution scope.
+
+    Permission: config.value.create. Role-scoped: Platform Owner can create at any scope,
+    Client Director at client scope, Admin at institution scope.
+    Returns 409 if value already exists for this key+scope combination.
+    """
     try:
         v = service.create_value(
             key_id=body.key_id,
@@ -84,6 +90,12 @@ def list_values(
     ctx: TenantContext = Depends(get_tenant_context),
     _perm: None = Depends(require_permission("config.value", "list")),
 ):
+    """List configuration value overrides scoped to the caller's role.
+
+    Permission: config.value.list. Platform Owner sees all values,
+    Client Director sees their client's values, Admin sees their institution's values.
+    Supports pagination and filtering by key_id, scope_type, scope_id.
+    """
     client_id_filter: uuid.UUID | None = None
     institution_id_filter: uuid.UUID | None = None
 
@@ -119,6 +131,10 @@ def get_value(
     service: ConfigurationService = Depends(get_configuration_service),
     _perm: None = Depends(require_permission("config.value", "list")),
 ):
+    """Get a single configuration value by ID.
+
+    Permission: config.value.list. Returns 404 if value not found.
+    """
     v = service.repo.get_value_by_id(value_id)
     if v is None:
         raise HTTPException(status_code=404, detail="Configuration value not found")
@@ -136,6 +152,11 @@ def update_value(
     ctx: TenantContext = Depends(get_tenant_context),
     _perm: None = Depends(require_permission("config.value", "update")),
 ):
+    """Update a configuration value override.
+
+    Permission: config.value.update. Role-scoped same as create.
+    Triggers NOTIFY for cache invalidation across instances. Returns 404 if value not found.
+    """
     v = service.update_value(
         value_id,
         value=body.value,
@@ -156,6 +177,11 @@ def delete_value(
     ctx: TenantContext = Depends(get_tenant_context),
     _perm: None = Depends(require_permission("config.value", "delete")),
 ):
+    """Delete a configuration value override.
+
+    Permission: config.value.delete. After deletion, resolution falls back to parent scope
+    (institution → client → platform default). Returns 404 if value not found.
+    """
     deleted = service.delete_value(value_id, actor=ctx)
     if not deleted:
         raise HTTPException(status_code=404, detail="Configuration value not found")

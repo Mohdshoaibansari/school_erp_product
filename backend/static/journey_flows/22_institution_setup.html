@@ -107,7 +107,7 @@
           body: JSON.stringify({
             "email":"staff@test.com",
             "name":"Ms. Staff",
-            "user_category_id":"$LOOKUP.user-categories.Support Staff",
+            "user_category_id":"$LOOKUP.user-categories.Administrative Staff",
             "institution_id":"$INST_ID"
           }),
           extractions: [{ var: "STAFF_ID", path: "user.id" }, { var: "STAFF_INVITE", path: "invite_url" }]
@@ -260,13 +260,13 @@
       <div class="step">
         <div><span class="step-num">17</span><span class="step-title">Try to enroll student without permission (should FAIL)</span></div>
         <div class="step-desc">Login as Teacher and try to enroll a student.</div>
-        <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG"], "result-17")) return; runStep({
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG"], "result-17a")) return; runStep({
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
           body: JSON.stringify({ "email":"teacher@test.com", "password":"Teacher@123" }),
           extractions: [{ var: "TEACHER_TOKEN_TMP", path: "access_token" }]
-        }, "result-17")'>Run Step 17a — Login as Teacher</button>
+        }, "result-17a")'>Run Step 17a — Login as Teacher</button>
         <div class="result" id="result-17a"></div>
         <button class="run-btn" onclick='if (!requireVars(["FIRST_SECTION_ID", "STUDENT_ID", "TEACHER_TOKEN_TMP"], "result-17b")) return; runStep({
           method: "POST",

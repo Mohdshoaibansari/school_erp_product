@@ -94,3 +94,29 @@ The invite URL returned by both `POST /api/v1/users` (institution users) and `PO
 - **WHEN** the invite URL is built in a local dev environment
 - **THEN** the URL SHALL default to a value suitable for local development (e.g., `"http://127.0.0.1:8000"`)
 
+
+---
+
+## ADDED Requirements (from add-c05-academic-structure)
+
+- `teacher_assignment.teacher_id` → FK to `app_user.id`
+- `section.homeroom_teacher_id` → FK to `app_user.id`
+
+**Rules:**
+- Teacher must exist in `app_user` table
+- Teacher must have "Teacher" role (validated in service layer)
+- No schema changes to C-02 tables — FK is on C-05 side
+
+---
+
+### REQ-USER-AC-02: Student Enrollment Reference
+
+C-05 `StudentEnrollment` references `app_user.id` for student enrollment.
+
+**Fields affected:**
+- `student_enrollment.student_id` → FK to `app_user.id`
+
+**Rules:**
+- Student must exist in `app_user` table
+- Student must have "Student" role (validated in service layer)
+- No schema changes to C-02 tables — FK is on C-05 side

@@ -19,7 +19,8 @@
       <div class="prereq">
         <strong>Prerequisites:</strong> Run Flow 02 first. Stored vars required:
         <code>CLIENT_SLUG</code>, <code>INST_ID</code>, <code>ADMIN_EMAIL</code>, <code>ADMIN_PASSWORD</code>,
-        <code>TEACHER_ID</code>, <code>STUDENT_ID</code>.
+        <code>TEACHER_ID</code>, <code>STUDENT_ID</code>,
+        <code>PRINCIPAL_EMAIL</code>, <code>HOD_EMAIL</code>, <code>STAFF_EMAIL</code>, <code>PARENT_EMAIL</code>.
       </div>
 
       <h2>Login</h2>
@@ -47,7 +48,7 @@
           url: "http://127.0.0.1:8001/api/v1/users",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
-            "email":"principal@test.com",
+            "email":"$PRINCIPAL_EMAIL",
             "name":"Dr. Principal",
             "user_category_id":"$LOOKUP.user-categories.Executive Leadership",
             "institution_id":"$INST_ID"
@@ -76,7 +77,7 @@
           url: "http://127.0.0.1:8001/api/v1/users",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
-            "email":"hod@test.com",
+            "email":"$HOD_EMAIL",
             "name":"Mr. HOD",
             "user_category_id":"$LOOKUP.user-categories.Academic Staff",
             "institution_id":"$INST_ID"
@@ -105,7 +106,7 @@
           url: "http://127.0.0.1:8001/api/v1/users",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
-            "email":"staff@test.com",
+            "email":"$STAFF_EMAIL",
             "name":"Ms. Staff",
             "user_category_id":"$LOOKUP.user-categories.Administrative Staff",
             "institution_id":"$INST_ID"
@@ -134,7 +135,7 @@
           url: "http://127.0.0.1:8001/api/v1/users",
           headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
           body: JSON.stringify({
-            "email":"parent@test.com",
+            "email":"$PARENT_EMAIL",
             "name":"Mrs. Parent",
             "user_category_id":"$LOOKUP.user-categories.Guardian",
             "institution_id":"$INST_ID"
@@ -264,7 +265,7 @@
           method: "POST",
           url: "http://127.0.0.1:8001/api/auth/login",
           headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
-          body: JSON.stringify({ "email":"teacher@test.com", "password":"Teacher@123" }),
+          body: JSON.stringify({ "email":"$TEACHER_EMAIL", "password":"$TEACHER_PASSWORD" }),
           extractions: [{ var: "TEACHER_TOKEN_TMP", path: "access_token" }]
         }, "result-17a")'>Run Step 17a — Login as Teacher</button>
         <div class="result" id="result-17a"></div>

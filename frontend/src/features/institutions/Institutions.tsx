@@ -293,7 +293,7 @@ export function Institutions() {
             label="New state"
             data={INSTITUTION_ALLOWED_TRANSITIONS[modal?.kind === 'transition' ? modal.institution.current_lifecycle_status : ''] ?? []}
             value={transitionState}
-            onChange={setTransitionState}
+            onChange={(value) => setTransitionState(value ?? '')}
           />
           <TextInput
             label="Reason"

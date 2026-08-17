@@ -167,7 +167,7 @@ export function TeacherAssignments({
               label: `${u.name} (${u.email})`,
             }))}
             value={teacherId}
-            onChange={setTeacherId}
+            onChange={(value) => setTeacherId(value ?? '')}
           />
           <Select
             label="Subject"
@@ -177,7 +177,7 @@ export function TeacherAssignments({
               label: s.name,
             }))}
             value={subjectId}
-            onChange={setSubjectId}
+            onChange={(value) => setSubjectId(value ?? '')}
           />
           <Alert color="blue" variant="light">
             <Text size="sm">

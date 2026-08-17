@@ -274,7 +274,7 @@ function RolesTab({
             searchable
             data={(catalogQuery.data ?? []).map((r) => ({ value: r.id, label: r.name }))}
             value={selectedRoleId}
-            onChange={setSelectedRoleId}
+            onChange={(value) => setSelectedRoleId(value ?? '')}
             w={260}
           />
           <Button

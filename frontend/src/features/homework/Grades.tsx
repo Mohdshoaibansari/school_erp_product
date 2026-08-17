@@ -188,7 +188,7 @@ export function Grades() {
             label: h.title,
           }))}
           value={homeworkFilter}
-          onChange={setHomeworkFilter}
+          onChange={(value) => setHomeworkFilter(value ?? '')}
         />
         <Select
           placeholder="Filter by student"
@@ -199,7 +199,7 @@ export function Grades() {
             label: `${u.name} (${u.email})`,
           }))}
           value={studentFilter}
-          onChange={setStudentFilter}
+          onChange={(value) => setStudentFilter(value ?? '')}
         />
       </Group>
 

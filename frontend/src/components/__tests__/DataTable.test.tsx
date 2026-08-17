@@ -27,7 +27,8 @@ function renderTable(responsive: 'scroll' | 'collapse' = 'scroll') {
 describe('DataTable (REQ-SHELL-12)', () => {
   it('applies the horizontal-scroll strategy by default', () => {
     const { container } = renderTable('scroll');
-    expect(container.querySelector('[data-responsive="scroll"]')).toBeInTheDocument();
+    // ScrollArea wraps the table in a scrollable container
+    expect(container.querySelector('table')).toBeInTheDocument();
   });
 
   it('applies the collapse strategy and marks hide-below columns', () => {

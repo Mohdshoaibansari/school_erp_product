@@ -3,19 +3,19 @@ import { primaryColor, theme } from '../index';
 import { radiiValues } from '../tokens';
 
 describe('theme', () => {
-  it('primary color resolves to #2563EB (REQ-SHELL-02)', () => {
+  it('primary color resolves to #0052FF (REQ-SHELL-02)', () => {
     expect(theme.primaryColor).toBe('blue');
-    expect(theme.colors?.blue?.[6]).toBe('#2563EB');
-    expect(primaryColor).toBe('#2563EB');
+    expect(theme.colors?.blue?.[6]).toBe('#0052FF');
+    expect(primaryColor).toBe('#0052FF');
   });
 
-  it('uses Inter body and DM Sans headings (REQ-SHELL-02)', () => {
+  it('uses Inter body and Calistoga headings (REQ-SHELL-02)', () => {
     expect(theme.fontFamily).toContain('Inter');
-    expect(theme.headings?.fontFamily).toContain('DM Sans');
+    expect(theme.headings?.fontFamily).toContain('Calistoga');
   });
 
-  it('exposes the Figma radius scale 6/10/14/18', () => {
-    expect(radiiValues).toEqual(['6', '10', '14', '18']);
+  it('exposes the radius scale 8/12/16/20', () => {
+    expect(radiiValues).toEqual(['8', '12', '16', '20']);
   });
 
   it('exposes semantic colors', () => {

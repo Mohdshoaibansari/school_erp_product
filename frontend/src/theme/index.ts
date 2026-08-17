@@ -9,14 +9,6 @@ import {
   dangerPalette,
 } from './tokens';
 
-/**
- * Mantine theme recreating the Figma design system (REQ-SHELL-02, D4).
- *
- * - primary `#2563EB` (exposed as the `blue` color, shade 6)
- * - Inter body / DM Sans headings
- * - semantic success/warning/danger palettes centered on the Figma hex values
- * - radius scale 6 / 10 / 14 / 18
- */
 export const theme = createTheme({
   primaryColor: 'blue',
   primaryShade: 6,
@@ -26,18 +18,17 @@ export const theme = createTheme({
     warning: warningPalette as unknown as MantineColorsTuple,
     danger: dangerPalette as unknown as MantineColorsTuple,
   },
-  fontFamily: `${typography.body}, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`,
-  fontFamilyMonospace:
-    'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+  fontFamily: `${typography.body}, system-ui, sans-serif`,
+  fontFamilyMonospace: `${typography.mono}, ui-monospace, SFMono-Regular, monospace`,
   headings: {
-    fontFamily: `${typography.headings}, ${typography.body}, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`,
-    fontWeight: '600',
+    fontFamily: `${typography.headings}, Georgia, serif`,
+    fontWeight: '400',
     sizes: {
-      h1: { fontSize: '2rem', lineHeight: '1.2' },
-      h2: { fontSize: '1.5rem', lineHeight: '1.25' },
-      h3: { fontSize: '1.25rem', lineHeight: '1.3' },
-      h4: { fontSize: '1.125rem', lineHeight: '1.35' },
-      h5: { fontSize: '1rem', lineHeight: '1.4' },
+      h1: { fontSize: '2.75rem', lineHeight: '1.08' },
+      h2: { fontSize: '2rem', lineHeight: '1.15' },
+      h3: { fontSize: '1.5rem', lineHeight: '1.2' },
+      h4: { fontSize: '1.25rem', lineHeight: '1.25' },
+      h5: { fontSize: '1rem', lineHeight: '1.35' },
       h6: { fontSize: '0.875rem', lineHeight: '1.4' },
     },
   },
@@ -49,78 +40,21 @@ export const theme = createTheme({
     xl: radii.xl,
   },
   defaultRadius: 'md',
-  breakpoints: {
-    xs: '36em',
-    sm: '48em',
-    md: '64em',
-    lg: '75em',
-    xl: '88em',
-  },
-  spacing: {
-    xs: '4px',
-    sm: '8px',
-    md: '12px',
-    lg: '16px',
-    xl: '24px',
-  },
+  breakpoints: { xs: '36em', sm: '48em', md: '64em', lg: '75em', xl: '88em' },
+  spacing: { xs: '6px', sm: '10px', md: '14px', lg: '20px', xl: '28px' },
   components: {
-    Card: {
-      defaultProps: {
-        radius: 'md',
-      },
-    },
-    Paper: {
-      defaultProps: {
-        radius: 'md',
-      },
-    },
-    Table: {
-      defaultProps: {
-        highlightOnHover: true,
-      },
-    },
-    Button: {
-      defaultProps: {
-        radius: 'md',
-      },
-    },
-    TextInput: {
-      defaultProps: {
-        radius: 'md',
-      },
-    },
-    PasswordInput: {
-      defaultProps: {
-        radius: 'md',
-      },
-    },
-    Select: {
-      defaultProps: {
-        radius: 'md',
-      },
-    },
-    Textarea: {
-      defaultProps: {
-        radius: 'md',
-      },
-    },
-    NumberInput: {
-      defaultProps: {
-        radius: 'md',
-      },
-    },
-    Modal: {
-      defaultProps: {
-        radius: 'lg',
-      },
-    },
-    Badge: {
-      defaultProps: {
-        radius: 'sm',
-      },
-    },
+    Card: { defaultProps: { radius: 'md' } },
+    Paper: { defaultProps: { radius: 'md' } },
+    Table: { defaultProps: { highlightOnHover: true } },
+    Button: { defaultProps: { radius: 'md' } },
+    TextInput: { defaultProps: { radius: 'md' } },
+    PasswordInput: { defaultProps: { radius: 'md' } },
+    Select: { defaultProps: { radius: 'md' } },
+    Textarea: { defaultProps: { radius: 'md' } },
+    NumberInput: { defaultProps: { radius: 'md' } },
+    Modal: { defaultProps: { radius: 'lg' } },
+    Badge: { defaultProps: { radius: 'xl' } },
   },
 });
 
-/** Figma primary color re-exported for direct consumption in tests/components. */
 export const primaryColor = colors.primary;

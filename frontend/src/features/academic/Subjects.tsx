@@ -50,7 +50,7 @@ export function Subjects() {
               label: y.name,
             }))}
             value={yearId}
-            onChange={setYearId}
+            onChange={(value) => setYearId(value ?? '')}
             w={220}
           />
         }

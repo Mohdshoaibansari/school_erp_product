@@ -1,25 +1,6 @@
-import { Card, Text } from '@mantine/core';
+import { Card, Stack, Text } from '@mantine/core';
 import type { ReactNode } from 'react';
 
-/** Themed card wrapper for forms. */
-export function FormCard({
-  title,
-  children,
-  footer,
-}: {
-  title?: string;
-  children: ReactNode;
-  footer?: ReactNode;
-}) {
-  return (
-    <Card withBorder padding="lg">
-      {title ? (
-        <Text fw={600} mb="md">
-          {title}
-        </Text>
-      ) : null}
-      {children}
-      {footer ? <div style={{ marginTop: 16 }}>{footer}</div> : null}
-    </Card>
-  );
+export function FormCard({ title, children, footer }: { title?: string; children: ReactNode; footer?: ReactNode }) {
+  return <Card className="erp-card" withBorder={false} padding="xl" radius="lg"><Stack gap="lg">{title ? <Text fw={650} size="lg">{title}</Text> : null}{children}{footer ? <div style={{ marginTop: 4 }}>{footer}</div> : null}</Stack></Card>;
 }

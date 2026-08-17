@@ -1,48 +1,116 @@
+@import url('https://fonts.googleapis.com/css2?family=Calistoga&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 :root {
   color-scheme: light;
+  --erp-bg: #FAFAFA;
+  --erp-surface: #FFFFFF;
+  --erp-muted: #F1F5F9;
+  --erp-text: #0F172A;
+  --erp-subtle: #64748B;
+  --erp-border: #E2E8F0;
+  --erp-accent: #0052FF;
+  --erp-accent-2: #4D7CFF;
+  --erp-gradient: linear-gradient(135deg, #0052FF 0%, #4D7CFF 100%);
+  --erp-shadow-sm: 0 1px 3px rgba(15, 23, 42, .06);
+  --erp-shadow-md: 0 4px 12px rgba(15, 23, 42, .07);
+  --erp-shadow-lg: 0 16px 36px rgba(15, 23, 42, .09);
+  --erp-shadow-accent: 0 8px 24px rgba(0, 82, 255, .22);
 }
 
-html,
-body,
-#root {
-  height: 100%;
-}
-
+html, body, #root { min-height: 100%; }
+html { background: var(--erp-bg); }
 body {
   margin: 0;
-  background-color: #f1f5f9;
-  color: #0f172a;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    sans-serif;
+  background: var(--erp-bg);
+  color: var(--erp-text);
+  font-family: Inter, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Collapse-column responsive strategy for DataTable (REQ-SHELL-12). */
-@media (max-width: 900px) {
-  [data-col-hide-below='900'] {
-    display: none;
-  }
+*, *::before, *::after { box-sizing: border-box; }
+button, input, textarea, select { font: inherit; }
+::selection { background: rgba(0, 82, 255, .14); }
+
+/* Shared page language */
+.erp-page { max-width: 1440px; margin: 0 auto; padding: 10px 4px 48px; }
+.erp-section-label {
+  display: inline-flex; align-items: center; gap: 9px;
+  border: 1px solid rgba(0, 82, 255, .20);
+  background: rgba(0, 82, 255, .045);
+  color: var(--erp-accent);
+  border-radius: 999px; padding: 7px 12px;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  letter-spacing: .14em; text-transform: uppercase;
+}
+.erp-section-label::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--erp-gradient); box-shadow: 0 0 0 4px rgba(0,82,255,.08);
+  animation: erpPulse 2s ease-in-out infinite;
+}
+.erp-gradient-text {
+  background: var(--erp-gradient); -webkit-background-clip: text;
+  background-clip: text; color: transparent;
+}
+.erp-card {
+  background: var(--erp-surface); border: 1px solid var(--erp-border);
+  border-radius: 16px; box-shadow: var(--erp-shadow-sm);
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.erp-card:hover { box-shadow: var(--erp-shadow-md); }
+.erp-card-featured { position: relative; border-color: transparent; }
+.erp-card-featured::before {
+  content: ''; position: absolute; inset: -1px; z-index: -1; border-radius: 17px;
+  background: var(--erp-gradient); opacity: .75;
 }
 
-@media (max-width: 768px) {
-  [data-col-hide-below='768'] {
-    display: none;
-  }
+/* Mantine integration: keep the app airy and intentional. */
+.mantine-AppShell-main { background: var(--erp-bg); }
+.mantine-Table-table { border-collapse: separate; border-spacing: 0; }
+.mantine-Table-th {
+  background: #F8FAFC; color: #64748B; font-size: 11px;
+  font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+}
+.mantine-Table-td, .mantine-Table-th { border-bottom: 1px solid var(--erp-border); }
+.mantine-Table-tbody .mantine-Table-tr:last-child .mantine-Table-td { border-bottom: 0; }
+.mantine-Table-tbody .mantine-Table-tr:hover .mantine-Table-td { background: rgba(0,82,255,.018); }
+
+.mantine-Button-root { min-height: 44px; font-weight: 600; transition: all .2s ease; }
+.mantine-Button-root[data-variant='filled'] {
+  background: var(--erp-gradient); box-shadow: 0 4px 12px rgba(0,82,255,.16);
+}
+.mantine-Button-root[data-variant='filled']:hover {
+  transform: translateY(-1px); filter: brightness(1.04); box-shadow: var(--erp-shadow-accent);
+}
+.mantine-Button-root:active { transform: scale(.985); }
+.mantine-TextInput-input, .mantine-PasswordInput-input, .mantine-Select-input,
+.mantine-Textarea-input, .mantine-NumberInput-input {
+  min-height: 46px; border-color: var(--erp-border); background: rgba(255,255,255,.82);
+}
+.mantine-TextInput-input:focus, .mantine-PasswordInput-input:focus,
+.mantine-Select-input:focus, .mantine-Textarea-input:focus, .mantine-NumberInput-input:focus {
+  border-color: var(--erp-accent); box-shadow: 0 0 0 3px rgba(0,82,255,.10);
+}
+.mantine-Modal-content { box-shadow: var(--erp-shadow-lg); }
+
+/* Responsive table utilities retained from the original app. */
+@media (max-width: 900px) { [data-col-hide-below='900'] { display: none; } }
+@media (max-width: 768px) { [data-col-hide-below='768'] { display: none; } }
+@media (max-width: 640px) { [data-col-hide-below='640'] { display: none; } }
+@media (max-width: 480px) { [data-col-hide-below='480'] { display: none; } .hide-on-mobile { display: none; } }
+
+@keyframes erpPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .65; transform: scale(1.18); } }
+@keyframes erpFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes erpSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
 
-@media (max-width: 640px) {
-  [data-col-hide-below='640'] {
-    display: none;
-  }
-}
+.erp-user-trigger { border-radius: 14px; padding: 4px 6px; transition: background .2s ease; }
+.erp-user-trigger:hover { background: #F1F5F9; }
 
-@media (max-width: 480px) {
-  [data-col-hide-below='480'] {
-    display: none;
-  }
-
-  .hide-on-mobile {
-    display: none;
-  }
+@media (max-width: 767px) {
+  .login-shell { grid-template-columns: 1fr !important; }
+  .erp-page { padding-left: 0; padding-right: 0; }
 }

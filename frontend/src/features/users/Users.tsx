@@ -262,7 +262,7 @@ export function Users() {
             label="New state"
             data={USER_ALLOWED_TRANSITIONS[modal?.kind === 'transition' ? modal.user.lifecycle_status : ''] ?? []}
             value={transitionState}
-            onChange={setTransitionState}
+            onChange={(value) => setTransitionState(value ?? '')}
           />
           <TextInput
             label="Reason"

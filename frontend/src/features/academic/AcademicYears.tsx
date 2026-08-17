@@ -250,7 +250,7 @@ export function AcademicYears() {
             label="New state"
             data={modal?.kind === 'transition' ? NEXT_STATES[modal.year.status] ?? [] : []}
             value={transitionState}
-            onChange={setTransitionState}
+            onChange={(value) => setTransitionState(value ?? '')}
           />
           <TextInput
             label="Reason"

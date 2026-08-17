@@ -156,7 +156,7 @@ export function Enrollments({
             searchable
             data={rosterOptions}
             value={studentId}
-            onChange={setStudentId}
+            onChange={(value) => setStudentId(value ?? '')}
           />
           <Alert color="blue" variant="light">
             <Text size="sm">

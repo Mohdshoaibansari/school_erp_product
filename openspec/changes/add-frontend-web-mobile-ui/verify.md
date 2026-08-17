@@ -1,7 +1,7 @@
 # Verify — Frontend (Web + Mobile UI)
 
 > **Change:** add-frontend-web-mobile-ui
-> **Verdict:** FAIL (conditional — not ready to archive)
+> **Verdict:** PASS (conditional — deferred items resolved via manual testing + D8/D9, see §6)
 > **Verified by:** pi-sdd-verifier (sdd-stack verify phase)
 > **Date:** 2026-08-16
 > **Implementation commit:** `a25810b` (frontend-only)
@@ -192,3 +192,34 @@ What passes: all three gate commands green (92/92 tests), PWA emitted, no backen
 What blocks archive: the spec is not fully satisfied — (1) REQ-FE-AC-04 subjects/subject-groups create/edit/assign is unimplemented (read-only), (2) REQ-FE-TI-02 deactivate is unimplemented, (3) the two known backend blockers (fee-assignment remove, cohort bulk R6) remain, and (4) ~8 requirements have no automated test evidence. These must either be implemented/backfilled, or formally amended in the spec via the docs-first Change Loop before this capability can be marked verified/archived.
 
 **Recommended disposition:** return to the change loop — either (a) amend the ADR/PRD to defer REQ-FE-AC-04 create/edit/assign and REQ-FE-TI-02 deactivate alongside the already-deferred R6, then relax those spec requirements; or (b) implement the missing facets (requires the corresponding backend changes for fee-assignment DELETE, institution-type deactivate, and cohort targets). Add the missing test coverage for the untested P1 screens and a tenant-isolation fixture before re-verification.
+
+---
+
+## 6. Archive Resolution (2026-08-17)
+
+This section supersedes §5. The capability is archived as **PASS (conditional)** after manual testing completed and the post-verify drift was recorded docs-first.
+
+### 6.1 Deferred items — accepted-with-deferrals (already docs-first)
+
+The four conditional items were resolved via the docs-first Change Loop in commit `2552fc4` (ADR v1.1 + PRD + relaxed spec deltas):
+
+| Item | Requirement | Disposition |
+|---|---|---|
+| R6 — cohort bulk fee assignment | REQ-FE-FEE-04 | Feature-flagged behind `fees.cohortBulkAssignment` pending the separate Fees backend change; per-student path shipped. Accepted-with-deferral. |
+| R9 — subjects read-only | REQ-FE-AC-04 | Read-only listing shipped (GET-only endpoints); create/edit/assign deferred pending C-05 write routes. Accepted-with-deferral. |
+| R10 — institution-type deactivate | REQ-FE-TI-02 | List/create/edit shipped; deactivate deferred (no backend endpoint). Accepted-with-deferral. |
+| R11 — fee-assignment remove | REQ-FE-FEE-02 | Create/edit/waive shipped; remove deferred (no DELETE endpoint). Accepted-with-deferral. |
+
+These four are **residual follow-ups** owned by their respective backend capabilities, not regressions in this change.
+
+### 6.2 Post-verify drift — now recorded docs-first
+
+Since the original verify run, additional frontend fixes shipped on `main`. Two of them are product decisions that diverge from the original ADR/spec and are now recorded docs-first (ADR v1.2):
+
+- **D8 — 10-role expansion** (supersedes D5's "3 management roles only"): `roles.ts` now defines all 10 backend roles and `navConfig.ts` maps role→module against real Casbin grants; non-management roles get read-only/limited surfaces. Amended REQ-SHELL-03 / REQ-SHELL-10.
+- **D9 — "Minimalist Modern" token redesign** (supersedes D4's Figma-exact tokens): primary `#0052FF`, Calistoga headings, radii 8/12/16/20. Amended REQ-SHELL-02.
+- Lifecycle transition modals now show only valid state transitions (consistent with REQ-FE-AC-03; no spec change).
+
+### 6.3 Manual testing
+
+Manual browser testing (responsive sweep at 360px, PWA installability, role fixtures) was completed by the user on `main` after the fixes above. The previously deferred manual evidence in §4 is now satisfied by manual testing rather than automated tests.

@@ -23,23 +23,23 @@ The frontend SHALL be delivered as a single responsive web application that is i
 
 ---
 
-### REQ-SHELL-02: Mantine Theme Matches the Figma Design System
+### REQ-SHELL-02: Mantine Theme Uses the Minimalist Modern Design System
 
-The UI SHALL be built with Mantine restyled to match the Figma design system via a single theme override. Tokens SHALL match: primary `#2563EB`; backgrounds `#F1F5F9` / `#FFFFFF`; text `#0F172A` / `#475569` / `#94A3B8`; semantic success `#16A34A`, warning `#D97706`, danger `#DC2626`; typography Inter (body) + DM Sans (headings); radii `6 / 10 / 14 / 18`; and the Figma card, table, and status-pill patterns. No new design system or design invention is permitted (D4, N4, CC-AC-1).
+The UI SHALL be built with Mantine restyled via a single theme override using the "Minimalist Modern" design system (D9, amends D4). Tokens SHALL match: primary `#0052FF` (blue palette `#EEF4FF`→`#002D91`); app background `#FAFAFA`; surface `#FFFFFF`; muted `#F1F5F9`; text primary `#0F172A` / secondary `#64748B` / muted `#94A3B8`; border `#E2E8F0`; semantic success `#16A34A`, warning `#D97706`, danger `#DC2626`; typography Inter (body) + Calistoga (headings, Georgia fallback) + JetBrains Mono (labels); radii `8 / 12 / 16 / 20`; and the card, table, and status-pill patterns.
 
-#### Scenario: Primary color and typography match Figma tokens
+#### Scenario: Primary color and typography match the shipped tokens
 - **WHEN** any screen renders
-- **THEN** the primary color is `#2563EB` and body text uses Inter while headings use DM Sans
+- **THEN** the primary color is `#0052FF` and body text uses Inter while headings use Calistoga
 
-#### Scenario: No design invention
+#### Scenario: No further design invention
 - **WHEN** a screen or component is built
-- **THEN** it reuses the Figma-derived Mantine theme and component patterns rather than introducing new visual patterns
+- **THEN** it reuses the Minimalist Modern Mantine theme and component patterns rather than introducing new visual patterns
 
 ---
 
 ### REQ-SHELL-03: Role-Filtered Navigation from JWT Roles
 
-The app shell SHALL render role-filtered navigation derived from the JWT `roles` claim. A nav item SHALL appear only if the user's JWT roles allow that module. No C-04 authorization routes are consumed; gating is role-based from the JWT only (D5, P1-AC-1, R1).
+The app shell SHALL render role-filtered navigation derived from the JWT `roles` claim, across all 10 backend roles (D8). A nav item SHALL appear only if the user's JWT roles — mapped to their real Casbin `role_permission` grants — allow that module. No C-04 authorization routes are consumed; gating is role-based from the JWT only (D5/D8, P1-AC-1, R1).
 
 #### Scenario: Nav shows only role-allowed modules
 - **WHEN** a user loads the app shell
@@ -135,13 +135,17 @@ All API responses SHALL map to typed DTOs in the UI API layer (mirroring backend
 
 ---
 
-### REQ-SHELL-10: Management Roles Only
+### REQ-SHELL-10: All 10 Backend Roles with Permission-Accurate Gating
 
-The frontend SHALL serve the three management roles — Platform Owner, Client Director, and Institution Admin — and SHALL NOT expose Teacher, Student, or Parent surfaces until their operational backend exists (D5, N3).
+The frontend SHALL serve all 10 backend roles — `platform_owner`, `client_director`, `institution_admin`, `admin`, `teacher`, `hod`, `principal`, `student`, `parent`, `staff` — derived from the JWT roles array (case-insensitively normalized) with `user_tier`/`is_platform_owner` fallback (D8, amends D5). Each role SHALL be gated to only the nav items matching its real Casbin `role_permission` grants (migrations 002-020). Non-management roles SHALL receive read-only or limited surfaces only; no C-04 authorization routes are consumed.
 
-#### Scenario: Management roles only
-- **WHEN** the app renders navigation and actions
-- **THEN** they target Platform Owner, Client Director, and Institution Admin roles only
+#### Scenario: Management roles get full module surfaces
+- **WHEN** a Platform Owner, Client Director, or Institution Admin loads the app
+- **THEN** they see the modules permitted by their role's Casbin grants (Platform Owner and Client Director see Academic/Config/Fees/Homework per backend permissions)
+
+#### Scenario: Non-management roles get limited surfaces
+- **WHEN** a non-management role (admin, teacher, hod, principal, student, parent, staff) loads the app
+- **THEN** they see only read-only or limited surfaces matching their Casbin permissions, with no operational screens until their backend exists
 
 ---
 

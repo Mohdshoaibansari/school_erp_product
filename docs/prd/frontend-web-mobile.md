@@ -31,8 +31,8 @@ This PRD defines the first UI-bearing build: a responsive web + PWA frontend (si
 |---|---|
 | G1 | Provide a single responsive web + installable PWA surface that works in desktop and mobile browsers (D2). |
 | G2 | Cover the built backend modules end-to-end: tenant/institution (C-01), users (C-02), auth (C-03), roles/permissions (C-04), academic structure (C-05), config (C-08), Fees, Homework (D1). |
-| G3 | Serve the three management roles — Platform Owner, Client Director, Institution Admin — with navigation and actions gated by JWT roles (D5). |
-| G4 | Visually match the Figma design system: primary `#2563EB`, Inter body / DM Sans headings, semantic colors, card/table/status-pill patterns (D4). |
+| G3 | Serve all 10 backend roles — Platform Owner, Client Director, Institution Admin (management) plus admin, teacher, hod, principal, student, parent, staff — with navigation and actions gated by JWT roles and real Casbin permissions (D8, amends D5). |
+| G4 | Use the shipped "Minimalist Modern" design system: primary `#0052FF`, Inter body / Calistoga headings, JetBrains Mono labels, semantic colors, card/table/status-pill patterns (D9, amends D4). |
 | G5 | Deliver in three reviewable phases by domain, matching the repo's capability-at-a-time discipline (D6). |
 | G6 | Replace the demo `frontend/` completely, keeping only the reusable app-shell base (D7). |
 
@@ -42,8 +42,8 @@ This PRD defines the first UI-bearing build: a responsive web + PWA frontend (si
 |---|---|
 | N1 | No native mobile app or separate mobile codebase (D2). |
 | N2 | No operational screens — Dashboard, Students, Attendance, Timetable, Exams, Report Cards (those modules have no backend) (D1). |
-| N3 | No non-management roles — Teacher, Student, Parent — until their operational backend exists (D5). |
-| N4 | No new design system or design invention; the UI matches the Figma (D4). |
+| N3 | No full operational screens (dashboards, students, attendance, timetable, exams, report cards) for non-management roles until their backend exists; non-management roles get read-only/limited surfaces only (D8, amends D5). |
+| N4 | No further design invention beyond the adopted "Minimalist Modern" token set (D9, amends D4). |
 | N5 | No frontend-side authorization enforcement — the UI hides/shows by JWT role but never enforces access; the backend (Casbin RBAC+ABAC) remains authoritative and blocked actions render a friendly 403. |
 | N6 | No new backend endpoints or backend behavior changes as part of this capability; this is UI-only against the existing API surface. |
 | N7 | No offline data editing or background sync in this build (PWA caching depth is deferred). |
@@ -66,7 +66,7 @@ These are UI-deferred because the backend does not yet expose the required route
 
 ## 3. Users / Personas
 
-The frontend serves **management roles only** (D5). All navigation and actions are role-gated from the JWT `roles` claim; the backend remains authoritative.
+The frontend serves **all 10 backend roles** (D8, amending D5). All navigation and actions are role-gated from the JWT `roles` claim against each role's real Casbin permissions; the backend remains authoritative.
 
 ### 3.1 Platform Owner
 
@@ -403,7 +403,7 @@ Admin → a homework → Submissions
 | P1-AC-9 | A user can request a password reset and complete it by setting a new password. |
 | P1-AC-10 | A logged-in user can change their password with current + new password confirmation. |
 | P1-AC-11 | A user can log out and is returned to the login screen with the session terminated. |
-| P1-AC-12 | All auth screens are responsive and match the Figma design system (primary `#2563EB`, Inter/DM Sans, semantic colors). |
+| P1-AC-12 | All auth screens are responsive and match the "Minimalist Modern" design system (primary `#0052FF`, Inter/Calistoga, semantic colors). |
 
 #### Tenant/institution — Platform (C-01)
 
@@ -476,7 +476,7 @@ Admin → a homework → Submissions
 
 | # | Criterion |
 |---|---|
-| CC-AC-1 | The UI visually matches the Figma design system (primary `#2563EB`, Inter body / DM Sans headings, semantic colors, radii, card/table/status-pill patterns) — no new design invention. |
+| CC-AC-1 | The UI uses the "Minimalist Modern" design system (primary `#0052FF`, Inter body / Calistoga headings, JetBrains Mono labels, semantic colors, radii 8/12/16/20, card/table/status-pill patterns) (D9). |
 | CC-AC-2 | The app is installable as a PWA and usable in desktop and mobile browsers from a single codebase. |
 | CC-AC-3 | Data tables remain usable on narrow screens (collapse or horizontal scroll) without losing required columns/actions. |
 | CC-AC-4 | All tenant-scoped data views reflect the active client/institution context; there is no cross-tenant data leakage in the UI. |
@@ -527,7 +527,7 @@ Admin → a homework → Submissions
 | C-08 Config backend | Hard | Phase 2 config screens. |
 | Fees backend | Hard | Phase 3 fees screens. |
 | Homework backend | Hard | Phase 3 homework screens. |
-| Figma design system | Hard | Design tokens + component patterns (D4). |
+| Design system | Hard | "Minimalist Modern" tokens + component patterns (D9, amends D4). |
 
 ---
 
@@ -536,8 +536,8 @@ Admin → a homework → Submissions
 | Metric | Target |
 |---|---|
 | Built-module coverage | 100% of the in-scope API surface has a reachable UI screen. |
-| Role coverage | All three management roles can complete their core journeys without API access. |
+| Role coverage | All 10 backend roles see only the modules their Casbin permissions allow, and the three management roles can complete their core journeys without API access. |
 | Responsive usability | No in-scope screen is unusable at a 360px viewport width (collapse/scroll applied). |
-| Design fidelity | Primary/semantic colors and typography match Figma tokens across all screens. |
+| Design fidelity | Primary/semantic colors and typography match the "Minimalist Modern" tokens (`#0052FF`, Calistoga, Inter) across all screens. |
 | Role-gating correctness | Shown actions are allowed for the user's role and hidden actions are not shown (verified per role fixture); any backend-blocked action renders a friendly 403. |
 | Tenant isolation | No cross-tenant/cross-institution data appears under a mismatched context in verification fixtures. |

@@ -1,8 +1,8 @@
 # Frontend (Web + Mobile UI) — Architecture Decision Record
 
 > **Status:** Final
-> **Version:** 1.1
-> **Last Updated:** 2026-08-16
+> **Version:** 1.2
+> **Last Updated:** 2026-08-17
 > **Author:** AI (grill session with product owner)
 > **Source:** `adr-platform-tech-stack.md` (§2 "Frontend: Deferred", §7 "Frontend framework"); backend surface map; Figma Make export review; grill-session decisions
 > **Purpose:** Lock the frontend architecture for the first UI-bearing build, resolving the deferred frontend decision in `adr-platform-tech-stack.md`.
@@ -31,10 +31,12 @@ The product owner ran a structured grill session and locked seven decisions (D1�
 | **D1** | **Scope** | Build the frontend for the **built backend modules only**: C-01 Tenant/Institution, C-02 Users, C-03 Auth, C-04 Roles/Permissions, C-05 Academic Structure, C-08 Config, Fees, Homework. | The Figma's operational screens (Students, Attendance) have no backend. Figma is used as the **design-system + app-shell reference**, not as the screen inventory. |
 | **D2** | **Delivery target** | **Responsive web + PWA** (single codebase). No native app in this build. | One codebase that works in desktop and mobile browsers and is installable as a PWA; no app-store overhead. |
 | **D3** | **UI stack** | **React 19 + TypeScript + Vite + Mantine + TanStack Query + Axios + React Router v7**, plus `vite-plugin-pwa` for PWA support. | Resolves `adr-platform-tech-stack.md`'s deferred frontend choice. Retains the proven stack already in `frontend/`; Mantine gives mature table/form/modal components. |
-| **D4** | **Design system** | **Match the Figma design system closely**, recreated as a Mantine theme. Tokens: primary `#2563EB`; backgrounds `#F1F5F9`/`#FFFFFF`; text `#0F172A`/`#475569`/`#94A3B8`; semantic success `#16A34A`, warning `#D97706`, danger `#DC2626`; typography Inter (body) + DM Sans (headings); radii 6/10/14/18; card, table, and status-pill patterns per the Figma. | The product owner wants visual polish to match the Figma; no new design invention. |
-| **D5** | **Roles & access** | **Management roles only**: Platform Owner, Client Director, Institution Admin. Navigation and actions are **role-gated from the JWT `roles` claim** (no C-04 authz routes consumed). The backend stays authoritative via Casbin RBAC+ABAC; a blocked action renders a friendly permission-denied message. | These are the roles the built modules serve. Non-management roles (Teacher, Student, Parent) are deferred until operational modules exist. |
+| **D4** | **Design system** | **Match the Figma design system closely**, recreated as a Mantine theme. Tokens: primary `#2563EB`; backgrounds `#F1F5F9`/`#FFFFFF`; text `#0F172A`/`#475569`/`#94A3B8`; semantic success `#16A34A`, warning `#D97706`, danger `#DC2626`; typography Inter (body) + DM Sans (headings); radii 6/10/14/18; card, table, and status-pill patterns per the Figma. | The product owner wants visual polish to match the Figma; no new design invention. **Superseded/amended by D9 (Minimalist Modern tokens).** |
+| **D5** | **Roles & access** | **Management roles only**: Platform Owner, Client Director, Institution Admin. Navigation and actions are **role-gated from the JWT `roles` claim** (no C-04 authz routes consumed). The backend stays authoritative via Casbin RBAC+ABAC; a blocked action renders a friendly permission-denied message. | These are the roles the built modules serve. Non-management roles (Teacher, Student, Parent) are deferred until operational modules exist. **Superseded/amended by D8 (all 10 backend roles).** |
 | **D6** | **Sequencing** | **Three phases by domain**: Phase 1 = app shell + auth + tenant/institution (C-01) + users & roles (C-02/C-04); Phase 2 = academic structure (C-05) + config (C-08); Phase 3 = fees + homework. | Matches the repo's capability-at-a-time discipline and keeps each phase reviewable. |
 | **D7** | **Replace existing frontend** | Replace `frontend/` **completely**; keep only the Mantine+Vite base, rebuild pages. | The demo UI is throwaway; the product owner authorized full replacement. |
+| **D8** | **Role gating (10 roles)** | **Expands from 3 management roles to all 10 backend roles** (supersedes D5's "3 roles only"): `platform_owner`, `client_director`, `institution_admin`, `admin`, `teacher`, `hod`, `principal`, `student`, `parent`, `staff`. Roles are derived from the JWT roles array (case-insensitively normalized) with `user_tier`/`is_platform_owner` fallback, matching the backend middleware's DB role lookup. Each role is gated to the nav items matching its real Casbin `role_permission` grants (verified against migrations 002-020). Non-management roles get read-only or limited surfaces; no C-04 routes are still consumed. | During manual testing, admin/teacher login succeeded but showed "You don't have permission" because `deriveRoles()` filtered non-management roles out of the JWT/DB role set. The backend (C-02 migration 002 + Casbin) actually provisions 10 roles. D5 is amended, not deleted — the 3 management roles remain, but the surface now includes the 7 institution roles with permission-accurate gating. |
+| **D9** | **Design tokens (Minimalist Modern)** | **Adopt the "Minimalist Modern" token redesign** (supersedes D4's Figma-exact tokens): primary `#0052FF` (blue palette `#EEF4FF`→`#002D91`), body Inter, headings Calistoga (Georgia fallback), mono JetBrains Mono, radii sm/md/lg/xl = `8/12/16/20px`, app background `#FAFAFA`, surface `#FFFFFF`, muted `#F1F5F9`, text primary `#0F172A` / secondary `#64748B` / muted `#94A3B8`, border `#E2E8F0`, success `#16A34A`, warning `#D97706`, danger `#DC2626`. | A post-Figma visual redesign shipped in the code (`tokens.ts` + `REDESIGN_NOTES.md`) replacing the Figma-derived palette/typography/radii. D4 is amended; REQ-SHELL-02 now asserts `#0052FF` / Calistoga / radii 8-12-16-20. |
 
 ### Open-question resolutions (from PRD §7, resolved 2026-08-16)
 
@@ -66,6 +68,8 @@ The product owner ran a structured grill session and locked seven decisions (D1�
 - Responsive tables are hard on phones; data tables must collapse/scroll on narrow screens (a known weakness of the Figma output).
 - **R6 may require a backend change.** Cohort-level fee assignment depends on the Fees backend supporting section/grade targets; if the current `fee_assignment` model is per-student only, a separate Fees backend change is required before Phase 3 (flagged in the PRD).
 - **Four capabilities are UI-deferred pending backend routes** (R6 + R9–R11): subjects/subject-groups create/edit/assign, institution-type deactivate, fee-assignment remove, and cohort bulk fee assignment — all require backend routes that do not exist yet.
+- **D8 amends D5 (role scope)** — role gating now covers all 10 backend roles; the three management roles keep their full surfaces, while the seven institution roles (admin, teacher, hod, principal, student, parent, staff) receive read-only/limited surfaces gated by their real Casbin permissions.
+- **D9 amends D4 (design system)** — the shipped tokens are the "Minimalist Modern" set (`#0052FF`/Calistoga/radii 8-12-16-20). Beyond tokens, the redesign restyles the app shell: deep-slate `#0F172A` grouped role-aware navigation with active gradient, a glassy header with context selectors, page headers, elevated data tables, refined form/status/stat cards, and a redesigned login screen (inverted textured hero); focus states, touch targets, and `prefers-reduced-motion` are supported.
 
 ## 4. Model
 
@@ -82,7 +86,7 @@ The product owner ran a structured grill session and locked seven decisions (D1�
   │   API layer (Axios + TanStack Query) — typed DTOs, no `any` │
   │   · bearer JWT; 401 → /login                                │
   │   · Auth flows: login, OTP, password reset/change, refresh  │
-  │   Mantine theme = Figma tokens (primary #2563EB, Inter, …)  │
+  │   Mantine theme = Minimalist Modern tokens (primary #0052FF, Calistoga, …)  │
   └──────────────────────────────────────────────────────────────┘
                         │ HTTPS  /api/v1/*   Host: <slug>.app.example.com
                         ▼

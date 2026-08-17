@@ -97,8 +97,8 @@ While a session is active, the app SHALL refresh the access token silently. If a
 
 ### REQ-FE-AUTH-08: Auth Screens Responsive and Themed
 
-All auth screens SHALL be responsive and match the Figma design system (primary `#2563EB`, Inter/DM Sans, semantic colors) (P1-AC-12).
+All auth screens SHALL be responsive and match the "Minimalist Modern" design system (primary `#0052FF`, Inter/Calistoga, semantic colors) (P1-AC-12, D9).
 
 #### Scenario: Auth screens match design system
 - **WHEN** any auth screen renders on desktop or mobile
-- **THEN** it is responsive and matches the Figma-derived Mantine theme
+- **THEN** it is responsive and matches the Minimalist Modern Mantine theme

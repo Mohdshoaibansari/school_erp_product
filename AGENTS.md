@@ -125,6 +125,7 @@ This invariant is non-negotiable: `docs/` is always the decisional input; OpenSp
 | C-05 Academic Structure | `docs/architecture/adr-c05-academic-structure-implementation.md` | Applied; archived | — |
 | C-04 Authorization Consolidation | `docs/prd/c-04-authorization-consolidation.md` | Applied; archived | — |
 | Frontend (Web + Mobile UI) | `docs/architecture/adr-frontend-implementation.md` | **Archived** (frontend built, 92 tests green; D8/D9 recorded — 10-role expansion + Minimalist Modern tokens). 4 items deferred as residual follow-ups (R6, R9–R11) | — |
+| Student & Employee Domain Model | `docs/architecture/adr-student-employee-domain-implementation.md` | Decisions final (D1–D13, grill session) | Feed to sdd-stack (Phase 2); C-06 Relationship Mgmt is the *next* capability after this |
 
 > This table is the single place to check "where are we." Update it as capabilities move through phases.
 

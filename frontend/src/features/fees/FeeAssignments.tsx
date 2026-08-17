@@ -20,6 +20,7 @@ import type {
 } from '../../core/api/dto/fees';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { ErrorState } from '../../components/ErrorState';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusPill } from '../../components/StatusPill';
@@ -247,11 +248,15 @@ export function FeeAssignments() {
         </Text>
       </Alert>
 
-      <DataTable
-        columns={columns}
-        rows={assignmentsQuery.data ?? []}
-        getRowKey={(a) => a.id}
-      />
+      {assignmentsQuery.isLoading ? (
+        <TableSkeleton rows={5} columns={6} />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={assignmentsQuery.data ?? []}
+          getRowKey={(a) => a.id}
+        />
+      )}
 
       <Modal
         opened={modal?.kind === 'create'}

@@ -17,6 +17,7 @@ import type {
 import { lookupsApi } from '../../core/api/lookups';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusPill } from '../../components/StatusPill';
 import { PermissionDenied } from '../../components/PermissionDenied';
@@ -193,6 +194,18 @@ export function Clients() {
     },
   ];
 
+  if (clientsQuery.isLoading) {
+    return (
+      <>
+        <PageHeader
+          title="Clients"
+          subtitle="Manage platform clients and their lifecycle."
+        />
+        <TableSkeleton rows={5} columns={5} />
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader
@@ -217,7 +230,11 @@ export function Clients() {
 
       {forbidden ? <PermissionDenied error={new ApiError(403, forbidden)} /> : null}
 
-      <DataTable columns={columns} rows={filtered} getRowKey={(c) => c.id} />
+      {clientsQuery.isLoading ? (
+        <TableSkeleton rows={5} columns={5} />
+      ) : (
+        <DataTable columns={columns} rows={filtered} getRowKey={(c) => c.id} />
+      )}
 
       <Modal
         opened={modal?.kind === 'create'}

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { academicApi } from '../../core/api/academic';
 import type { SubjectDTO } from '../../core/api/dto/academic';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { PageHeader } from '../../components/PageHeader';
 import { useTenant } from '../../core/context/useTenant';
 
@@ -63,11 +64,15 @@ export function Subjects() {
           </Text>
         </Alert>
 
-        <DataTable
-          columns={columns}
-          rows={subjectsQuery.data ?? []}
-          getRowKey={(s) => s.id}
-        />
+        {subjectsQuery.isLoading ? (
+          <TableSkeleton rows={5} columns={3} />
+        ) : (
+          <DataTable
+            columns={columns}
+            rows={subjectsQuery.data ?? []}
+            getRowKey={(s) => s.id}
+          />
+        )}
       </Stack>
     </>
   );

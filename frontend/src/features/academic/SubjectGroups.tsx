@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { academicApi } from '../../core/api/academic';
 import type { SubjectGroupDTO } from '../../core/api/dto/academic';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { PageHeader } from '../../components/PageHeader';
 import { useTenant } from '../../core/context/useTenant';
 
@@ -38,11 +39,15 @@ export function SubjectGroups() {
           </Text>
         </Alert>
 
-        <DataTable
-          columns={columns}
-          rows={groupsQuery.data ?? []}
-          getRowKey={(g) => g.id}
-        />
+        {groupsQuery.isLoading ? (
+          <TableSkeleton rows={5} columns={2} />
+        ) : (
+          <DataTable
+            columns={columns}
+            rows={groupsQuery.data ?? []}
+            getRowKey={(g) => g.id}
+          />
+        )}
       </Stack>
     </>
   );

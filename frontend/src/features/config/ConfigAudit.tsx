@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { configApi } from '../../core/api/config';
 import type { ConfigAuditDTO } from '../../core/api/dto/config';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { PageHeader } from '../../components/PageHeader';
 import { useTenant } from '../../core/context/useTenant';
 
@@ -59,11 +60,15 @@ export function ConfigAudit() {
         title="Configuration audit"
         subtitle="Who changed which configuration value and when."
       />
-      <DataTable
-        columns={columns}
-        rows={auditQuery.data ?? []}
-        getRowKey={(a) => a.id}
-      />
+      {auditQuery.isLoading ? (
+        <TableSkeleton rows={5} columns={4} />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={auditQuery.data ?? []}
+          getRowKey={(a) => a.id}
+        />
+      )}
     </>
   );
 }

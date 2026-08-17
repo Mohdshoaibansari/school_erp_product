@@ -14,6 +14,7 @@ import type { PaymentCreateDTO, PaymentDTO } from '../../core/api/dto/fees';
 import type { FeeAssignmentDTO } from '../../core/api/dto/fees';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusPill } from '../../components/StatusPill';
 import { PermissionDenied } from '../../components/PermissionDenied';
@@ -251,11 +252,15 @@ export function Payments() {
         />
       </Group>
 
-      <DataTable
-        columns={columns}
-        rows={filteredRows}
-        getRowKey={(r) => r.payment.id}
-      />
+      {paymentsQuery.isLoading ? (
+        <TableSkeleton rows={5} columns={7} />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={filteredRows}
+          getRowKey={(r) => r.payment.id}
+        />
+      )}
 
       <Modal opened={open} onClose={() => setOpen(false)} title="Record payment">
         <Stack>

@@ -8,6 +8,7 @@ import type {
 } from '../../core/api/dto/platform';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { PageHeader } from '../../components/PageHeader';
 import { PermissionDenied } from '../../components/PermissionDenied';
 
@@ -81,6 +82,18 @@ export function InstitutionTypes() {
       ),
     },
   ];
+
+  if (typesQuery.isLoading) {
+    return (
+      <>
+        <PageHeader
+          title="Institution Types"
+          subtitle="Shared platform catalog of institution types."
+        />
+        <TableSkeleton rows={5} columns={4} />
+      </>
+    );
+  }
 
   return (
     <>

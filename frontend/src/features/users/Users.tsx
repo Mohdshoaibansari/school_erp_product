@@ -14,6 +14,7 @@ import { lookupsApi } from '../../core/api/lookups';
 import type { UserCreateDTO, UserDTO } from '../../core/api/dto/users';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { ErrorState } from '../../components/ErrorState';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusPill } from '../../components/StatusPill';
@@ -175,7 +176,11 @@ export function Users() {
         />
       ) : null}
 
-      <DataTable columns={columns} rows={filtered} getRowKey={(u) => u.id} />
+      {usersQuery.isLoading ? (
+        <TableSkeleton rows={5} columns={4} />
+      ) : (
+        <DataTable columns={columns} rows={filtered} getRowKey={(u) => u.id} />
+      )}
 
       <Modal opened={modal?.kind === 'create'} onClose={() => setModal(null)} title="New user">
         <Stack>

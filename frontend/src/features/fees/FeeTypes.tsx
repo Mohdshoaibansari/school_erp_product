@@ -16,6 +16,7 @@ import type {
 } from '../../core/api/dto/fees';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusPill } from '../../components/StatusPill';
 import { PermissionDenied } from '../../components/PermissionDenied';
@@ -160,11 +161,15 @@ export function FeeTypes() {
 
       {forbidden ? <PermissionDenied error={new ApiError(403, forbidden)} /> : null}
 
-      <DataTable
-        columns={columns}
-        rows={feeTypesQuery.data ?? []}
-        getRowKey={(t) => t.id}
-      />
+      {feeTypesQuery.isLoading ? (
+        <TableSkeleton rows={5} columns={5} />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={feeTypesQuery.data ?? []}
+          getRowKey={(t) => t.id}
+        />
+      )}
 
       <Modal
         opened={modal?.kind === 'create'}

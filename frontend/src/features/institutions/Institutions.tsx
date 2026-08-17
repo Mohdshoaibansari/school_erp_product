@@ -17,6 +17,7 @@ import type {
 } from '../../core/api/dto/institutions';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusPill } from '../../components/StatusPill';
 import { PermissionDenied } from '../../components/PermissionDenied';
@@ -162,6 +163,18 @@ export function Institutions() {
       ),
     },
   ];
+
+  if (institutionsQuery.isLoading) {
+    return (
+      <>
+        <PageHeader
+          title="Institutions"
+          subtitle="Institutions under your client."
+        />
+        <TableSkeleton rows={5} columns={4} />
+      </>
+    );
+  }
 
   return (
     <>

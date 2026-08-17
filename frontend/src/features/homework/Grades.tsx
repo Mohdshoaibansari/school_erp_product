@@ -15,6 +15,7 @@ import type { GradeDTO, GradeUpdateDTO } from '../../core/api/dto/homework';
 import type { SubmissionDTO } from '../../core/api/dto/homework';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { PageHeader } from '../../components/PageHeader';
 import { PermissionDenied } from '../../components/PermissionDenied';
 import { useTenant } from '../../core/context/useTenant';
@@ -202,11 +203,15 @@ export function Grades() {
         />
       </Group>
 
-      <DataTable
-        columns={columns}
-        rows={filteredRows}
-        getRowKey={(r) => r.grade.id}
-      />
+      {gradesQuery.isLoading ? (
+        <TableSkeleton rows={5} columns={6} />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={filteredRows}
+          getRowKey={(r) => r.grade.id}
+        />
+      )}
 
       <Modal opened={!!editing} onClose={() => setEditing(null)} title="Edit grade">
         <Stack>

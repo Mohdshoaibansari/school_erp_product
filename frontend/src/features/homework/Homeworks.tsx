@@ -19,6 +19,7 @@ import type {
 } from '../../core/api/dto/homework';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { ErrorState } from '../../components/ErrorState';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusPill } from '../../components/StatusPill';
@@ -253,11 +254,15 @@ export function Homeworks() {
         />
       ) : null}
 
-      <DataTable
-        columns={columns}
-        rows={homeworksQuery.data ?? []}
-        getRowKey={(h) => h.id}
-      />
+      {homeworksQuery.isLoading ? (
+        <TableSkeleton rows={5} columns={7} />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={homeworksQuery.data ?? []}
+          getRowKey={(h) => h.id}
+        />
+      )}
 
       <Modal
         opened={modal?.kind === 'create'}

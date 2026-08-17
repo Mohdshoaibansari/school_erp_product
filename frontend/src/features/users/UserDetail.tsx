@@ -249,8 +249,10 @@ function RolesTab({
     },
   });
 
+  const roleMap = new Map((catalogQuery.data ?? []).map((r) => [r.id, r.name]));
+
   const columns: DataTableColumn<RoleAssignmentDTO>[] = [
-    { key: 'role_id', header: 'Role', render: (a) => a.role_id },
+    { key: 'role_id', header: 'Role', render: (a) => roleMap.get(a.role_id) ?? a.role_id },
     { key: 'scope', header: 'Scope', render: (a) => a.scope ?? '—' },
     {
       key: 'actions',

@@ -14,6 +14,7 @@ import { homeworkApi } from '../../core/api/homework';
 import type { GradeCreateDTO, SubmissionDTO } from '../../core/api/dto/homework';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusPill } from '../../components/StatusPill';
 import { PermissionDenied } from '../../components/PermissionDenied';
@@ -118,11 +119,15 @@ export function Submissions() {
 
       {forbidden ? <PermissionDenied error={new ApiError(403, forbidden)} /> : null}
 
-      <DataTable
-        columns={columns}
-        rows={submissionsQuery.data ?? []}
-        getRowKey={(s) => s.id}
-      />
+      {submissionsQuery.isLoading ? (
+        <TableSkeleton rows={5} columns={4} />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={submissionsQuery.data ?? []}
+          getRowKey={(s) => s.id}
+        />
+      )}
 
       <Modal
         opened={modal?.kind === 'view'}

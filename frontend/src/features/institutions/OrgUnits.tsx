@@ -17,6 +17,7 @@ import type {
   OrgUnitDTO,
 } from '../../core/api/dto/institutions';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
+import { TableSkeleton } from '../../components/Skeleton';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusPill } from '../../components/StatusPill';
 import { PermissionDenied } from '../../components/PermissionDenied';
@@ -50,6 +51,7 @@ type ModalState =
   | { kind: 'create'; parentId: string | null }
   | { kind: 'move'; unit: OrgUnitDTO }
   | { kind: 'reorder'; unit: OrgUnitDTO }
+  | { kind: 'detail'; unit: OrgUnitDTO }
   | null;
 
 export function OrgUnits() {
@@ -70,7 +72,7 @@ export function OrgUnits() {
   const typesQuery = useQuery({
     queryKey: ['lookups', 'org-unit-types'],
     queryFn: () => lookupsApi.listOrgUnitTypes().then((r) => r.data),
-    enabled: modal?.kind === 'create',
+    enabled: modal?.kind === 'create' || modal?.kind === 'detail',
   });
 
   const tree = useMemo(
@@ -153,6 +155,9 @@ export function OrgUnits() {
             </Text>
           </Group>
           <Group gap="xs" wrap="nowrap">
+            <Button size="xs" variant="light" onClick={() => setModal({ kind: 'detail', unit })}>
+              View
+            </Button>
             <Button
               size="xs"
               variant="light"
@@ -188,6 +193,18 @@ export function OrgUnits() {
         </Group>
         {node.children.map((child) => renderNode(child, depth + 1))}
       </div>
+    );
+  }
+
+  if (orgUnitsQuery.isLoading) {
+    return (
+      <>
+        <PageHeader
+          title="Org Units"
+          subtitle="Organisation unit tree for this institution."
+        />
+        <TableSkeleton rows={5} columns={3} />
+      </>
     );
   }
 
@@ -294,6 +311,49 @@ export function OrgUnits() {
             Save
           </Button>
         </Stack>
+      </Modal>
+
+      <Modal opened={modal?.kind === 'detail'} onClose={() => setModal(null)} title="Org unit details">
+        {modal?.kind === 'detail' ? (
+          <Stack>
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Name</Text>
+              <Text fw={500}>{modal.unit.name}</Text>
+            </Group>
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Code</Text>
+              <Text>{modal.unit.code ?? '—'}</Text>
+            </Group>
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Type</Text>
+              <Text>{typesQuery.data?.find((t) => t.id === modal.unit.type_id)?.name ?? modal.unit.type_id}</Text>
+            </Group>
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Parent ID</Text>
+              <Text>{modal.unit.parent_id ?? '—'}</Text>
+            </Group>
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Sort order</Text>
+              <Text>{modal.unit.sort_order}</Text>
+            </Group>
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Status</Text>
+              <StatusPill status={modal.unit.current_lifecycle_status} />
+            </Group>
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Created</Text>
+              <Text>{new Date(modal.unit.created_at).toLocaleString()}</Text>
+            </Group>
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Updated</Text>
+              <Text>{new Date(modal.unit.updated_at).toLocaleString()}</Text>
+            </Group>
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Archived</Text>
+              <Text>{modal.unit.archived_at ? new Date(modal.unit.archived_at).toLocaleString() : '—'}</Text>
+            </Group>
+          </Stack>
+        ) : null}
       </Modal>
     </>
   );

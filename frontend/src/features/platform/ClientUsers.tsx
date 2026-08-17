@@ -3,6 +3,7 @@ import {
   Button,
   Group,
   Modal,
+  Select,
   Stack,
   Text,
   TextInput,
@@ -11,12 +12,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { platformApi } from '../../core/api/platform';
 import { usersApi } from '../../core/api/users';
+import { lookupsApi } from '../../core/api/lookups';
 import type {
   ClientUserCreateDTO,
   ClientUserDTO,
 } from '../../core/api/dto/users';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusPill } from '../../components/StatusPill';
 import { PermissionDenied } from '../../components/PermissionDenied';
@@ -41,6 +44,16 @@ export function ClientUsers() {
     queryKey: ['platform', 'clients', clientId, 'users'],
     queryFn: () => usersApi.listClientUsers(clientId).then((r) => r.data),
     enabled: !!clientId,
+  });
+
+  const rolesQuery = useQuery({
+    queryKey: ['lookups', 'roles'],
+    queryFn: () => lookupsApi.listRoles().then((r) => r.data),
+  });
+
+  const categoriesQuery = useQuery({
+    queryKey: ['lookups', 'user-categories'],
+    queryFn: () => lookupsApi.listUserCategories().then((r) => r.data),
   });
 
   const invalidate = () =>
@@ -99,6 +112,18 @@ export function ClientUsers() {
     },
   ];
 
+  if (usersQuery.isLoading) {
+    return (
+      <>
+        <PageHeader
+          title={clientQuery.data?.display_name ?? 'Client users'}
+          subtitle="Manage client-director users for this client."
+        />
+        <TableSkeleton rows={5} columns={4} />
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader
@@ -138,19 +163,21 @@ export function ClientUsers() {
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.currentTarget.value })}
           />
-          <TextInput
-            label="Role ID"
+          <Select
+            label="Role"
             required
-            value={form.role_id}
-            onChange={(e) => setForm({ ...form, role_id: e.currentTarget.value })}
+            searchable
+            data={(rolesQuery.data ?? []).map((r) => ({ value: r.id, label: r.name }))}
+            value={form.role_id || null}
+            onChange={(v) => setForm({ ...form, role_id: v ?? '' })}
           />
-          <TextInput
-            label="User category ID"
+          <Select
+            label="User category"
             required
-            value={form.user_category_id}
-            onChange={(e) =>
-              setForm({ ...form, user_category_id: e.currentTarget.value })
-            }
+            searchable
+            data={(categoriesQuery.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+            value={form.user_category_id || null}
+            onChange={(v) => setForm({ ...form, user_category_id: v ?? '' })}
           />
           <Button
             loading={createMutation.isPending}

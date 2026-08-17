@@ -27,7 +27,14 @@ type ModalState =
   | { kind: 'transition'; user: UserDTO }
   | null;
 
-const LIFECYCLE_STATES = ['active', 'suspended', 'archived'];
+/** Allowed transitions from each user lifecycle state (matches backend state machine). */
+const USER_ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  invited: ['active'],
+  pending: ['active'],
+  active: ['suspended', 'archived'],
+  suspended: ['active', 'archived'],
+  archived: [],
+};
 
 export function Users() {
   const navigate = useNavigate();
@@ -134,7 +141,7 @@ export function Users() {
             Edit
           </Button>
           <Button size="xs" variant="light" onClick={() => {
-            setTransitionState(u.lifecycle_status);
+            setTransitionState(USER_ALLOWED_TRANSITIONS[u.lifecycle_status]?.[0] ?? null);
             setTransitionReason('');
             setModal({ kind: 'transition', user: u });
           }}>
@@ -253,7 +260,7 @@ export function Users() {
         <Stack>
           <Select
             label="New state"
-            data={LIFECYCLE_STATES}
+            data={USER_ALLOWED_TRANSITIONS[modal?.kind === 'transition' ? modal.user.lifecycle_status : ''] ?? []}
             value={transitionState}
             onChange={setTransitionState}
           />

@@ -30,7 +30,13 @@ type ModalState =
   | { kind: 'transition'; client: ClientDTO }
   | null;
 
-const LIFECYCLE_STATES = ['active', 'suspended', 'archived'];
+const CLIENT_ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  prospective: ['active', 'archived'],
+  active: ['suspended', 'archived', 'terminated'],
+  suspended: ['active', 'archived', 'terminated'],
+  archived: ['active', 'terminated'],
+  terminated: [],
+};
 
 export function Clients() {
   const navigate = useNavigate();
@@ -145,7 +151,7 @@ export function Clients() {
   }
 
   function openTransition(client: ClientDTO) {
-    setTransitionState(client.current_lifecycle_status);
+    setTransitionState(CLIENT_ALLOWED_TRANSITIONS[client.current_lifecycle_status]?.[0] ?? null);
     setTransitionReason('');
     setForbidden(null);
     setModal({ kind: 'transition', client });
@@ -361,7 +367,7 @@ export function Clients() {
         <Stack>
           <Select
             label="New state"
-            data={LIFECYCLE_STATES}
+            data={CLIENT_ALLOWED_TRANSITIONS[modal?.kind === 'transition' ? modal.client.current_lifecycle_status : ''] ?? []}
             value={transitionState}
             onChange={(v) => setTransitionState(v)}
           />

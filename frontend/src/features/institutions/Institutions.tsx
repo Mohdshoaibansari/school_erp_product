@@ -28,7 +28,12 @@ type ModalState =
   | { kind: 'transition'; institution: InstitutionDTO }
   | null;
 
-const LIFECYCLE_STATES = ['onboarding', 'active', 'suspended', 'archived'];
+const INSTITUTION_ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  onboarding: ['active', 'archived'],
+  active: ['inactive', 'archived'],
+  inactive: ['active', 'archived'],
+  archived: ['active'],
+};
 
 export function Institutions() {
   const navigate = useNavigate();
@@ -148,7 +153,7 @@ export function Institutions() {
             Edit
           </Button>
           <Button size="xs" variant="light" onClick={() => {
-            setTransitionState(i.current_lifecycle_status);
+            setTransitionState(INSTITUTION_ALLOWED_TRANSITIONS[i.current_lifecycle_status]?.[0] ?? null);
             setTransitionReason('');
             setModal({ kind: 'transition', institution: i });
           }}>
@@ -286,7 +291,7 @@ export function Institutions() {
         <Stack>
           <Select
             label="New state"
-            data={LIFECYCLE_STATES}
+            data={INSTITUTION_ALLOWED_TRANSITIONS[modal?.kind === 'transition' ? modal.institution.current_lifecycle_status : ''] ?? []}
             value={transitionState}
             onChange={setTransitionState}
           />

@@ -26,6 +26,15 @@ import { PermissionDenied } from '../../components/PermissionDenied';
 
 type ModalState = { kind: 'create' } | { kind: 'transition'; user: ClientUserDTO } | null;
 
+/** Allowed transitions from each user lifecycle state (matches backend state machine). */
+const USER_ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  invited: ['active'],
+  pending: ['active'],
+  active: ['suspended', 'archived'],
+  suspended: ['active', 'archived'],
+  archived: [],
+};
+
 export function ClientUsers() {
   const { clientId = '' } = useParams();
   const queryClient = useQueryClient();
@@ -103,7 +112,7 @@ export function ClientUsers() {
       header: 'Actions',
       render: (u) => (
         <Button size="xs" variant="light" onClick={() => {
-          setTransitionState(u.lifecycle_status);
+          setTransitionState(USER_ALLOWED_TRANSITIONS[u.lifecycle_status]?.[0] ?? '');
           setModal({ kind: 'transition', user: u });
         }}>
           Transition
@@ -202,10 +211,11 @@ export function ClientUsers() {
         title="Transition client user"
       >
         <Stack>
-          <TextInput
+          <Select
             label="New state"
+            data={USER_ALLOWED_TRANSITIONS[modal?.kind === 'transition' ? modal.user.lifecycle_status : ''] ?? []}
             value={transitionState}
-            onChange={(e) => setTransitionState(e.currentTarget.value)}
+            onChange={(v) => setTransitionState(v ?? '')}
           />
           <Group justify="flex-end">
             <Button

@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   Group,
-  Loader,
   Stack,
   Text,
   Title,
@@ -14,6 +13,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { academicApi } from '../../core/api/academic';
 import type { SectionDTO } from '../../core/api/dto/academic';
+import { CardSkeleton } from '../../components/Skeleton';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusPill } from '../../components/StatusPill';
 import { useTenant } from '../../core/context/useTenant';
@@ -25,7 +25,7 @@ import { Enrollments } from './Enrollments';
  * No free-form CRUD for structure nodes (REQ-FE-AC-07); structure changes
  * happen only via academic-year clone/template generation.
  */
-export default function StructureView() {
+export function StructureView() {
   const { yearId } = useParams<{ yearId: string }>();
   const { institutionId } = useTenant();
   const [selectedSection, setSelectedSection] = useState<SectionDTO | null>(null);
@@ -38,7 +38,7 @@ export default function StructureView() {
   });
 
   if (structureQuery.isLoading) {
-    return <Loader data-testid="structure-loading" />;
+    return <CardSkeleton />;
   }
 
   if (structureQuery.isError) {

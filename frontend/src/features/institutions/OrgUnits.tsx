@@ -52,7 +52,7 @@ type ModalState =
   | { kind: 'reorder'; unit: OrgUnitDTO }
   | null;
 
-export default function OrgUnits() {
+export function OrgUnits() {
   const { institutionId = '' } = useParams();
   const queryClient = useQueryClient();
   const [modal, setModal] = useState<ModalState>(null);

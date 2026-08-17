@@ -25,7 +25,7 @@ type ModalState =
   | { kind: 'grade'; submission: SubmissionDTO }
   | null;
 
-export default function Submissions() {
+export function Submissions() {
   const { hwId } = useParams<{ hwId: string }>();
   const { institutionId } = useTenant();
   const { can } = usePermissions();

@@ -6,7 +6,7 @@ import { server } from '../../../test/server';
 import { renderWithProviders } from '../../../test/testUtils';
 import type { JwtClaims } from '../../../core/auth/session';
 import type { ClientDTO } from '../../../core/api/dto/platform';
-import Clients from '../Clients';
+import { Clients } from '../Clients';
 
 const poClaims: JwtClaims & { sub: string } = {
   sub: 'po1',

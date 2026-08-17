@@ -22,7 +22,7 @@ interface LoginLocationState {
   resetSuccess?: boolean;
 }
 
-export default function Login() {
+export function Login() {
   const { signIn } = useSession();
   const navigate = useNavigate();
   const location = useLocation();

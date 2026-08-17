@@ -6,10 +6,10 @@ import { http, HttpResponse } from 'msw';
 import { Route, Routes } from 'react-router-dom';
 import { server } from '../../../test/server';
 import { mintToken, renderWithProviders } from '../../../test/testUtils';
-import Login from '../Login';
-import Activate from '../Activate';
-import OtpVerify from '../OtpVerify';
-import ResetPassword from '../ResetPassword';
+import { Login } from '../Login';
+import { Activate } from '../Activate';
+import { OtpVerify } from '../OtpVerify';
+import { ResetPassword } from '../ResetPassword';
 
 function AuthRoutes({ children }: { children: ReactNode }) {
   return (

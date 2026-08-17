@@ -19,6 +19,7 @@ import type {
 } from '../../core/api/dto/config';
 import { normalizeApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { PageHeader } from '../../components/PageHeader';
 import { useTenant } from '../../core/context/useTenant';
 
@@ -42,7 +43,7 @@ function inputToValue(type: ConfigValueType, text: string): unknown {
   return text;
 }
 
-export default function ConfigKeys() {
+export function ConfigKeys() {
   const { institutionId, clientId } = useTenant();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<ConfigKeyDTO | null>(null);
@@ -193,11 +194,15 @@ export default function ConfigKeys() {
         subtitle="Institution-scoped configuration values."
       />
 
-      <DataTable
-        columns={columns}
-        rows={keysQuery.data ?? []}
-        getRowKey={(k) => k.id}
-      />
+      {keysQuery.isLoading ? (
+        <TableSkeleton rows={8} columns={5} />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={keysQuery.data ?? []}
+          getRowKey={(k) => k.id}
+        />
+      )}
 
       <Modal
         opened={!!editing}

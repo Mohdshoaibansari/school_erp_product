@@ -4,39 +4,40 @@ import { RequireAuth } from './core/auth/RequireAuth';
 import { RequireRole } from './core/access/RequireRole';
 import { AppShell } from './shell/AppShell';
 import { NotFound } from './shell/NotFound';
+import { HomeRedirect } from './shell/HomeRedirect';
 
-import Login from './features/auth/Login';
-import Activate from './features/auth/Activate';
-import OtpVerify from './features/auth/OtpVerify';
-import ResetPassword from './features/auth/ResetPassword';
-import ChangePassword from './features/auth/ChangePassword';
+import { Login } from './features/auth/Login';
+import { Activate } from './features/auth/Activate';
+import { OtpVerify } from './features/auth/OtpVerify';
+import { ResetPassword } from './features/auth/ResetPassword';
+import { ChangePassword } from './features/auth/ChangePassword';
 
-import Clients from './features/platform/Clients';
-import ClientUsers from './features/platform/ClientUsers';
-import InstitutionTypes from './features/platform/InstitutionTypes';
-import OwnershipTransfers from './features/platform/OwnershipTransfers';
+import { Clients } from './features/platform/Clients';
+import { ClientUsers } from './features/platform/ClientUsers';
+import { InstitutionTypes } from './features/platform/InstitutionTypes';
+import { OwnershipTransfers } from './features/platform/OwnershipTransfers';
 
-import Institutions from './features/institutions/Institutions';
-import OrgUnits from './features/institutions/OrgUnits';
+import { Institutions } from './features/institutions/Institutions';
+import { OrgUnits } from './features/institutions/OrgUnits';
 
-import Users from './features/users/Users';
-import UserDetail from './features/users/UserDetail';
+import { Users } from './features/users/Users';
+import { UserDetail } from './features/users/UserDetail';
 
-import AcademicYears from './features/academic/AcademicYears';
-import StructureView from './features/academic/StructureView';
-import Subjects from './features/academic/Subjects';
-import SubjectGroups from './features/academic/SubjectGroups';
+import { AcademicYears } from './features/academic/AcademicYears';
+import { StructureView } from './features/academic/StructureView';
+import { Subjects } from './features/academic/Subjects';
+import { SubjectGroups } from './features/academic/SubjectGroups';
 
-import ConfigKeys from './features/config/ConfigKeys';
-import ConfigAudit from './features/config/ConfigAudit';
+import { ConfigKeys } from './features/config/ConfigKeys';
+import { ConfigAudit } from './features/config/ConfigAudit';
 
-import FeeTypes from './features/fees/FeeTypes';
-import FeeAssignments from './features/fees/FeeAssignments';
-import Payments from './features/fees/Payments';
+import { FeeTypes } from './features/fees/FeeTypes';
+import { FeeAssignments } from './features/fees/FeeAssignments';
+import { Payments } from './features/fees/Payments';
 
-import Homeworks from './features/homework/Homeworks';
-import Submissions from './features/homework/Submissions';
-import Grades from './features/homework/Grades';
+import { Homeworks } from './features/homework/Homeworks';
+import { Submissions } from './features/homework/Submissions';
+import { Grades } from './features/homework/Grades';
 
 /**
  * Route table (library-mode React Router v7) — single source of truth for the
@@ -119,6 +120,7 @@ export default function App() {
         </Route>
       </Route>
 
+      <Route path="/" element={<HomeRedirect />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

@@ -31,7 +31,7 @@ type ModalState =
 
 const LIFECYCLE_STATES = ['active', 'suspended', 'archived'];
 
-export default function Clients() {
+export function Clients() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { can } = usePermissions();

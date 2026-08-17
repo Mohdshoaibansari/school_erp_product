@@ -27,7 +27,7 @@ type ModalState =
   | { kind: 'edit'; feeType: FeeTypeDTO }
   | null;
 
-export default function FeeTypes() {
+export function FeeTypes() {
   const { institutionId } = useTenant();
   const { can } = usePermissions();
   const queryClient = useQueryClient();

@@ -19,6 +19,7 @@ import type {
 } from '../../core/api/dto/homework';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { ErrorState } from '../../components/ErrorState';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusPill } from '../../components/StatusPill';
 import { PermissionDenied } from '../../components/PermissionDenied';
@@ -30,7 +31,7 @@ type ModalState =
   | { kind: 'edit'; homework: HomeworkDTO }
   | null;
 
-export default function Homeworks() {
+export function Homeworks() {
   const navigate = useNavigate();
   const { institutionId } = useTenant();
   const { can } = usePermissions();
@@ -244,6 +245,13 @@ export default function Homeworks() {
       />
 
       {forbidden ? <PermissionDenied error={new ApiError(403, forbidden)} /> : null}
+
+      {homeworksQuery.isError ? (
+        <ErrorState
+          message={homeworksQuery.error?.message ?? 'Failed to load homeworks'}
+          onRetry={() => homeworksQuery.refetch()}
+        />
+      ) : null}
 
       <DataTable
         columns={columns}

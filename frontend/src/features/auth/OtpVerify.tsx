@@ -15,7 +15,7 @@ import { normalizeApiError } from '../../core/api/errors';
 
 type Step = 'request' | 'verify' | 'done';
 
-export default function OtpVerify() {
+export function OtpVerify() {
   const [step, setStep] = useState<Step>('request');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');

@@ -27,18 +27,39 @@ DATABASE_URL = os.environ["DATABASE_URL"]
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine, expire_on_commit=False)
 
-async def create_supabase_user(uid: str, email: str, password: str):
-    """Create a user in Supabase Auth via Admin API."""
+async def create_supabase_user(email: str, password: str, user_metadata: dict | None = None) -> str | None:
+    """Create (or reuse) a Supabase Auth user; returns the actual user id string."""
+    headers = {"Authorization": f"Bearer {SUPABASE_KEY}", "apikey": SUPABASE_KEY}
     async with httpx.AsyncClient() as client:
         r = await client.post(
             f"{SUPABASE_URL}/auth/v1/admin/users",
-            headers={"Authorization": f"Bearer {SUPABASE_KEY}", "apikey": SUPABASE_KEY},
-            json={"id": uid, "email": email, "password": password, "email_confirm": True},
+            headers=headers,
+            json={"email": email, "password": password, "email_confirm": True,
+                  "user_metadata": user_metadata or {}},
         )
-        if r.status_code not in (200, 201):
-            print(f"  [WARN] Supabase create user {email}: {r.status_code} {r.text[:100]}")
-        else:
+        if r.status_code in (200, 201):
             print(f"  [OK] Supabase user created: {email}")
+            return r.json().get("id")
+        if r.status_code == 422 and "email_exists" in r.text:
+            # Reuse the existing user's id (list + match by email), then fix metadata/password
+            r2 = await client.get(
+                f"{SUPABASE_URL}/auth/v1/admin/users",
+                headers=headers,
+                params={"page": 1, "per_page": 200},
+            )
+            users = r2.json().get("users", []) if r2.status_code == 200 else []
+            for u in users:
+                if u.get("email") == email:
+                    uid = u.get("id")
+                    await client.put(
+                        f"{SUPABASE_URL}/auth/v1/admin/users/{uid}",
+                        headers=headers,
+                        json={"user_metadata": user_metadata or {}, "password": password},
+                    )
+                    print(f"  [OK] Supabase user exists, reused + updated: {email}")
+                    return uid
+        print(f"  [WARN] Supabase create user {email}: {r.status_code} {r.text[:120]}")
+        return None
 
 async def main():
     print("SEED: Seeding cloud Supabase...\n")
@@ -55,12 +76,16 @@ async def main():
         s.flush()
         let_id = s.execute(text("SELECT id FROM legal_entity_type LIMIT 1")).fetchone()[0]
 
-        s.execute(text("""
-            INSERT INTO client (id, display_name, legal_name, slug, legal_entity_type_id, primary_contact_email, current_lifecycle_status)
-            VALUES (:cid, 'Test School', 'Test School Legal', 'test-school', :let_id, 'admin@test-school.com', 'active')
-            ON CONFLICT DO NOTHING
-        """), {"cid": client_id, "let_id": let_id})
-        s.flush()
+        # Client — reuse existing (by slug) or create (idempotent re-runs)
+        existing_client = s.execute(text("SELECT id FROM client WHERE slug = 'test-school' LIMIT 1")).fetchone()
+        if existing_client:
+            client_id = existing_client[0]
+        else:
+            s.execute(text("""
+                INSERT INTO client (id, display_name, legal_name, slug, legal_entity_type_id, primary_contact_email, current_lifecycle_status)
+                VALUES (:cid, 'Test School', 'Test School Legal', 'test-school', :let_id, 'admin@test-school.com', 'active')
+            """), {"cid": client_id, "let_id": let_id})
+            s.flush()
 
         # Insert institution_type_name + institution_type
         s.execute(text("INSERT INTO institution_type_name (id, name) VALUES (gen_random_uuid(), 'School') ON CONFLICT DO NOTHING"))
@@ -71,13 +96,17 @@ async def main():
         s.flush()
         itype_id = s.execute(text("SELECT id FROM institution_type LIMIT 1")).fetchone()[0]
 
-        s.execute(text("""
-            INSERT INTO institution (id, client_id, institution_type_id, display_name, current_lifecycle_status)
-            VALUES (:iid, :cid, :itype, 'Test Institution', 'active')
-            ON CONFLICT DO NOTHING
-        """), {"iid": inst_id, "cid": client_id, "itype": itype_id})
+        # Institution — reuse existing (by client + name) or create
+        existing_inst = s.execute(text("SELECT id FROM institution WHERE client_id = :cid AND display_name = 'Test Institution' LIMIT 1"), {"cid": client_id}).fetchone()
+        if existing_inst:
+            inst_id = existing_inst[0]
+        else:
+            s.execute(text("""
+                INSERT INTO institution (id, client_id, institution_type_id, display_name, current_lifecycle_status)
+                VALUES (:iid, :cid, :itype, 'Test Institution', 'active')
+            """), {"iid": inst_id, "cid": client_id, "itype": itype_id})
         s.commit()
-    print(f"[OK] Client + Institution created (client_id={client_id})")
+    print(f"[OK] Client + Institution ready (client_id={client_id})")
 
     # ============================================================
     # 2. Create users in Supabase Auth + app_user table
@@ -102,9 +131,29 @@ async def main():
         po_role = role_ids.get("platform_owner", list(role_ids.values())[0])
 
         for role_key, (email, password, role_name) in roles.items():
-            uid = uuid.uuid4()
+            user_metadata = {"is_platform_owner": True} if role_name == "platform_owner" else {"user_tier": "institution"}
+            uid_str = await create_supabase_user(email, password, user_metadata)
+            if not uid_str:
+                print(f"  [WARN] skipping {email} (no Supabase id)")
+                continue
+            uid = uuid.UUID(uid_str)
             user_ids[role_key] = uid
+
+            # Reconcile: remove a stale app_user row with a different id for this email
+            existing = s.execute(text("SELECT id FROM app_user WHERE email = :email LIMIT 1"), {"email": email}).fetchone()
+            if existing and existing[0] != uid:
+                s.execute(text("DELETE FROM role_assignment WHERE user_id = :uid"), {"uid": existing[0]})
+                s.execute(text("DELETE FROM app_user WHERE id = :uid"), {"uid": existing[0]})
+                s.execute(text("DELETE FROM user_account WHERE id = :uid"), {"uid": existing[0]})
+                existing = None
+
+            if existing and existing[0] == uid:
+                continue  # already present and matching
+
             cat = learner_cat if role_key == "student" else staff_cat
+
+            # Insert parent user_account row (required by app_user.id FK)
+            s.execute(text("INSERT INTO user_account (id) VALUES (:id) ON CONFLICT (id) DO NOTHING"), {"id": uid})
 
             # Insert app_user
             s.execute(text("""
@@ -119,9 +168,6 @@ async def main():
                 INSERT INTO role_assignment (id, client_id, user_id, role_id, scope)
                 VALUES (gen_random_uuid(), :cid, :uid, :rid, :scope)
             """), {"cid": client_id, "uid": uid, "rid": role_map[role_name], "scope": "Platform" if is_po else "Test School"})
-
-            # Create Supabase Auth user
-            await create_supabase_user(str(uid), email, password)
 
         s.commit()
     print(f"[OK] Users created: admin, teacher, student (all password: <Role>@123)")
@@ -138,8 +184,8 @@ async def main():
 
         fa_id = uuid.uuid4()
         s.execute(text("""
-            INSERT INTO fee_assignment (id, client_id, institution_id, user_id, fee_type_id, amount, due_date, academic_term, status, assigned_by)
-            VALUES (:id, :cid, :iid, :uid, :ftid, 5000.00, '2026-12-31', '2026 Term 1', 'pending', :uid)
+            INSERT INTO fee_assignment (id, client_id, institution_id, user_id, fee_type_id, amount, due_date, status, assigned_by)
+            VALUES (:id, :cid, :iid, :uid, :ftid, 5000.00, '2026-12-31', 'pending', :uid)
         """), {"id": fa_id, "cid": client_id, "iid": inst_id, "uid": user_ids["student"], "ftid": ft_id})
 
         s.execute(text("""
@@ -158,8 +204,8 @@ async def main():
     with Session() as s:
         hw_id = uuid.uuid4()
         s.execute(text("""
-            INSERT INTO homework (id, client_id, institution_id, title, description, subject, grade_level, section, due_date, max_score, status, assigned_by)
-            VALUES (:id, :cid, :iid, 'Math Ch 5 Worksheet', 'Complete problems 1-20', 'Mathematics', 'Grade 5', 'A', '2026-08-01', 100, 'active', :uid)
+            INSERT INTO homework (id, client_id, institution_id, title, description, due_date, max_score, status, assigned_by)
+            VALUES (:id, :cid, :iid, 'Math Ch 5 Worksheet', 'Complete problems 1-20', '2026-08-01', 100, 'active', :uid)
         """), {"id": hw_id, "cid": client_id, "iid": inst_id, "uid": user_ids["teacher"]})
 
         sub_id = uuid.uuid4()

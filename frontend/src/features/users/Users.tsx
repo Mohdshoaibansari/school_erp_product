@@ -14,6 +14,7 @@ import { lookupsApi } from '../../core/api/lookups';
 import type { UserCreateDTO, UserDTO } from '../../core/api/dto/users';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { ErrorState } from '../../components/ErrorState';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusPill } from '../../components/StatusPill';
 import { PermissionDenied } from '../../components/PermissionDenied';
@@ -27,7 +28,7 @@ type ModalState =
 
 const LIFECYCLE_STATES = ['active', 'suspended', 'archived'];
 
-export default function Users() {
+export function Users() {
   const navigate = useNavigate();
   const { institutionId } = useTenant();
   const queryClient = useQueryClient();
@@ -166,6 +167,13 @@ export default function Users() {
       />
 
       {forbidden ? <PermissionDenied error={new ApiError(403, forbidden)} /> : null}
+
+      {usersQuery.isError ? (
+        <ErrorState
+          message={usersQuery.error?.message ?? 'Failed to load users'}
+          onRetry={() => usersQuery.refetch()}
+        />
+      ) : null}
 
       <DataTable columns={columns} rows={filtered} getRowKey={(u) => u.id} />
 

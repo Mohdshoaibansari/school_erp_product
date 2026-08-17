@@ -19,7 +19,7 @@ import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors'
 import { PageHeader } from '../../components/PageHeader';
 import { PermissionDenied } from '../../components/PermissionDenied';
 
-export default function OwnershipTransfers() {
+export function OwnershipTransfers() {
   const [form, setForm] = useState({
     institution_id: '',
     to_client_id: '',

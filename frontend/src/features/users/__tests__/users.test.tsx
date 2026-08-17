@@ -6,7 +6,7 @@ import { server } from '../../../test/server';
 import { renderWithProviders } from '../../../test/testUtils';
 import type { JwtClaims } from '../../../core/auth/session';
 import type { UserDTO } from '../../../core/api/dto/users';
-import Users from '../Users';
+import { Users } from '../Users';
 
 const adminClaims: JwtClaims & { sub: string } = {
   sub: 'a1',

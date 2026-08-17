@@ -27,7 +27,7 @@ interface PaymentRow {
   status: string;
 }
 
-export default function Payments() {
+export function Payments() {
   const { institutionId } = useTenant();
   const { can } = usePermissions();
   const queryClient = useQueryClient();

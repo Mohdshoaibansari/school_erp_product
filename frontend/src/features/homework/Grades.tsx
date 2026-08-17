@@ -26,7 +26,7 @@ interface GradeRow {
   homeworkTitle: string;
 }
 
-export default function Grades() {
+export function Grades() {
   const { institutionId } = useTenant();
   const { can } = usePermissions();
   const queryClient = useQueryClient();

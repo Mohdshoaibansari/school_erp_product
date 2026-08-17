@@ -17,9 +17,9 @@ import type {
   AcademicYearDTO,
   SubjectDTO,
 } from '../../../core/api/dto/academic';
-import Homeworks from '../Homeworks';
-import Submissions from '../Submissions';
-import Grades from '../Grades';
+import { Homeworks } from '../Homeworks';
+import { Submissions } from '../Submissions';
+import { Grades } from '../Grades';
 
 const adminClaims: JwtClaims & { sub: string } = {
   sub: 'a1',

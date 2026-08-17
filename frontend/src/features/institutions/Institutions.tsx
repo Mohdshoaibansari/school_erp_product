@@ -29,7 +29,7 @@ type ModalState =
 
 const LIFECYCLE_STATES = ['onboarding', 'active', 'suspended', 'archived'];
 
-export default function Institutions() {
+export function Institutions() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [modal, setModal] = useState<ModalState>(null);

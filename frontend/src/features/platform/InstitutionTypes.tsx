@@ -16,7 +16,7 @@ type ModalState =
   | { kind: 'edit'; type: InstitutionTypeDTO }
   | null;
 
-export default function InstitutionTypes() {
+export function InstitutionTypes() {
   const queryClient = useQueryClient();
   const [modal, setModal] = useState<ModalState>(null);
   const [forbidden, setForbidden] = useState<string | null>(null);

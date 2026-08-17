@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+
 import {
   Alert,
   Button,
@@ -18,6 +19,7 @@ import type {
 } from '../../core/api/dto/academic';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { TableSkeleton } from '../../components/Skeleton';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusPill } from '../../components/StatusPill';
 import { PermissionDenied } from '../../components/PermissionDenied';
@@ -34,7 +36,7 @@ const NEXT_STATES: Record<string, string[]> = {
   closed: [],
 };
 
-export default function AcademicYears() {
+export function AcademicYears() {
   const navigate = useNavigate();
   const { institutionId } = useTenant();
   const queryClient = useQueryClient();
@@ -168,6 +170,8 @@ export default function AcademicYears() {
       />
 
       {forbidden ? <PermissionDenied error={new ApiError(403, forbidden)} /> : null}
+
+      {yearsQuery.isLoading ? <TableSkeleton rows={5} columns={4} /> : null}
 
       <DataTable
         columns={columns}

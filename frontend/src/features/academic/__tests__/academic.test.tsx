@@ -10,10 +10,10 @@ import type {
   AcademicStructureDTO,
   AcademicYearDTO,
 } from '../../../core/api/dto/academic';
-import AcademicYears from '../AcademicYears';
-import StructureView from '../StructureView';
-import Subjects from '../Subjects';
-import SubjectGroups from '../SubjectGroups';
+import { AcademicYears } from '../AcademicYears';
+import { StructureView } from '../StructureView';
+import { Subjects } from '../Subjects';
+import { SubjectGroups } from '../SubjectGroups';
 
 const adminClaims: JwtClaims & { sub: string } = {
   sub: 'a1',

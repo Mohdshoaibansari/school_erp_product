@@ -23,7 +23,7 @@ import { PermissionDenied } from '../../components/PermissionDenied';
 
 type ModalState = { kind: 'create' } | { kind: 'transition'; user: ClientUserDTO } | null;
 
-export default function ClientUsers() {
+export function ClientUsers() {
   const { clientId = '' } = useParams();
   const queryClient = useQueryClient();
   const [modal, setModal] = useState<ModalState>(null);

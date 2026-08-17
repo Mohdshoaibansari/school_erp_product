@@ -6,7 +6,7 @@ import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { PageHeader } from '../../components/PageHeader';
 import { useTenant } from '../../core/context/useTenant';
 
-export default function ConfigAudit() {
+export function ConfigAudit() {
   const { institutionId } = useTenant();
 
   const auditQuery = useQuery({

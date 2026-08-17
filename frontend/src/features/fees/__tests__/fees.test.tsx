@@ -11,9 +11,9 @@ import type {
   PaymentDTO,
 } from '../../../core/api/dto/fees';
 import type { UserDTO } from '../../../core/api/dto/users';
-import FeeTypes from '../FeeTypes';
-import FeeAssignments from '../FeeAssignments';
-import Payments from '../Payments';
+import { FeeTypes } from '../FeeTypes';
+import { FeeAssignments } from '../FeeAssignments';
+import { Payments } from '../Payments';
 
 const adminClaims: JwtClaims & { sub: string } = {
   sub: 'a1',

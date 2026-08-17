@@ -14,7 +14,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '../../core/api/auth';
 import { normalizeApiError } from '../../core/api/errors';
 
-export default function Activate() {
+export function Activate() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get('token') ?? '';

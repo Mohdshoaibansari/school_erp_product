@@ -16,7 +16,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '../../core/api/auth';
 import { normalizeApiError } from '../../core/api/errors';
 
-export default function ResetPassword() {
+export function ResetPassword() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const resetToken = searchParams.get('token');

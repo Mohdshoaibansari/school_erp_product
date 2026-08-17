@@ -5,8 +5,8 @@ import { http, HttpResponse } from 'msw';
 import { server } from '../../../test/server';
 import { renderWithProviders } from '../../../test/testUtils';
 import type { JwtClaims } from '../../../core/auth/session';
-import ConfigKeys from '../ConfigKeys';
-import ConfigAudit from '../ConfigAudit';
+import { ConfigKeys } from '../ConfigKeys';
+import { ConfigAudit } from '../ConfigAudit';
 
 const adminClaims: JwtClaims & { sub: string } = {
   sub: 'a1',

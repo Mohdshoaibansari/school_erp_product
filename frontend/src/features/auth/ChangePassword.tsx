@@ -12,7 +12,7 @@ import { normalizeApiError } from '../../core/api/errors';
 import { FormCard } from '../../components/FormCard';
 import { PageHeader } from '../../components/PageHeader';
 
-export default function ChangePassword() {
+export function ChangePassword() {
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');

@@ -20,6 +20,7 @@ import type {
 } from '../../core/api/dto/fees';
 import { normalizeApiError, isForbidden, ApiError } from '../../core/api/errors';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
+import { ErrorState } from '../../components/ErrorState';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusPill } from '../../components/StatusPill';
 import { PermissionDenied } from '../../components/PermissionDenied';
@@ -35,7 +36,7 @@ type ModalState =
   | { kind: 'bulk' }
   | null;
 
-export default function FeeAssignments() {
+export function FeeAssignments() {
   const { institutionId, clientId } = useTenant();
   const { can } = usePermissions();
   const queryClient = useQueryClient();
@@ -231,6 +232,13 @@ export default function FeeAssignments() {
       />
 
       {forbidden ? <PermissionDenied error={new ApiError(403, forbidden)} /> : null}
+
+      {assignmentsQuery.isError ? (
+        <ErrorState
+          message={assignmentsQuery.error?.message ?? 'Failed to load fee assignments'}
+          onRetry={() => assignmentsQuery.refetch()}
+        />
+      ) : null}
 
       <Alert color="blue" variant="light" mb="md">
         <Text size="sm">

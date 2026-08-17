@@ -21,7 +21,7 @@ import type {
   RoleAssignmentDTO,
 } from '../../core/api/dto/users';
 
-export default function UserDetail() {
+export function UserDetail() {
   const { userId = '' } = useParams();
   const [forbidden, setForbidden] = useState<string | null>(null);
 

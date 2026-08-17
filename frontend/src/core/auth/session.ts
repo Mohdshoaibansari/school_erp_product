@@ -1,4 +1,4 @@
-import { isRole, type Role } from '../access/roles';
+import type { Role } from '../access/roles';
 
 /** JWT claims the frontend relies on (no signature verification on the client). */
 export interface JwtClaims {
@@ -56,10 +56,37 @@ export function decodeJwt(token: string): JwtClaims {
  * does not mint a literal `roles` array; it carries `is_platform_owner` and
  * `user_tier`. We still honor a `roles` array if present (future-proofing).
  */
+/**
+ * Normalize backend role names to frontend role keys.
+ * Backend stores some roles capitalized ("Teacher", "Admin") while frontend
+ * uses lowercase ("teacher", "admin"). This map handles the mismatch.
+ */
+const ROLE_NORMALIZE: Record<string, Role> = {
+  platform_owner: 'platform_owner',
+  client_director: 'client_director',
+  institution_admin: 'institution_admin',
+  admin: 'admin',
+  teacher: 'teacher',
+  hod: 'hod',
+  principal: 'principal',
+  student: 'student',
+  parent: 'parent',
+  staff: 'staff',
+};
+
+function normalizeRole(raw: string): Role | null {
+  return ROLE_NORMALIZE[raw.toLowerCase()] ?? null;
+}
+
 export function deriveRoles(claims: JwtClaims): Role[] {
+  // 1. Normalize roles from the JWT roles array (backend DB roles, may be capitalized)
   if (Array.isArray(claims.roles) && claims.roles.length > 0) {
-    return claims.roles.filter(isRole);
+    const normalized = claims.roles
+      .map(normalizeRole)
+      .filter((r): r is Role => r !== null);
+    if (normalized.length > 0) return [...new Set(normalized)];
   }
+  // 2. Fallback: derive management roles from tier claims
   const roles: Role[] = [];
   if (claims.is_platform_owner) roles.push('platform_owner');
   if (claims.user_tier === 'client_leadership') roles.push('client_director');

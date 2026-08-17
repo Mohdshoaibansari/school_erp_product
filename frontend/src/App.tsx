@@ -39,6 +39,16 @@ import { Homeworks } from './features/homework/Homeworks';
 import { Submissions } from './features/homework/Submissions';
 import { Grades } from './features/homework/Grades';
 
+/** Placeholder for views that need additional context selection. */
+function ComingSoon({ title }: { title: string }) {
+  return (
+    <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <h2>{title}</h2>
+      <p style={{ color: '#64748B' }}>This view is coming soon.</p>
+    </div>
+  );
+}
+
 /**
  * Route table (library-mode React Router v7) — single source of truth for the
  * reachable surface (design.md §3.1, REQ-SHELL-06). Role gating is applied per
@@ -94,6 +104,14 @@ export default function App() {
               path="/academic/subject-groups"
               element={<SubjectGroups />}
             />
+            <Route
+              path="/academic/assignments"
+              element={<ComingSoon title="Teacher Assignments" />}
+            />
+            <Route
+              path="/academic/enrollments"
+              element={<ComingSoon title="Enrollments" />}
+            />
           </Route>
 
           <Route element={<RequireRole />}>
@@ -114,6 +132,17 @@ export default function App() {
               element={<Submissions />}
             />
             <Route path="/homework/grades" element={<Grades />} />
+          </Route>
+
+          {/* Student views */}
+          <Route element={<RequireRole />}>
+            <Route path="/student/homework" element={<ComingSoon title="My Homework" />} />
+            <Route path="/student/grades" element={<ComingSoon title="My Grades" />} />
+          </Route>
+
+          {/* Parent views */}
+          <Route element={<RequireRole />}>
+            <Route path="/parent/progress" element={<ComingSoon title="Child Progress" />} />
           </Route>
 
           <Route path="/account/change-password" element={<ChangePassword />} />

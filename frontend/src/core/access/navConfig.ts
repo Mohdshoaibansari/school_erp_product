@@ -4,6 +4,7 @@ export interface NavItem {
   label: string;
   path: string;
   roles: Role[];
+  icon?: string;
 }
 
 /**
@@ -12,6 +13,7 @@ export interface NavItem {
  * route protection.
  */
 export const NAV_ITEMS: NavItem[] = [
+  // ── Platform Owner ──────────────────────────────────
   { label: 'Clients', path: '/platform/clients', roles: ['platform_owner'] },
   {
     label: 'Institution Types',
@@ -23,61 +25,103 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/platform/ownership-transfers',
     roles: ['platform_owner'],
   },
+
+  // ── Client Director ─────────────────────────────────
   { label: 'Institutions', path: '/institutions', roles: ['client_director'] },
+
+  // ── Institution Admin / Admin ───────────────────────
   {
     label: 'Users',
     path: '/users',
-    roles: ['client_director', 'institution_admin'],
+    roles: ['client_director', 'institution_admin', 'admin', 'principal'],
   },
   {
     label: 'Academic Years',
     path: '/academic/years',
-    roles: ['institution_admin'],
+    roles: ['institution_admin', 'admin', 'principal'],
+  },
+  {
+    label: 'Structure',
+    path: '/academic/structure',
+    roles: ['institution_admin', 'admin', 'principal'],
   },
   {
     label: 'Subjects',
     path: '/academic/subjects',
-    roles: ['institution_admin'],
+    roles: ['institution_admin', 'admin', 'principal', 'hod'],
   },
   {
     label: 'Subject Groups',
     path: '/academic/subject-groups',
-    roles: ['institution_admin'],
+    roles: ['institution_admin', 'admin', 'principal'],
+  },
+  {
+    label: 'Teacher Assignments',
+    path: '/academic/assignments',
+    roles: ['institution_admin', 'admin', 'principal'],
+  },
+  {
+    label: 'Enrollments',
+    path: '/academic/enrollments',
+    roles: ['institution_admin', 'admin', 'principal'],
   },
   {
     label: 'Configuration',
     path: '/config/keys',
-    roles: ['institution_admin'],
+    roles: ['institution_admin', 'admin'],
   },
   {
     label: 'Config Audit',
     path: '/config/audit',
-    roles: ['institution_admin'],
+    roles: ['institution_admin', 'admin'],
   },
+
+  // ── Fees (admin + finance roles) ────────────────────
   {
     label: 'Fee Types',
     path: '/fees/types',
-    roles: ['institution_admin'],
+    roles: ['institution_admin', 'admin'],
   },
   {
     label: 'Fee Assignments',
     path: '/fees/assignments',
-    roles: ['institution_admin'],
+    roles: ['institution_admin', 'admin'],
   },
   {
     label: 'Payments',
     path: '/fees/payments',
-    roles: ['institution_admin'],
+    roles: ['institution_admin', 'admin'],
   },
+
+  // ── Homework (admin + teacher) ──────────────────────
   {
-    label: 'Homeworks',
+    label: 'Homework',
     path: '/homework',
-    roles: ['institution_admin'],
+    roles: ['institution_admin', 'admin', 'teacher', 'hod'],
   },
   {
     label: 'Grades',
     path: '/homework/grades',
-    roles: ['institution_admin'],
+    roles: ['institution_admin', 'admin', 'teacher', 'hod'],
+  },
+
+  // ── Student ─────────────────────────────────────────
+  {
+    label: 'My Homework',
+    path: '/student/homework',
+    roles: ['student'],
+  },
+  {
+    label: 'My Grades',
+    path: '/student/grades',
+    roles: ['student'],
+  },
+
+  // ── Parent ──────────────────────────────────────────
+  {
+    label: 'Child Progress',
+    path: '/parent/progress',
+    roles: ['parent'],
   },
 ];
 

@@ -48,17 +48,15 @@ export default defineConfig({
     }),
   ],
   server: {
-    host: '127.0.0.1',
+    host: 'localhost',
     port: 5173,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
-        configure: (proxy) => {
-          proxy.on('proxyReq', (proxyReq) => {
-            proxyReq.setHeader('Host', 'test-school.localhost');
-          });
-        },
+        // Host header is NOT rewritten — the browser's hostname
+        // (e.g. test-school.localhost) carries the tenant slug.
+        // The backend middleware extracts client_id from the subdomain.
       },
     },
   },

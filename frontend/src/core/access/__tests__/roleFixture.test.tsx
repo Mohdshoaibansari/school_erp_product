@@ -28,14 +28,24 @@ const adminClaims: JwtClaims & { sub: string } = {
 };
 
 const cases: Array<{ role: string; claims: JwtClaims & { sub: string }; path: string; allowed: boolean }> = [
+  // Platform Owner — Casbin bypass (D28), has access to all modules
   { role: 'platform_owner', claims: poClaims, path: '/platform/clients', allowed: true },
   { role: 'platform_owner', claims: poClaims, path: '/platform/institution-types', allowed: true },
   { role: 'platform_owner', claims: poClaims, path: '/platform/ownership-transfers', allowed: true },
-  { role: 'platform_owner', claims: poClaims, path: '/institutions', allowed: false },
-  { role: 'platform_owner', claims: poClaims, path: '/users', allowed: false },
+  { role: 'platform_owner', claims: poClaims, path: '/institutions', allowed: true },
+  { role: 'platform_owner', claims: poClaims, path: '/users', allowed: true },
+  { role: 'platform_owner', claims: poClaims, path: '/fees/types', allowed: true },
+  { role: 'platform_owner', claims: poClaims, path: '/homework', allowed: true },
+
+  // Client Director — tenant-scoped perms (migrations 016, 020)
   { role: 'client_director', claims: cdClaims, path: '/institutions', allowed: true },
   { role: 'client_director', claims: cdClaims, path: '/users', allowed: true },
+  { role: 'client_director', claims: cdClaims, path: '/homework', allowed: true },
+  { role: 'client_director', claims: cdClaims, path: '/academic/years', allowed: true },
+  { role: 'client_director', claims: cdClaims, path: '/config/keys', allowed: true },
   { role: 'client_director', claims: cdClaims, path: '/platform/clients', allowed: false },
+
+  // Institution Admin — institution-scoped perms
   { role: 'institution_admin', claims: adminClaims, path: '/users', allowed: true },
   { role: 'institution_admin', claims: adminClaims, path: '/institutions', allowed: false },
   { role: 'institution_admin', claims: adminClaims, path: '/platform/clients', allowed: false },
@@ -44,8 +54,6 @@ const cases: Array<{ role: string; claims: JwtClaims & { sub: string }; path: st
   { role: 'institution_admin', claims: adminClaims, path: '/fees/payments', allowed: true },
   { role: 'institution_admin', claims: adminClaims, path: '/homework', allowed: true },
   { role: 'institution_admin', claims: adminClaims, path: '/homework/grades', allowed: true },
-  { role: 'platform_owner', claims: poClaims, path: '/fees/types', allowed: false },
-  { role: 'client_director', claims: cdClaims, path: '/homework', allowed: false },
 ];
 
 describe('role fixture matrix (P1-AC-1, REQ-SHELL-03/10)', () => {

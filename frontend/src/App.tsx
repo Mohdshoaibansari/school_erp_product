@@ -127,6 +127,7 @@ export default function App() {
 
           <Route element={<RequireRole />}>
             <Route path="/homework" element={<Homeworks />} />
+            <Route path="/homework/submissions" element={<Submissions />} />
             <Route
               path="/homework/:hwId/submissions"
               element={<Submissions />}
@@ -138,11 +139,12 @@ export default function App() {
           <Route element={<RequireRole />}>
             <Route path="/student/homework" element={<ComingSoon title="My Homework" />} />
             <Route path="/student/grades" element={<ComingSoon title="My Grades" />} />
+            <Route path="/student/fees" element={<ComingSoon title="My Fees" />} />
           </Route>
 
           {/* Parent views */}
           <Route element={<RequireRole />}>
-            <Route path="/parent/progress" element={<ComingSoon title="Child Progress" />} />
+            <Route path="/parent/profile" element={<ComingSoon title="My Profile" />} />
           </Route>
 
           <Route path="/account/change-password" element={<ChangePassword />} />

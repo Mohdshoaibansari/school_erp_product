@@ -18,9 +18,9 @@ const iconFor = (path: string) => {
 
 const groupFor = (item: NavItem) => {
   if (item.path.startsWith('/platform')) return 'Platform';
-  if (item.path.startsWith('/institutions') || item.path === '/users') return 'People & institutions';
+  if (item.path.startsWith('/institutions') || item.path === '/users') return 'People & Institutions';
   if (item.path.startsWith('/academic')) return 'Academics';
-  if (item.path.startsWith('/fees')) return 'Finance';
+  if (item.path.startsWith('/fees') || item.path.startsWith('/student/fees')) return 'Finance';
   if (item.path.startsWith('/homework') || item.path.startsWith('/student/homework') || item.path.startsWith('/student/grades')) return 'Learning';
   if (item.path.startsWith('/parent')) return 'Family';
   if (item.path.startsWith('/config')) return 'Configuration';

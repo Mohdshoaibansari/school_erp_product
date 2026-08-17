@@ -37,23 +37,31 @@ const adminClaims: JwtClaims & { sub: string } = {
 };
 
 describe('Sidebar role filtering (REQ-SHELL-03)', () => {
-  it('shows only platform-owner modules for Platform Owner', () => {
+  it('shows all modules for Platform Owner (Casbin bypass D28)', () => {
     renderWithProviders(<Sidebar />, { claims: poClaims });
     expect(screen.getByText('Clients')).toBeInTheDocument();
-    expect(screen.queryByText('Users')).not.toBeInTheDocument();
-    expect(screen.queryByText('Institutions')).not.toBeInTheDocument();
+    expect(screen.getByText('Users')).toBeInTheDocument();
+    expect(screen.getByText('Institutions')).toBeInTheDocument();
   });
 
-  it('shows institutions + users for Client Director', () => {
+  it('shows institutions + users + academic + config + fees + homework for Client Director', () => {
     renderWithProviders(<Sidebar />, { claims: cdClaims });
     expect(screen.getByText('Institutions')).toBeInTheDocument();
     expect(screen.getByText('Users')).toBeInTheDocument();
+    expect(screen.getByText('Academic Years')).toBeInTheDocument();
+    expect(screen.getAllByText('Configuration').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Fee Types')).toBeInTheDocument();
+    expect(screen.getByText('Homework')).toBeInTheDocument();
     expect(screen.queryByText('Clients')).not.toBeInTheDocument();
   });
 
-  it('shows only users for Institution Admin', () => {
+  it('shows users + academic + config + fees + homework for Institution Admin', () => {
     renderWithProviders(<Sidebar />, { claims: adminClaims });
     expect(screen.getByText('Users')).toBeInTheDocument();
+    expect(screen.getByText('Academic Years')).toBeInTheDocument();
+    expect(screen.getAllByText('Configuration').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Fee Types')).toBeInTheDocument();
+    expect(screen.getByText('Homework')).toBeInTheDocument();
     expect(screen.queryByText('Clients')).not.toBeInTheDocument();
     expect(screen.queryByText('Institutions')).not.toBeInTheDocument();
   });

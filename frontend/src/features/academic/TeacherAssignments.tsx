@@ -61,7 +61,7 @@ export function TeacherAssignments({
   const userNames = useMemo(() => {
     const map = new Map<string, string>();
     for (const u of usersQuery.data ?? []) {
-      map.set(u.id, u.name);
+      map.set(u.id, u.person.name);
     }
     return map;
   }, [usersQuery.data]);
@@ -164,7 +164,7 @@ export function TeacherAssignments({
             searchable
             data={(usersQuery.data ?? []).map((u) => ({
               value: u.id,
-              label: `${u.name} (${u.email})`,
+              label: `${u.person.name} (${u.email})`,
             }))}
             value={teacherId}
             onChange={(value) => setTeacherId(value ?? '')}

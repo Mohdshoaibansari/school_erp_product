@@ -49,7 +49,7 @@ export function Enrollments({
   const userNames = useMemo(() => {
     const map = new Map<string, string>();
     for (const u of usersQuery.data ?? []) {
-      map.set(u.id, u.name);
+      map.set(u.id, u.person.name);
     }
     return map;
   }, [usersQuery.data]);
@@ -63,7 +63,7 @@ export function Enrollments({
   const rosterOptions = useMemo(() => {
     return (usersQuery.data ?? [])
       .filter((u) => !enrolledStudentIds.has(u.id))
-      .map((u) => ({ value: u.id, label: `${u.name} (${u.email})` }));
+      .map((u) => ({ value: u.id, label: `${u.person.name} (${u.email})` }));
   }, [usersQuery.data, enrolledStudentIds]);
 
   const invalidate = () =>

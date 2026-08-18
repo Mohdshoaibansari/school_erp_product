@@ -34,7 +34,7 @@ export function UserDetail() {
   return (
     <>
       <PageHeader
-        title={userQuery.data?.name ?? 'User'}
+        title={userQuery.data?.person?.name ?? 'User'}
         subtitle={userQuery.data?.email}
       />
       {forbidden ? <PermissionDenied error={new ApiError(403, forbidden)} /> : null}
@@ -46,7 +46,7 @@ export function UserDetail() {
         </Tabs.List>
 
         <Tabs.Panel value="profile">
-          <ProfileTab userId={userId} onForbidden={setForbidden} />
+          <ProfileTab person={userQuery.data?.person} />
         </Tabs.Panel>
         <Tabs.Panel value="identifiers">
           <IdentifiersTab userId={userId} onForbidden={setForbidden} />
@@ -60,65 +60,28 @@ export function UserDetail() {
 }
 
 function ProfileTab({
-  userId,
-  onForbidden,
+  person,
 }: {
-  userId: string;
-  onForbidden: (m: string | null) => void;
+  person: import('../../core/api/dto/users').PersonDTO | undefined;
 }) {
-  const queryClient = useQueryClient();
-  const [form, setForm] = useState({ gender: '', date_of_birth: '', blood_group: '' });
-
-  const profileQuery = useQuery({
-    queryKey: ['users', userId, 'profile'],
-    queryFn: () => usersApi.getProfile(userId).then((r) => r.data),
-    enabled: !!userId,
-    retry: false,
-  });
-
-  const hasProfile = !!profileQuery.data;
-
-  const saveMutation = useMutation({
-    mutationFn: () =>
-      usersApi
-        .updateProfile(userId, {
-          gender: form.gender || null,
-          date_of_birth: form.date_of_birth || null,
-          blood_group: form.blood_group || null,
-        })
-        .then((r) => r.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users', userId, 'profile'] });
-    },
-    onError: (err) => {
-      if (isForbidden(err)) onForbidden(normalizeApiError(err).message);
-    },
-  });
-
-  if (profileQuery.isLoading) return null;
-
   return (
-    <FormCard title={hasProfile ? 'Edit profile' : 'Profile'}>
+    <FormCard title="Profile">
       <Stack maw={420}>
         <TextInput
           label="Gender"
-          value={form.gender || profileQuery.data?.gender || ''}
-          onChange={(e) => setForm({ ...form, gender: e.currentTarget.value })}
+          value={person?.gender ?? ''}
+          readOnly
         />
         <TextInput
           label="Date of birth"
-          placeholder="YYYY-MM-DD"
-          value={form.date_of_birth || profileQuery.data?.date_of_birth || ''}
-          onChange={(e) => setForm({ ...form, date_of_birth: e.currentTarget.value })}
+          value={person?.date_of_birth ?? ''}
+          readOnly
         />
         <TextInput
           label="Blood group"
-          value={form.blood_group || profileQuery.data?.blood_group || ''}
-          onChange={(e) => setForm({ ...form, blood_group: e.currentTarget.value })}
+          value={person?.blood_group ?? ''}
+          readOnly
         />
-        <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()}>
-          Save profile
-        </Button>
       </Stack>
     </FormCard>
   );

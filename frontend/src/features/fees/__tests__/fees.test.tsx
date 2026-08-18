@@ -350,7 +350,7 @@ describe('Payments (REQ-FE-FEE-03)', () => {
       http.get('/api/v1/users', () =>
         HttpResponse.json([
           makeUser(),
-          makeUser({ id: 'u2', email: 'cara@school.test', name: 'Cara Learner' }),
+          makeUser({ id: 'u2', email: 'cara@school.test', person: { id: 'p2', client_id: 'c1', name: 'Cara Learner', date_of_birth: null, gender: null, blood_group: null, photo: null, contact_phone: null, contact_email: null, demographics: null, status: 'Active', is_minor: null, is_verified: null, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' } }),
         ]),
       ),
       http.post('/api/v1/payments', async ({ request }) => {

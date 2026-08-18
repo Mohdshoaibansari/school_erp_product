@@ -81,7 +81,7 @@ export function Grades() {
   const studentNames = useMemo(() => {
     const map = new Map<string, string>();
     for (const u of usersQuery.data ?? []) {
-      map.set(u.id, u.name);
+      map.set(u.id, u.person.name);
     }
     return map;
   }, [usersQuery.data]);
@@ -196,7 +196,7 @@ export function Grades() {
           clearable
           data={(usersQuery.data ?? []).map((u) => ({
             value: u.id,
-            label: `${u.name} (${u.email})`,
+            label: `${u.person.name} (${u.email})`,
           }))}
           value={studentFilter}
           onChange={(value) => setStudentFilter(value ?? '')}

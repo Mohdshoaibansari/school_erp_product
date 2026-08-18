@@ -95,7 +95,7 @@ export function FeeAssignments() {
   const studentNames = useMemo(() => {
     const map = new Map<string, string>();
     for (const u of usersQuery.data ?? []) {
-      map.set(u.id, u.name);
+      map.set(u.id, u.person.name);
     }
     return map;
   }, [usersQuery.data]);
@@ -281,7 +281,7 @@ export function FeeAssignments() {
             required
             data={(usersQuery.data ?? []).map((u) => ({
               value: u.id,
-              label: `${u.name} (${u.email})`,
+              label: `${u.person.name} (${u.email})`,
             }))}
             value={form.student_id || null}
             onChange={(v) => setForm({ ...form, student_id: v ?? '' })}

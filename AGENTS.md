@@ -121,11 +121,12 @@ This invariant is non-negotiable: `docs/` is always the decisional input; OpenSp
 | Capability | ADR | Status | Next |
 |---|---|---|---|
 | C-01 Tenant & Institution Management | `docs/architecture/adr-c01-tenant-institution-implementation.md` | Decisions final (12 ADR decisions + 10 spec resolutions) | Feed to sdd-stack (Phase 2) |
-| C-02 Identity & User Management | `docs/architecture/adr-c02-identity-user-management-implementation.md` | D11 + D12 + D13 applied; all changes archived | — |
+| C-02 Identity & User Management | `docs/architecture/adr-c02-identity-user-management-implementation.md` | D11 + D12 + D13 applied; all changes archived. **Person-model revamp** (`adr-c02-identity-person-model-revamp.md`) decisions final (D3a–D3e, D6a) | Feed person-model revamp to sdd-stack (Phase 2) |
 | C-05 Academic Structure | `docs/architecture/adr-c05-academic-structure-implementation.md` | Applied; archived | — |
 | C-04 Authorization Consolidation | `docs/prd/c-04-authorization-consolidation.md` | Applied; archived | — |
 | Frontend (Web + Mobile UI) | `docs/architecture/adr-frontend-implementation.md` | **Archived** (frontend built, 92 tests green; D8/D9 recorded — 10-role expansion + Minimalist Modern tokens). 4 items deferred as residual follow-ups (R6, R9–R11) | — |
-| Student & Employee Domain Model | `docs/architecture/adr-student-employee-domain-implementation.md` | Decisions final (D1–D13, grill session) | Feed to sdd-stack (Phase 2); C-06 Relationship Mgmt is the *next* capability after this |
+| Student & Employee Domain Model | `docs/architecture/adr-student-employee-domain-implementation.md` (v1.1) | Decisions final (D1–D13, grill #1). D3/D6 amended by the identity person-model revamp ADR | Feed to sdd-stack (Phase 2) *after* the identity revamp; C-06 Relationship Mgmt is the *next* capability |
+| C-02 Identity Person-Model Revamp | `docs/architecture/adr-c02-identity-person-model-revamp.md` | Decisions final (D3a–D3e, D6a, grill #2) — introduces `person` entity, thins `app_user`, drops `user_category_id`/`user_profile` | Feed to sdd-stack (Phase 2) **first** — the domain split depends on this |
 
 > This table is the single place to check "where are we." Update it as capabilities move through phases.
 

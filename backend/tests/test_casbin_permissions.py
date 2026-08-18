@@ -57,8 +57,6 @@ def register_policies(enforcer) -> None:
     # Admin permissions (CD has full admin access within tenant)
     for action in ["create", "read", "update", "suspend"]:
         enforcer.add_policy("client_director", "user", action, "tenant")
-    for action in ["read", "update"]:
-        enforcer.add_policy("client_director", "user_profile", action, "tenant")
     for action in ["create", "read", "delete"]:
         enforcer.add_policy("client_director", "role_assignment", action, "tenant")
     for action in ["create", "read", "delete"]:

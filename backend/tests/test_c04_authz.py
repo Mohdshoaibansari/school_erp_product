@@ -60,8 +60,6 @@ def _register_c01_policies(e: casbin.Enforcer) -> None:
     # Admin permissions (CD has full admin access within tenant)
     for action in ["create", "read", "update", "suspend"]:
         e.add_policy("client_director", "user", action, "tenant")
-    for action in ["read", "update"]:
-        e.add_policy("client_director", "user_profile", action, "tenant")
     for action in ["create", "read", "delete"]:
         e.add_policy("client_director", "role_assignment", action, "tenant")
     for action in ["create", "read", "delete"]:
@@ -99,7 +97,6 @@ def _register_c04_test_policies(e: casbin.Enforcer) -> None:
     c04_policies: dict[str, list[tuple[str, str]]] = {
         "Admin": [
             ("user", "read"), ("user", "create"), ("user", "update"), ("user", "suspend"),
-            ("user_profile", "read"), ("user_profile", "update"),
             ("role_assignment", "read"), ("role_assignment", "create"), ("role_assignment", "delete"),
             ("user_identifier", "read"), ("user_identifier", "create"), ("user_identifier", "delete"),
             ("institution", "read"), ("institution", "update"), ("institution", "transition_lifecycle"),

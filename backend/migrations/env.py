@@ -18,6 +18,16 @@ from sqlalchemy import engine_from_config, pool
 # Ensure the backend/ directory is on sys.path so ``kernel`` is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# Load .env file if present (same pattern as seed_data.py)
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+if _env_path.exists():
+    with open(_env_path) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _key, _val = _line.split("=", 1)
+                os.environ.setdefault(_key, _val)
+
 from kernel.db import Base  # noqa: E402
 
 # Import all model modules so they register with Base.metadata

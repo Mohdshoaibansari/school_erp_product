@@ -804,7 +804,7 @@ class TestBootstrapCLI:
         owner_id = uuid.uuid4()
         db_session.execute(text(
             "INSERT INTO person (id, client_id, name, status) VALUES (:pid, '00000000-0000-0000-0000-000000000001', 'Platform Owner', 'active')"
-        )
+        ), {"pid": uuid.uuid4()})
         db_session.flush()
         person_id = db_session.execute(text("SELECT id FROM person WHERE name = 'Platform Owner' LIMIT 1")).fetchone()[0]
         db_session.execute(text(
@@ -884,7 +884,7 @@ class TestBootstrapCLI:
         owner_id = uuid.uuid4()
         db_session.execute(text(
             "INSERT INTO person (id, client_id, name, status) VALUES (:pid, '00000000-0000-0000-0000-000000000001', 'Platform Owner', 'active')"
-        )
+        ), {"pid": uuid.uuid4()})
         db_session.flush()
         person_id = db_session.execute(text("SELECT id FROM person WHERE name = 'Platform Owner' LIMIT 1")).fetchone()[0]
         db_session.execute(text(

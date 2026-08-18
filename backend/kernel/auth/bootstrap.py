@@ -27,7 +27,7 @@ from sqlalchemy.orm import sessionmaker
 def _get_database_url() -> str:
     return os.environ.get(
         "DATABASE_URL",
-        "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+        "postgresql://postgres:postgres@127.0.0.1:5432/postgres",
     )
 
 

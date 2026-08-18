@@ -145,7 +145,7 @@ def _resolve_client_from_subdomain(subdomain: str) -> uuid.UUID | None:
 
     db_url = os.environ.get(
         "DATABASE_URL",
-        "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+        "postgresql://postgres:postgres@127.0.0.1:5432/postgres",
     )
     engine = create_engine(db_url)
     try:
@@ -299,7 +299,7 @@ class SubdomainJWTMiddleware(BaseHTTPMiddleware):
         if user_id and not roles and not is_platform_owner:
             try:
                 from sqlalchemy import create_engine, text as sa_text
-                db_url = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:54322/postgres")
+                db_url = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:5432/postgres")
                 engine = create_engine(db_url)
                 with engine.connect() as conn:
                     conn.execute(sa_text("SET LOCAL app.is_platform_owner = 'true'"))

@@ -34,7 +34,7 @@ from kernel.audit import AuditEmitter, DefaultAuditEmitter
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
-    "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+    "postgresql://postgres:postgres@127.0.0.1:5432/postgres",
 )
 
 # Tables that hold seed data (should NOT be cleaned between tests)

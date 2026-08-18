@@ -33,7 +33,7 @@ if config.config_file_name is not None:
 # Use DATABASE_URL from env, fallback to local Supabase
 database_url = os.environ.get(
     "DATABASE_URL",
-    "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+    "postgresql://postgres:postgres@127.0.0.1:5432/postgres",
 )
 config.set_main_option("sqlalchemy.url", database_url)
 

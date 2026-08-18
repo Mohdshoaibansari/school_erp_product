@@ -108,7 +108,7 @@ def get_engine() -> Engine:
     if _engine is None:
         database_url = os.environ.get(
             "DATABASE_URL",
-            "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+            "postgresql://postgres:postgres@127.0.0.1:5432/postgres",
         )
         _engine = create_engine(database_url, pool_pre_ping=True)
         logger.info("Created sync DB engine")

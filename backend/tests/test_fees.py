@@ -59,7 +59,7 @@ def _build_real_enforcer() -> casbin.Enforcer:
 
     # Register C-04 permissions from DB (simplified for tests — uses known seed data)
     from sqlalchemy import create_engine, text as sa_text
-    database_url = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:54322/postgres")
+    database_url = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:5432/postgres")
     engine = create_engine(database_url)
     with engine.connect() as conn:
         rows = conn.execute(sa_text(

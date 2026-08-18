@@ -38,7 +38,8 @@ DATABASE_URL = os.environ.get(
 )
 
 # Tables that hold seed data (should NOT be cleaned between tests)
-_SEED_TABLES = {"legal_entity_type", "org_unit_type", "institution_type_name", "user_category", "role"}
+# user_category dropped in migration 022 (D6a)
+_SEED_TABLES = {"legal_entity_type", "org_unit_type", "institution_type_name", "role"}
 
 # All entity tables in reverse dependency order for cleanup
 _C01_TABLES = [
@@ -52,8 +53,8 @@ _C01_TABLES = [
     "user_lifecycle_event",
     "user_identifier",
     "role_assignment",
-    "user_profile",
     "app_user",
+    "person",
     "ownership_transfer_event",
     "institution_lifecycle_event",
     "client_lifecycle_event",

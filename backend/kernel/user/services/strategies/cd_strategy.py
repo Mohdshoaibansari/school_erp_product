@@ -1,6 +1,7 @@
-"""CDStrategy — client-leadership tier user operations (D6, D8).
+"""CDStrategy — client-leadership tier user operations (D6, D8, D6a).
 
 Operates on the client_user table. Implements the full UserStrategy interface.
+Person-first insert order (D3a): the repo handles person → user_account → client_user.
 """
 
 from __future__ import annotations
@@ -42,22 +43,19 @@ class CDStrategy:
     async def create_user(self, ctx: TenantContext, dto: ClientUserCreateDTO) -> dict:
         """Create a client-leadership user (CD bootstrap).
 
-        Creates Supabase Auth user, inserts client_user row, mints invite JWT,
-        emits audit, returns {"user": ClientUserDTO, "invite_url": str}.
+        Person-first insert order (D3a): repo handles person → user_account → client_user.
+        Returns {"user": ClientUserDTO, "invite_url": str}.
         """
         user_id = uuid.uuid4()
         email = dto.email
         client_id = ctx.client_id or dto.client_id
 
-        # D11: Supabase Auth user is created during activate (with password), not here.
-
         # 1. Insert client_user row + role_assignment
         with self._session_factory() as session:
             user_dto = self._repo.create(session, ctx, ClientUserCreateDTO(
                 email=email,
-                name=dto.name,
+                person_data=dto.person_data,
                 role_id=dto.role_id,
-                user_category_id=dto.user_category_id,
                 client_id=client_id,
             ), user_id=user_id)
 
@@ -103,7 +101,7 @@ class CDStrategy:
             frontend_url = "http://127.0.0.1:8000"
         invite_url = f"{frontend_url}/activate?token={invite_jwt}"
 
-        # 5. Emit audit (D10 bug #8 — audit was missing in predecessor)
+        # 5. Emit audit (use person.name from DTO, D6a)
         self._audit.emit(
             action="user_created",
             client_id=client_id,
@@ -112,7 +110,7 @@ class CDStrategy:
             payload={
                 "user_id": str(user_id),
                 "email": email,
-                "name": dto.name,
+                "name": user_dto.person.name,
                 "client_id": str(client_id),
             },
         )
@@ -130,7 +128,10 @@ class CDStrategy:
             return result
 
     async def delete_user(self, ctx: TenantContext, user_id: uuid.UUID) -> None:
-        """Revoke a client-leadership user: archive client_user row + delete Supabase Auth user."""
+        """Revoke a client-leadership user: archive client_user row + delete Supabase Auth user.
+
+        Note: Person row is NOT deleted — person is the enduring anchor (D3a).
+        """
         actor = str(ctx.user_id or "platform_owner")
         auth_deleted = False
         try:

@@ -120,11 +120,7 @@ async def main():
 
     user_ids = {}
     with Session() as s:
-        cat_ids = {r[0]: r[1] for r in s.execute(text("SELECT name, id FROM user_category")).fetchall()}
         role_ids = {r[0]: r[1] for r in s.execute(text("SELECT name, id FROM role")).fetchall()}
-        learner_cat = cat_ids.get("Learner", list(cat_ids.values())[0])
-        staff_cat = cat_ids.get("Academic Staff", list(cat_ids.values())[0])
-        exec_cat = cat_ids.get("Executive Leadership", staff_cat)
         admin_role = role_ids.get("Admin", list(role_ids.values())[0])
         teacher_role = role_ids.get("Teacher", list(role_ids.values())[0])
         student_role = role_ids.get("Student", list(role_ids.values())[0])
@@ -150,16 +146,21 @@ async def main():
             if existing and existing[0] == uid:
                 continue  # already present and matching
 
-            cat = learner_cat if role_key == "student" else staff_cat
+            # Insert person row (independent UUID, D3a)
+            person_id = uuid.uuid4()
+            s.execute(text("""
+                INSERT INTO person (id, client_id, name, contact_email, status)
+                VALUES (:pid, :cid, :name, :email, 'active')
+            """), {"pid": person_id, "cid": client_id, "name": f"Test {role_name}", "email": email})
 
             # Insert parent user_account row (required by app_user.id FK)
             s.execute(text("INSERT INTO user_account (id) VALUES (:id) ON CONFLICT (id) DO NOTHING"), {"id": uid})
 
-            # Insert app_user
+            # Insert app_user (no name, no user_category_id — person_id links to person)
             s.execute(text("""
-                INSERT INTO app_user (id, client_id, institution_id, email, name, user_category_id, lifecycle_status)
-                VALUES (:id, :cid, :iid, :email, :name, :cat, 'active')
-            """), {"id": uid, "cid": client_id, "iid": inst_id, "email": email, "name": f"Test {role_name}", "cat": cat})
+                INSERT INTO app_user (id, client_id, institution_id, email, person_id, lifecycle_status)
+                VALUES (:id, :cid, :iid, :email, :pid, 'active')
+            """), {"id": uid, "cid": client_id, "iid": inst_id, "email": email, "pid": person_id})
 
             # Assign role
             role_map = {"Admin": admin_role, "Teacher": teacher_role, "Student": student_role, "platform_owner": po_role}

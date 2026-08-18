@@ -40,7 +40,7 @@ export function ClientUsers() {
   const queryClient = useQueryClient();
   const [modal, setModal] = useState<ModalState>(null);
   const [forbidden, setForbidden] = useState<string | null>(null);
-  const [form, setForm] = useState({ email: '', name: '', role_id: '', user_category_id: '' });
+  const [form, setForm] = useState({ email: '', name: '', role_id: '' });
   const [transitionState, setTransitionState] = useState('');
 
   const clientQuery = useQuery({
@@ -58,11 +58,6 @@ export function ClientUsers() {
   const rolesQuery = useQuery({
     queryKey: ['lookups', 'roles'],
     queryFn: () => lookupsApi.listRoles().then((r) => r.data),
-  });
-
-  const categoriesQuery = useQuery({
-    queryKey: ['lookups', 'user-categories'],
-    queryFn: () => lookupsApi.listUserCategories().then((r) => r.data),
   });
 
   const invalidate = () =>
@@ -100,7 +95,7 @@ export function ClientUsers() {
   });
 
   const columns: DataTableColumn<ClientUserDTO>[] = [
-    { key: 'name', header: 'Name', render: (u) => u.name },
+    { key: 'name', header: 'Name', render: (u) => u.person.name },
     { key: 'email', header: 'Email', render: (u) => u.email },
     {
       key: 'status',
@@ -180,22 +175,13 @@ export function ClientUsers() {
             value={form.role_id || null}
             onChange={(v) => setForm({ ...form, role_id: v ?? '' })}
           />
-          <Select
-            label="User category"
-            required
-            searchable
-            data={(categoriesQuery.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-            value={form.user_category_id || null}
-            onChange={(v) => setForm({ ...form, user_category_id: v ?? '' })}
-          />
           <Button
             loading={createMutation.isPending}
             onClick={() =>
               createMutation.mutate({
                 email: form.email,
-                name: form.name,
+                person_data: { name: form.name },
                 role_id: form.role_id,
-                user_category_id: form.user_category_id,
                 client_id: null,
               })
             }

@@ -22,10 +22,10 @@ class IdentityUserManagementManifest(ManifestBase):
         """Mount C-02 routers (A5).
 
         - User CRUD + lifecycle endpoints
-        - UserProfile endpoints
+        - Profile endpoints (404 stubs — user_profile table dropped, D6a)
         - RoleAssignment endpoints
         - UserIdentifier endpoints
-        - UserCategory and Role lookup endpoints
+        - Role lookup endpoints (user_category removed)
         """
         from kernel.user.routes.users import router as users_router
         from kernel.user.routes.profiles import router as profiles_router

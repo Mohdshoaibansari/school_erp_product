@@ -1,12 +1,9 @@
 /**
  * Typed DTOs mirroring the C-02 lookups backend
  * (kernel/user/routes/lookups.py).
+ *
+ * UserCategoryDTO removed (T-29, D6a) — user_category table dropped.
  */
-
-export interface UserCategoryDTO {
-  id: string;
-  name: string;
-}
 
 export interface RoleDTO {
   id: string;

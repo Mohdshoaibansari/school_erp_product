@@ -91,7 +91,7 @@ def _create_test_client(app, role: str = "Admin", client_id: uuid.UUID | None = 
 
 
 def _seed_data(session: Session, ctx: TenantContext) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
-    """Seed test infrastructure: client, institution_type, institution, user_category, student user."""
+    """Seed test infrastructure: client, institution_type, institution, person, student user."""
     # Client
     session.execute(text(
         "INSERT INTO client (id, display_name, legal_name, slug, legal_entity_type_id, "
@@ -116,19 +116,18 @@ def _seed_data(session: Session, ctx: TenantContext) -> tuple[uuid.UUID, uuid.UU
         "VALUES (:iid, :cid, :itype_id, 'Test School', 'active') ON CONFLICT DO NOTHING"
     ), {"iid": ctx.institution_id, "cid": ctx.client_id, "itype_id": itype_id})
 
-    # User category and student user
+    # Person + student user (person-first insert, D3a)
+    person_id = uuid.uuid4()
     session.execute(text(
-        "INSERT INTO user_category (id, name) VALUES (gen_random_uuid(), 'Learner') ON CONFLICT DO NOTHING"
-    ))
-    session.flush()
-    cat_id = session.execute(text("SELECT id FROM user_category WHERE name = 'Learner'")).fetchone()[0]
+        "INSERT INTO person (id, client_id, name, status) VALUES (:pid, :cid, 'Test Student', 'active')"
+    ), {"pid": person_id, "cid": ctx.client_id})
 
     student_id = uuid.uuid4()
     session.execute(text(
-        "INSERT INTO app_user (id, client_id, institution_id, email, name, user_category_id, lifecycle_status) "
-        "VALUES (:id, :cid, :iid, :email, :name, :cat_id, 'active')"
+        "INSERT INTO app_user (id, client_id, institution_id, email, person_id, lifecycle_status) "
+        "VALUES (:id, :cid, :iid, :email, :pid, 'active')"
     ), {"id": student_id, "cid": ctx.client_id, "iid": ctx.institution_id,
-         "email": f"student-{student_id.hex[:8]}@test.com", "name": "Test Student", "cat_id": cat_id})
+         "email": f"student-{student_id.hex[:8]}@test.com", "pid": person_id})
     session.commit()
     return ctx.client_id, ctx.institution_id, student_id
 
@@ -272,12 +271,16 @@ class TestFeeAssignment:
         ctx = TenantContext(client_id=cid, institution_id=iid, user_id="admin", roles=["Admin"])
 
         # Create second student
-        cat_id = db_session.execute(text("SELECT id FROM user_category WHERE name = 'Learner'")).fetchone()[0]
+        # Create second student (person-first insert, D3a)
+        s2_person_id = uuid.uuid4()
+        db_session.execute(text(
+            "INSERT INTO person (id, client_id, name, status) VALUES (:pid, :cid, 'S2', 'active')"
+        ), {"pid": s2_person_id, "cid": cid})
         s2 = uuid.uuid4()
         db_session.execute(text(
-            "INSERT INTO app_user (id, client_id, institution_id, email, name, user_category_id, lifecycle_status) "
-            "VALUES (:id, :cid, :iid, :email, :name, :cat_id, 'active')"
-        ), {"id": s2, "cid": cid, "iid": iid, "email": "s2@test.com", "name": "S2", "cat_id": cat_id})
+            "INSERT INTO app_user (id, client_id, institution_id, email, person_id, lifecycle_status) "
+            "VALUES (:id, :cid, :iid, :email, :pid, 'active')"
+        ), {"id": s2, "cid": cid, "iid": iid, "email": "s2@test.com", "pid": s2_person_id})
         db_session.commit()
 
         app.dependency_overrides[get_tenant_context] = lambda: ctx
@@ -303,12 +306,16 @@ class TestFeeAssignment:
         ctx = TenantContext(client_id=cid, institution_id=iid, user_id="admin", roles=["Admin"])
 
         # Create a non-Learner user (Staff)
-        cat_id = db_session.execute(text("SELECT id FROM user_category WHERE name != 'Learner' LIMIT 1")).fetchone()[0]
+        # Create a staff user (person-first insert, D3a)
+        staff_person_id = uuid.uuid4()
+        db_session.execute(text(
+            "INSERT INTO person (id, client_id, name, status) VALUES (:pid, :cid, 'Staff', 'active')"
+        ), {"pid": staff_person_id, "cid": cid})
         staff_id = uuid.uuid4()
         db_session.execute(text(
-            "INSERT INTO app_user (id, client_id, institution_id, email, name, user_category_id, lifecycle_status) "
-            "VALUES (:id, :cid, :iid, :email, :name, :cat_id, 'active')"
-        ), {"id": staff_id, "cid": cid, "iid": iid, "email": "staff@test.com", "name": "Staff", "cat_id": cat_id})
+            "INSERT INTO app_user (id, client_id, institution_id, email, person_id, lifecycle_status) "
+            "VALUES (:id, :cid, :iid, :email, :pid, 'active')"
+        ), {"id": staff_id, "cid": cid, "iid": iid, "email": "staff@test.com", "pid": staff_person_id})
         db_session.commit()
 
         app.dependency_overrides[get_tenant_context] = lambda: ctx
@@ -322,8 +329,9 @@ class TestFeeAssignment:
             "fee_type_id": r.json()["id"], "amount": "500.00",
             "due_date": "2026-12-31", "user_ids": [str(staff_id)],
         })
-        assert r2.status_code == 400, f"Expected 400, got {r2.status_code}: {r2.text}"
-        assert "Learner" in r2.text
+        # After D6a, fee assignment accepts any valid user_account.id (Learner proxy removed)
+        # The test now expects success since there is no Learner category check
+        assert r2.status_code == 201, f"Expected 201 (no Learner proxy), got {r2.status_code}: {r2.text}"
 
 
 # ============================================================
@@ -411,12 +419,16 @@ class TestPaymentRecording:
         fa1 = r2.json()[0]["id"]
 
         # Need another student for second assignment
-        cat_id = db_session.execute(text("SELECT id FROM user_category WHERE name = 'Learner'")).fetchone()[0]
+        # Create second student for receipt test (person-first insert, D3a)
+        s2_person_id = uuid.uuid4()
+        db_session.execute(text(
+            "INSERT INTO person (id, client_id, name, status) VALUES (:pid, :cid, 'S2', 'active')"
+        ), {"pid": s2_person_id, "cid": cid})
         s2 = uuid.uuid4()
         db_session.execute(text(
-            "INSERT INTO app_user (id, client_id, institution_id, email, name, user_category_id, lifecycle_status) "
-            "VALUES (:id, :cid, :iid, :email, :name, :cat_id, 'active')"
-        ), {"id": s2, "cid": cid, "iid": iid, "email": "s22@test.com", "name": "S2", "cat_id": cat_id})
+            "INSERT INTO app_user (id, client_id, institution_id, email, person_id, lifecycle_status) "
+            "VALUES (:id, :cid, :iid, :email, :pid, 'active')"
+        ), {"id": s2, "cid": cid, "iid": iid, "email": "s22@test.com", "pid": s2_person_id})
         db_session.commit()
 
         r3 = tc.post("/api/v1/fee-assignments", json={
@@ -531,12 +543,16 @@ class TestStudentOwnership:
         cid, iid, student_a = _seed_data(db_session, ctx)
 
         # Create another student
-        cat_id = db_session.execute(text("SELECT id FROM user_category WHERE name = 'Learner'")).fetchone()[0]
+        # Create another student for ownership test (person-first insert, D3a)
+        sb_person_id = uuid.uuid4()
+        db_session.execute(text(
+            "INSERT INTO person (id, client_id, name, status) VALUES (:pid, :cid, 'SB', 'active')"
+        ), {"pid": sb_person_id, "cid": cid})
         student_b = uuid.uuid4()
         db_session.execute(text(
-            "INSERT INTO app_user (id, client_id, institution_id, email, name, user_category_id, lifecycle_status) "
-            "VALUES (:id, :cid, :iid, :email, :name, :cat_id, 'active')"
-        ), {"id": student_b, "cid": cid, "iid": iid, "email": "sb@test.com", "name": "SB", "cat_id": cat_id})
+            "INSERT INTO app_user (id, client_id, institution_id, email, person_id, lifecycle_status) "
+            "VALUES (:id, :cid, :iid, :email, :pid, 'active')"
+        ), {"id": student_b, "cid": cid, "iid": iid, "email": "sb@test.com", "pid": sb_person_id})
         db_session.commit()
 
         # Student A tries to access Student B's fees

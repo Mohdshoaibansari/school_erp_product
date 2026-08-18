@@ -1,7 +1,7 @@
-"""InstitutionUserStrategy — institution tier user operations (D6, D8).
+"""InstitutionUserStrategy — institution tier user operations (D6, D8, D6a).
 
 Operates on the app_user table. Implements the full UserStrategy interface.
-Moves logic from the existing IdentityUserService.
+Person-first insert order (D3a): the repo handles person → user_account → app_user.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ class InstitutionUserStrategy:
     async def create_user(self, ctx: TenantContext, dto: UserCreateDTO) -> dict:
         """Create an institution user.
 
-        Validates role BEFORE Supabase call (D10 bug #6).
+        Person-first insert order (D3a): repo handles person → user_account → app_user.
         Returns {"user": UserDTO, "invite_url": str}.
         """
         with self._session_factory() as session:
@@ -51,7 +51,6 @@ class InstitutionUserStrategy:
             # D2: Assign role atomically if role_id provided
             if dto.role_id is not None:
                 from sqlalchemy import text as sa_text
-                # Validate role exists BEFORE Supabase call (D10 bug #6)
                 role_row = session.execute(
                     sa_text("SELECT id FROM role WHERE id = :rid"),
                     {"rid": str(dto.role_id)},
@@ -60,7 +59,6 @@ class InstitutionUserStrategy:
                     session.rollback()
                     raise ValueError(f"Role not found: {dto.role_id}")
 
-                # Insert role_assignment in same transaction
                 session.execute(sa_text(
                     "INSERT INTO role_assignment (id, client_id, user_id, role_id, scope) "
                     "VALUES (gen_random_uuid(), :cid, :uid, :rid, NULL)"
@@ -71,7 +69,6 @@ class InstitutionUserStrategy:
                 })
 
             # D1/D3: Mint invite JWT and build invite URL
-            # D11: Supabase Auth user is created during activate (with password), not here.
             from kernel.auth.services.invite_token import mint_invite_token
             from kernel.config.resolver import config
             invite_jwt = mint_invite_token(result.id, result.email)
@@ -84,6 +81,7 @@ class InstitutionUserStrategy:
             session.commit()
 
             # C-11 audit emission for user creation (AC-10)
+            # Use person.name from the DTO projection (D6a)
             self._audit.emit(
                 action="user_created",
                 client_id=ctx.client_id,
@@ -92,7 +90,7 @@ class InstitutionUserStrategy:
                 payload={
                     "user_id": str(result.id),
                     "email": result.email,
-                    "name": result.name,
+                    "name": result.person.name,
                     "institution_id": str(dto.institution_id),
                 },
             )
@@ -110,7 +108,10 @@ class InstitutionUserStrategy:
             return self._user_repo.list(session, ctx, **filters)
 
     async def delete_user(self, ctx: TenantContext, user_id: uuid.UUID) -> None:
-        """Delete an institution user and all related data (D20b cascade)."""
+        """Delete an institution user and all related data (D20b cascade).
+
+        Note: Person row is NOT deleted — person is the enduring anchor (D3a).
+        """
         from sqlalchemy import text as sa_text
 
         logger.info("[InstitutionStrategy] Deleting user: id=%s", user_id)
@@ -124,7 +125,7 @@ class InstitutionUserStrategy:
             session.execute(sa_text("DELETE FROM login_attempt WHERE user_id = :uid"), {"uid": user_id})
             session.execute(sa_text("DELETE FROM role_assignment WHERE user_id = :uid"), {"uid": user_id})
             session.execute(sa_text("DELETE FROM user_identifier WHERE user_id = :uid"), {"uid": user_id})
-            session.execute(sa_text("DELETE FROM user_profile WHERE user_id = :uid"), {"uid": user_id})
+            # Note: user_profile delete removed (table dropped in migration 022)
             session.execute(sa_text("DELETE FROM user_lifecycle_event WHERE user_id = :uid"), {"uid": user_id})
 
             # Delete Supabase Auth user

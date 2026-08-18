@@ -13,15 +13,12 @@ import type {
   UserIdentifierCreateDTO,
   UserIdentifierDTO,
   UserLifecycleTransitionDTO,
-  UserProfileCreateDTO,
-  UserProfileDTO,
-  UserProfileUpdateDTO,
   UserUpdateDTO,
 } from './dto/users';
 
 export const usersApi = {
   // Users (scoped to client/institution)
-  listUsers: (filters?: { user_category_id?: string; lifecycle_status?: string }) =>
+  listUsers: (filters?: { lifecycle_status?: string }) =>
     api.get<UserDTO[]>('/api/v1/users', { params: filters ?? {} }),
   getUser: (userId: string) => api.get<UserDTO>(`/api/v1/users/${userId}`),
   createUser: (payload: UserCreateDTO) =>
@@ -32,13 +29,8 @@ export const usersApi = {
   transitionUser: (userId: string, payload: UserLifecycleTransitionDTO) =>
     api.post<UserDTO>(`/api/v1/users/${userId}/transition`, payload),
 
-  // Profile
-  getProfile: (userId: string) =>
-    api.get<UserProfileDTO>(`/api/v1/users/${userId}/profile`),
-  createProfile: (userId: string, payload: UserProfileCreateDTO) =>
-    api.post<UserProfileDTO>(`/api/v1/users/${userId}/profile`, payload),
-  updateProfile: (userId: string, payload: UserProfileUpdateDTO) =>
-    api.patch<UserProfileDTO>(`/api/v1/users/${userId}/profile`, payload),
+  // Profile methods REMOVED (T-29, D6a) — user_profile table dropped.
+  // Human data is accessed via UserDTO.person projection.
 
   // Identifiers
   listIdentifiers: (userId: string) =>

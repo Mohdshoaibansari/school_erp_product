@@ -1,11 +1,10 @@
-"""User model (Decision 1, Decision 4, AC-4).
+"""User model — per-institution account (D1, D3b, D6a).
 
-A user record is per-institution (Decision 1). A person who works at two
-schools has two separate User accounts with two separate email addresses.
-There is NO Person table.
+A user record is per-institution (D3b). Human data lives on `person` (D6a).
+The User table (app_user) is a thin account: auth/tenant fields + person_id FK.
 
-Fields: id, client_id, institution_id, email (globally unique), name,
-user_category_id (FK), lifecycle_status, created_at, updated_at.
+Fields: id, client_id, institution_id, email, person_id (FK), lifecycle_status,
+created_at, updated_at.
 """
 
 from __future__ import annotations
@@ -20,7 +19,7 @@ from kernel.db import Base
 
 
 class User(Base):
-    """User table — per-institution identity."""
+    """User table — per-institution identity (thin account)."""
 
     __tablename__ = "app_user"
 
@@ -28,19 +27,13 @@ class User(Base):
     client_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("client.id"), nullable=False)
     institution_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("institution.id"), nullable=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    user_category_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_category.id"), nullable=False)
+    person_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("person.id"), nullable=True)
     lifecycle_status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="invited")
     created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
     updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
 
     # Relationships
-    user_category = relationship("UserCategory", foreign_keys=[user_category_id])
-    profile = relationship("UserProfile",
-        primaryjoin="User.id == foreign(UserProfile.user_id)",
-        viewonly=True,
-        uselist=False,
-    )
+    person = relationship("Person", foreign_keys=[person_id], viewonly=True)
     role_assignments = relationship("RoleAssignment",
         primaryjoin="User.id == foreign(RoleAssignment.user_id)",
         viewonly=True,

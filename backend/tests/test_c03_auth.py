@@ -570,13 +570,11 @@ class TestC02SupabasePropagation:
         factory = sessionmaker(bind=db_session.get_bind())
         svc = UserService(session_factory=factory, supabase_client=fake_supabase)
 
-        cat = db_session.execute(text("SELECT id FROM user_category LIMIT 1")).fetchone()
-        assert cat is not None, "No user_category found"
+        from kernel.user.services.dtos import PersonCreateDTO
 
         dto = UserCreateDTO(
             email="newuser@test.com",
-            name="New User",
-            user_category_id=cat[0],
+            person_data=PersonCreateDTO(name="New User"),
             institution_id=institution_admin_ctx.institution_id,
         )
 
@@ -607,13 +605,11 @@ class TestC02SupabasePropagation:
         factory = sessionmaker(bind=db_session.get_bind())
         svc = UserService(session_factory=factory, supabase_client=fake_supabase)
 
-        cat = db_session.execute(text("SELECT id FROM user_category LIMIT 1")).fetchone()
-        assert cat is not None
+        from kernel.user.services.dtos import PersonCreateDTO
 
         dto = UserCreateDTO(
             email="failuser@test.com",
-            name="Fail User",
-            user_category_id=cat[0],
+            person_data=PersonCreateDTO(name="Fail User"),
             institution_id=institution_admin_ctx.institution_id,
         )
 
@@ -639,14 +635,11 @@ class TestC02SupabasePropagation:
         factory = sessionmaker(bind=db_session.get_bind())
         svc = UserService(session_factory=factory, supabase_client=fake_supabase)
 
-        cat = db_session.execute(text("SELECT id FROM user_category LIMIT 1")).fetchone()
-        assert cat is not None
+        from kernel.user.services.dtos import PersonCreateDTO
 
-        # Create user
         dto = UserCreateDTO(
             email="suspenduser@test.com",
-            name="Suspend User",
-            user_category_id=cat[0],
+            person_data=PersonCreateDTO(name="Suspend User"),
             institution_id=institution_admin_ctx.institution_id,
         )
         user = await svc.create_user(institution_admin_ctx, dto)
@@ -676,14 +669,11 @@ class TestC02SupabasePropagation:
         factory = sessionmaker(bind=db_session.get_bind())
         svc = UserService(session_factory=factory, supabase_client=fake_supabase)
 
-        cat = db_session.execute(text("SELECT id FROM user_category LIMIT 1")).fetchone()
-        assert cat is not None
+        from kernel.user.services.dtos import PersonCreateDTO
 
-        # Create user
         dto = UserCreateDTO(
             email="archiveuser@test.com",
-            name="Archive User",
-            user_category_id=cat[0],
+            person_data=PersonCreateDTO(name="Archive User"),
             institution_id=institution_admin_ctx.institution_id,
         )
         user = await svc.create_user(institution_admin_ctx, dto)
@@ -710,14 +700,11 @@ class TestC02SupabasePropagation:
         factory = sessionmaker(bind=db_session.get_bind())
         svc = UserService(session_factory=factory, supabase_client=fake_supabase)
 
-        cat = db_session.execute(text("SELECT id FROM user_category LIMIT 1")).fetchone()
-        assert cat is not None
+        from kernel.user.services.dtos import PersonCreateDTO
 
-        # Create user
         dto = UserCreateDTO(
             email="oldemail@test.com",
-            name="Email Change User",
-            user_category_id=cat[0],
+            person_data=PersonCreateDTO(name="Email Change User"),
             institution_id=institution_admin_ctx.institution_id,
         )
         user = await svc.create_user(institution_admin_ctx, dto)
@@ -745,14 +732,11 @@ class TestC02SupabasePropagation:
         factory = sessionmaker(bind=db_session.get_bind())
         svc = UserService(session_factory=factory, supabase_client=fake_supabase)
 
-        cat = db_session.execute(text("SELECT id FROM user_category LIMIT 1")).fetchone()
-        assert cat is not None
+        from kernel.user.services.dtos import PersonCreateDTO
 
-        # Create user
         dto = UserCreateDTO(
             email="nochange@test.com",
-            name="No Change User",
-            user_category_id=cat[0],
+            person_data=PersonCreateDTO(name="No Change User"),
             institution_id=institution_admin_ctx.institution_id,
         )
         user = await svc.create_user(institution_admin_ctx, dto)
@@ -782,17 +766,7 @@ class TestBootstrapCLI:
         from unittest.mock import patch, AsyncMock
         import os
 
-        # Create platform owner app_user row
-        db_session.execute(text(
-            "INSERT INTO user_category (id, name) "
-            "VALUES (gen_random_uuid(), 'Executive Leadership') "
-            "ON CONFLICT DO NOTHING"
-        ))
-        db_session.flush()
-
-        cat_id = db_session.execute(
-            text("SELECT id FROM user_category WHERE name = 'Executive Leadership'")
-        ).fetchone()[0]
+        # Bootstrap: create person + app_user (no user_category, D6a)
 
         db_session.execute(text(
             "INSERT INTO client (id, display_name, legal_name, slug, legal_entity_type_id, primary_contact_email, current_lifecycle_status) "
@@ -829,9 +803,14 @@ class TestBootstrapCLI:
 
         owner_id = uuid.uuid4()
         db_session.execute(text(
-            "INSERT INTO app_user (id, client_id, institution_id, email, name, user_category_id, lifecycle_status) "
-            "VALUES (:id, '00000000-0000-0000-0000-000000000001', :inst_id, 'platform@test.com', 'Platform Owner', :cat_id, 'active')"
-        ), {"id": owner_id, "inst_id": inst_id, "cat_id": cat_id})
+            "INSERT INTO person (id, client_id, name, status) VALUES (:pid, '00000000-0000-0000-0000-000000000001', 'Platform Owner', 'active')"
+        )
+        db_session.flush()
+        person_id = db_session.execute(text("SELECT id FROM person WHERE name = 'Platform Owner' LIMIT 1")).fetchone()[0]
+        db_session.execute(text(
+            "INSERT INTO app_user (id, client_id, institution_id, email, person_id, lifecycle_status) "
+            "VALUES (:id, '00000000-0000-0000-0000-000000000001', :inst_id, 'platform@test.com', :pid, 'active')"
+        ), {"id": owner_id, "inst_id": inst_id, "pid": person_id})
         db_session.commit()
 
         # Create a fake that tracks calls
@@ -867,17 +846,7 @@ class TestBootstrapCLI:
         from unittest.mock import patch
         import os
 
-        # Create platform owner app_user row
-        db_session.execute(text(
-            "INSERT INTO user_category (id, name) "
-            "VALUES (gen_random_uuid(), 'Executive Leadership') "
-            "ON CONFLICT DO NOTHING"
-        ))
-        db_session.flush()
-
-        cat_id = db_session.execute(
-            text("SELECT id FROM user_category WHERE name = 'Executive Leadership'")
-        ).fetchone()[0]
+        # Bootstrap: create person + app_user (no user_category, D6a)
 
         db_session.execute(text(
             "INSERT INTO client (id, display_name, legal_name, slug, legal_entity_type_id, primary_contact_email, current_lifecycle_status) "
@@ -914,9 +883,14 @@ class TestBootstrapCLI:
 
         owner_id = uuid.uuid4()
         db_session.execute(text(
-            "INSERT INTO app_user (id, client_id, institution_id, email, name, user_category_id, lifecycle_status) "
-            "VALUES (:id, '00000000-0000-0000-0000-000000000001', :inst_id, 'platform@test.com', 'Platform Owner', :cat_id, 'active')"
-        ), {"id": owner_id, "inst_id": inst_id, "cat_id": cat_id})
+            "INSERT INTO person (id, client_id, name, status) VALUES (:pid, '00000000-0000-0000-0000-000000000001', 'Platform Owner', 'active')"
+        )
+        db_session.flush()
+        person_id = db_session.execute(text("SELECT id FROM person WHERE name = 'Platform Owner' LIMIT 1")).fetchone()[0]
+        db_session.execute(text(
+            "INSERT INTO app_user (id, client_id, institution_id, email, person_id, lifecycle_status) "
+            "VALUES (:id, '00000000-0000-0000-0000-000000000001', :inst_id, 'platform@test.com', :pid, 'active')"
+        ), {"id": owner_id, "inst_id": inst_id, "pid": person_id})
         db_session.commit()
 
         # Create a fake with the user already existing
@@ -1003,19 +977,21 @@ def _ensure_test_infrastructure(db_session, ctx, slug='test-client'):
 
 
 def _create_test_user_direct(db_session, ctx, email, name, lifecycle_status="invited"):
-    """Helper: create a user directly in the database and in FakeSupabaseAuth."""
-    cat_id = db_session.execute(text("SELECT id FROM user_category LIMIT 1")).fetchone()[0]
+    """Helper: create a user directly in the database with person-first insert (D3a)."""
+    person_id = uuid.uuid4()
+    db_session.execute(text(
+        "INSERT INTO person (id, client_id, name, status) VALUES (:pid, :cid, :name, 'active')"
+    ), {"pid": person_id, "cid": ctx.client_id, "name": name})
     user_id = uuid.uuid4()
     db_session.execute(text(
-        "INSERT INTO app_user (id, client_id, institution_id, email, name, user_category_id, lifecycle_status) "
-        "VALUES (:id, :cid, :iid, :email, :name, :cat_id, :status)"
+        "INSERT INTO app_user (id, client_id, institution_id, email, person_id, lifecycle_status) "
+        "VALUES (:id, :cid, :iid, :email, :pid, :status)"
     ), {
         "id": user_id,
         "cid": ctx.client_id,
         "iid": ctx.institution_id,
         "email": email,
-        "name": name,
-        "cat_id": cat_id,
+        "pid": person_id,
         "status": lifecycle_status,
     })
     db_session.commit()
@@ -1192,11 +1168,16 @@ class TestIntegrationAdminPropagation:
         factory = sessionmaker(bind=db_session.get_bind())
         svc = UserService(session_factory=factory, supabase_client=fake_supabase)
 
-        cat_id = db_session.execute(text("SELECT id FROM user_category LIMIT 1")).fetchone()[0]
+        from kernel.user.services.dtos import PersonCreateDTO
+
+
         dto = UserCreateDTO(
+
+
             email="admin_create@test.com",
-            name="Admin Create User",
-            user_category_id=cat_id,
+
+
+            person_data=PersonCreateDTO(name="Admin Create User"),
             institution_id=institution_admin_ctx.institution_id,
         )
 
@@ -1220,11 +1201,16 @@ class TestIntegrationAdminPropagation:
         factory = sessionmaker(bind=db_session.get_bind())
         svc = UserService(session_factory=factory, supabase_client=fake_supabase)
 
-        cat_id = db_session.execute(text("SELECT id FROM user_category LIMIT 1")).fetchone()[0]
+        from kernel.user.services.dtos import PersonCreateDTO
+
+
         dto = UserCreateDTO(
+
+
             email="admin_suspend@test.com",
-            name="Admin Suspend User",
-            user_category_id=cat_id,
+
+
+            person_data=PersonCreateDTO(name="Admin Suspend User"),
             institution_id=institution_admin_ctx.institution_id,
         )
 
@@ -1250,11 +1236,16 @@ class TestIntegrationAdminPropagation:
         factory = sessionmaker(bind=db_session.get_bind())
         svc = UserService(session_factory=factory, supabase_client=fake_supabase)
 
-        cat_id = db_session.execute(text("SELECT id FROM user_category LIMIT 1")).fetchone()[0]
+        from kernel.user.services.dtos import PersonCreateDTO
+
+
         dto = UserCreateDTO(
+
+
             email="admin_archive@test.com",
-            name="Admin Archive User",
-            user_category_id=cat_id,
+
+
+            person_data=PersonCreateDTO(name="Admin Archive User"),
             institution_id=institution_admin_ctx.institution_id,
         )
 
@@ -1524,7 +1515,6 @@ class TestActivateUnauthenticatedFlow:
         import uuid as _uuid
 
         # Create test infrastructure
-        cat_id = db_session.execute(text("SELECT id FROM user_category LIMIT 1")).fetchone()[0]
         client_id = _uuid.uuid4()
         inst_id = _uuid.uuid4()
 
@@ -1552,12 +1542,16 @@ class TestActivateUnauthenticatedFlow:
         ), {"iid": inst_id, "cid": client_id, "itype_id": itype_id})
         db_session.flush()
 
-        # Create app_user in invited state
+        # Create person + app_user in invited state (person-first insert, D3a)
+        person_id = _uuid.uuid4()
+        db_session.execute(text(
+            "INSERT INTO person (id, client_id, name, status) VALUES (:pid, :cid, 'Activate Test', 'active')"
+        ), {"pid": person_id, "cid": client_id})
         user_id = _uuid.uuid4()
         db_session.execute(text(
-            "INSERT INTO app_user (id, client_id, institution_id, email, name, user_category_id, lifecycle_status) "
-            "VALUES (:id, :cid, :iid, 'activate_test@test.com', 'Activate Test', :cat_id, 'invited')"
-        ), {"id": user_id, "cid": client_id, "iid": inst_id, "cat_id": cat_id})
+            "INSERT INTO app_user (id, client_id, institution_id, email, person_id, lifecycle_status) "
+            "VALUES (:id, :cid, :iid, 'activate_test@test.com', :pid, 'invited')"
+        ), {"id": user_id, "cid": client_id, "iid": inst_id, "pid": person_id})
         db_session.commit()
 
         # Create fake Supabase auth (D11 — no Supabase user at bootstrap; activate creates it)
@@ -1619,7 +1613,6 @@ class TestActivateTransactionOrdering:
         import pytest as _pytest
 
         # Create test infrastructure
-        cat_id = db_session.execute(text("SELECT id FROM user_category LIMIT 1")).fetchone()[0]
         client_id = _uuid.uuid4()
         inst_id = _uuid.uuid4()
 
@@ -1647,12 +1640,16 @@ class TestActivateTransactionOrdering:
         ), {"iid": inst_id, "cid": client_id, "itype_id": itype_id})
         db_session.flush()
 
-        # Create app_user in invited state
+        # Create person + app_user in invited state (person-first insert, D3a)
+        person_id = _uuid.uuid4()
+        db_session.execute(text(
+            "INSERT INTO person (id, client_id, name, status) VALUES (:pid, :cid, 'Ordering Test', 'active')"
+        ), {"pid": person_id, "cid": client_id})
         user_id = _uuid.uuid4()
         db_session.execute(text(
-            "INSERT INTO app_user (id, client_id, institution_id, email, name, user_category_id, lifecycle_status) "
-            "VALUES (:id, :cid, :iid, 'ordering_test@test.com', 'Ordering Test', :cat_id, 'invited')"
-        ), {"id": user_id, "cid": client_id, "iid": inst_id, "cat_id": cat_id})
+            "INSERT INTO app_user (id, client_id, institution_id, email, person_id, lifecycle_status) "
+            "VALUES (:id, :cid, :iid, 'ordering_test@test.com', :pid, 'invited')"
+        ), {"id": user_id, "cid": client_id, "iid": inst_id, "pid": person_id})
         db_session.commit()
 
         # Create fake Supabase that fails on create_user (D11 — activate calls create_user)

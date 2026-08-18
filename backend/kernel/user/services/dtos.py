@@ -1,4 +1,4 @@
-"""Pydantic DTOs for the C-02 identity-user domain.
+"""Pydantic DTOs for the C-02 identity-user domain (person-model revamp).
 
 Repos convert ORM → DTO at the boundary. Endpoints accept/respond with DTOs.
 ORM objects never cross the repository boundary.
@@ -13,16 +13,42 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 # ============================================================
-# UserCategory DTOs
+# Person DTOs (NEW — T-09)
 # ============================================================
 
-class UserCategoryDTO(BaseModel):
-    """Response DTO for a UserCategory."""
+class PersonCreateDTO(BaseModel):
+    """Request body for creating a Person (nested in user creation DTOs)."""
+
+    name: str = Field(..., min_length=1, max_length=255, description="Person display name")
+    date_of_birth: date | None = Field(None, description="Date of birth")
+    gender: str | None = Field(None, description="Gender")
+    blood_group: str | None = Field(None, description="Blood group (e.g. B+)")
+    photo: str | None = Field(None, description="Profile photo URL or path")
+    contact_phone: str | None = Field(None, description="Contact phone number")
+    contact_email: str | None = Field(None, description="Contact email address")
+    demographics: dict | None = Field(None, description="Extensible demographics (JSON)")
+
+
+class PersonDTO(BaseModel):
+    """Response DTO for a Person."""
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID = Field(..., description="User category unique identifier")
-    name: str = Field(..., description="User category name (e.g. Learner, Academic Staff)")
+    id: uuid.UUID = Field(..., description="Person unique identifier")
+    client_id: uuid.UUID = Field(..., description="Client (tenant) this person belongs to")
+    name: str = Field(..., description="Person display name")
+    date_of_birth: date | None = Field(None, description="Date of birth")
+    gender: str | None = Field(None, description="Gender")
+    blood_group: str | None = Field(None, description="Blood group")
+    photo: str | None = Field(None, description="Profile photo URL or path")
+    contact_phone: str | None = Field(None, description="Contact phone")
+    contact_email: str | None = Field(None, description="Contact email")
+    demographics: dict | None = Field(None, description="Extensible demographics (JSON)")
+    status: str = Field(..., description="Person status: Active|Inactive|Deceased|ErasureRequested|Anonymized")
+    is_minor: bool | None = Field(None, description="Whether the person is a minor")
+    is_verified: bool | None = Field(None, description="Whether the person is verified")
+    created_at: datetime = Field(..., description="Timestamp when the person was created")
+    updated_at: datetime = Field(..., description="Timestamp of the last update")
 
 
 # ============================================================
@@ -39,38 +65,36 @@ class RoleDTO(BaseModel):
 
 
 # ============================================================
-# User DTOs
+# User DTOs (MODIFIED — T-10, T-11)
 # ============================================================
 
 class UserCreateDTO(BaseModel):
-    """Request body for creating a User."""
+    """Request body for creating a User (breaking change: person_data replaces name + user_category_id)."""
 
     email: str = Field(..., min_length=1, max_length=255, description="User email address (globally unique)")
-    name: str = Field(..., min_length=1, max_length=255, description="User display name")
-    user_category_id: uuid.UUID = Field(..., description="User category reference (Learner, Academic Staff, etc.)")
-    institution_id: uuid.UUID = Field(..., description="Institution reference — every app_user row belongs to exactly one institution (D13)")
+    person_data: PersonCreateDTO = Field(..., description="Person/human data for this user")
+    institution_id: uuid.UUID = Field(..., description="Institution reference")
     role_id: uuid.UUID | None = Field(None, description="Role assigned atomically at creation (D2)")
 
 
 class UserUpdateDTO(BaseModel):
     """Request body for updating a User."""
 
-    name: str | None = Field(None, description="New display name")
-    email: str | None = Field(None, description="New email address (Phase 4: email changes propagated to Supabase)")
-    lifecycle_status: str | None = Field(None, description="User lifecycle state: invited/active/suspended/archived (C-03 activate endpoint)")
+    name: str | None = Field(None, description="New display name (routed to person)")
+    email: str | None = Field(None, description="New email address")
+    lifecycle_status: str | None = Field(None, description="User lifecycle state")
 
 
 class UserDTO(BaseModel):
-    """Response DTO for a User."""
+    """Response DTO for a User (breaking change: person projection replaces name + user_category_id)."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID = Field(..., description="User unique identifier")
     client_id: uuid.UUID = Field(..., description="Client (tenant) this user belongs to")
-    institution_id: uuid.UUID | None = Field(None, description="Institution reference (nullable for client-level users)")
+    institution_id: uuid.UUID | None = Field(None, description="Institution reference")
     email: str = Field(..., description="User email address (globally unique)")
-    name: str = Field(..., description="User display name")
-    user_category_id: uuid.UUID = Field(..., description="User category reference")
+    person: PersonDTO = Field(..., description="Person/human data projection")
     lifecycle_status: str = Field(..., description="User lifecycle state: invited/active/suspended/archived")
     created_at: datetime = Field(..., description="Timestamp when the user was created")
     updated_at: datetime = Field(..., description="Timestamp of the last update")
@@ -81,43 +105,6 @@ class UserCreateResponseDTO(BaseModel):
 
     user: UserDTO = Field(..., description="Created user record")
     invite_url: str = Field(..., description="Invite/activation URL for the new user")
-
-
-# ============================================================
-# UserProfile DTOs
-# ============================================================
-
-class UserProfileCreateDTO(BaseModel):
-    """Request body for creating a UserProfile."""
-
-    photo: str | None = Field(None, description="Profile photo URL or path")
-    date_of_birth: date | None = Field(None, description="User date of birth")
-    gender: str | None = Field(None, description="User gender")
-    blood_group: str | None = Field(None, description="User blood group (e.g. B+)")
-
-
-class UserProfileUpdateDTO(BaseModel):
-    """Request body for updating a UserProfile."""
-
-    photo: str | None = Field(None, description="Profile photo URL or path")
-    date_of_birth: date | None = Field(None, description="User date of birth")
-    gender: str | None = Field(None, description="User gender")
-    blood_group: str | None = Field(None, description="User blood group (e.g. B+)")
-
-
-class UserProfileDTO(BaseModel):
-    """Response DTO for a UserProfile."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID = Field(..., description="UserProfile unique identifier")
-    user_id: uuid.UUID = Field(..., description="User reference this profile belongs to")
-    photo: str | None = Field(None, description="Profile photo URL or path")
-    date_of_birth: date | None = Field(None, description="User date of birth")
-    gender: str | None = Field(None, description="User gender")
-    blood_group: str | None = Field(None, description="User blood group (e.g. B+)")
-    created_at: datetime = Field(..., description="Timestamp when the profile was created")
-    updated_at: datetime = Field(..., description="Timestamp of the last update")
 
 
 # ============================================================
@@ -196,36 +183,34 @@ class UserLifecycleEventDTO(BaseModel):
 
 
 # ============================================================
-# ClientUser DTOs (client-user-bootstrap)
+# ClientUser DTOs (MODIFIED — T-12)
 # ============================================================
 
 class ClientUserCreateDTO(BaseModel):
-    """Request body for creating a ClientUser (PO bootstrap)."""
+    """Request body for creating a ClientUser (breaking: person_data replaces name + user_category_id)."""
 
     email: str = Field(..., description="Client user email address")
-    name: str = Field(..., description="Client user display name")
+    person_data: PersonCreateDTO = Field(..., description="Person/human data for this client user")
     role_id: uuid.UUID = Field(..., description="Role reference for the client user")
-    user_category_id: uuid.UUID = Field(..., description="User category reference")
-    client_id: uuid.UUID | None = Field(None, description="Client reference (body param for PO who has no client_id in TenantContext)")
+    client_id: uuid.UUID | None = Field(None, description="Client reference (body param for PO)")
 
 
 class ClientUserUpdateDTO(BaseModel):
     """Request body for updating a ClientUser (name, email)."""
 
-    name: str | None = Field(None, description="New client user display name")
-    email: str | None = Field(None, description="New client user email address")
+    name: str | None = Field(None, description="New display name (routed to person)")
+    email: str | None = Field(None, description="New email address")
 
 
 class ClientUserDTO(BaseModel):
-    """Response DTO for a ClientUser."""
+    """Response DTO for a ClientUser (breaking: person projection replaces name + user_category_id)."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID = Field(..., description="ClientUser unique identifier")
     client_id: uuid.UUID = Field(..., description="Client (tenant) this user belongs to")
     email: str = Field(..., description="Client user email address")
-    name: str = Field(..., description="Client user display name")
-    user_category_id: uuid.UUID = Field(..., description="User category reference")
+    person: PersonDTO = Field(..., description="Person/human data projection")
     role_id: uuid.UUID = Field(..., description="Role reference for the client user")
     lifecycle_status: str = Field(..., description="Client user lifecycle state: invited/active/suspended/archived")
     created_at: datetime = Field(..., description="Timestamp when the client user was created")

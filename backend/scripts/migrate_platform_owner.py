@@ -75,7 +75,7 @@ async def main():
             s.execute(sa_text("DELETE FROM login_attempt WHERE user_id = :uid"), {"uid": user_id})
             s.execute(sa_text("DELETE FROM role_assignment WHERE user_id = :uid"), {"uid": user_id})
             s.execute(sa_text("DELETE FROM user_identifier WHERE user_id = :uid"), {"uid": user_id})
-            s.execute(sa_text("DELETE FROM user_profile WHERE user_id = :uid"), {"uid": user_id})
+            # user_profile table dropped in migration 022 (D6a) — no longer needed
             s.execute(sa_text("DELETE FROM user_lifecycle_event WHERE user_id = :uid"), {"uid": user_id})
             s.execute(
                 sa_text("DELETE FROM app_user WHERE id = :uid"),

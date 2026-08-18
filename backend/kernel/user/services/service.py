@@ -1,4 +1,4 @@
-"""UserService — unified user-lifecycle service (D6, D8).
+"""UserService — unified user-lifecycle service (D6, D8, D6a).
 
 Replaces both IdentityUserService and ClientUserService.
 Holds a StrategyResolver that dispatches to CDStrategy or InstitutionUserStrategy.
@@ -6,10 +6,8 @@ Holds a StrategyResolver that dispatches to CDStrategy or InstitutionUserStrateg
 Published service interface for C-02 (A4). Endpoints call services; services
 call repos. This is the module boundary other modules see.
 
-Methods: create_user, get_user, list_users, update_user, delete_user,
-transition_lifecycle, create_profile, get_profile, update_profile,
-create_role_assignment, list_role_assignments, delete_role_assignment,
-create_identifier, list_identifiers, delete_identifier.
+Note: UserProfile methods removed (T-18) — user_profile table dropped in migration 022.
+Human data lives on person (D6a), accessible via UserDTO.person projection.
 """
 
 from __future__ import annotations
@@ -20,7 +18,6 @@ import uuid
 from sqlalchemy.orm import Session, sessionmaker
 
 from kernel.tenant_context import TenantContext
-from kernel.user.repos.user_profile_repo import UserProfileRepository
 from kernel.user.repos.role_assignment_repo import RoleAssignmentRepository
 from kernel.user.repos.user_identifier_repo import UserIdentifierRepository
 from kernel.audit import AuditEmitter, DefaultAuditEmitter
@@ -30,9 +27,6 @@ from kernel.user.services.dtos import (
     UserCreateDTO,
     UserDTO,
     UserUpdateDTO,
-    UserProfileCreateDTO,
-    UserProfileDTO,
-    UserProfileUpdateDTO,
     RoleAssignmentCreateDTO,
     RoleAssignmentDTO,
     UserIdentifierCreateDTO,
@@ -55,7 +49,6 @@ class UserService:
         self,
         session_factory: sessionmaker[Session],
         audit_emitter: AuditEmitter | None = None,
-        profile_repo: UserProfileRepository | None = None,
         role_assignment_repo: RoleAssignmentRepository | None = None,
         user_identifier_repo: UserIdentifierRepository | None = None,
         supabase_client=None,  # Optional SupabaseAuthClient
@@ -63,7 +56,6 @@ class UserService:
     ) -> None:
         self._session_factory = session_factory
         self._audit = audit_emitter or DefaultAuditEmitter()
-        self._profile_repo = profile_repo or UserProfileRepository()
         self._role_assignment_repo = role_assignment_repo or RoleAssignmentRepository(audit_emitter=self._audit)
         self._user_identifier_repo = user_identifier_repo or UserIdentifierRepository(audit_emitter=self._audit)
         self._supabase = supabase_client
@@ -115,11 +107,7 @@ class UserService:
             return resolver._inst.get_user(ctx, user_id)
 
     def list_users(self, ctx: TenantContext, **filters):
-        """List users. Currently returns institution users (backwards compat).
-
-        For CD listing, the route calls get_user or uses the CD-specific
-        list endpoint that passes client_id as a filter.
-        """
+        """List users. Currently returns institution users (backwards compat)."""
         resolver = self._get_resolver()
         if "client_id" in filters:
             return resolver._cd.list_users(ctx, **filters)
@@ -144,31 +132,6 @@ class UserService:
         """Transition user lifecycle. Dispatches by DB lookup."""
         strategy = await self._get_resolver().resolve_for_other(ctx, user_id)
         return await strategy.transition_lifecycle(ctx, user_id, new_state, reason)
-
-    # ---- UserProfile ----
-
-    def create_profile(
-        self, ctx: TenantContext, user_id: uuid.UUID, dto: UserProfileCreateDTO,
-    ) -> UserProfileDTO:
-        """Create a UserProfile for a User."""
-        with self._session_factory() as session:
-            result = self._profile_repo.create(session, ctx, user_id, dto)
-            session.commit()
-            return result
-
-    def get_profile(self, ctx: TenantContext, user_id: uuid.UUID) -> UserProfileDTO | None:
-        """Get a UserProfile by user_id."""
-        with self._session_factory() as session:
-            return self._profile_repo.get_by_user_id(session, ctx, user_id)
-
-    def update_profile(
-        self, ctx: TenantContext, user_id: uuid.UUID, dto: UserProfileUpdateDTO,
-    ) -> UserProfileDTO:
-        """Update a UserProfile."""
-        with self._session_factory() as session:
-            result = self._profile_repo.update(session, ctx, user_id, dto)
-            session.commit()
-            return result
 
     # ---- RoleAssignment ----
 

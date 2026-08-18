@@ -1,12 +1,40 @@
 /**
  * Typed DTOs mirroring the C-02 identity-user backend
- * (kernel/user/services/dtos.py).
+ * (kernel/user/services/dtos.py) — person-model revamp (T-28).
  */
+
+export interface PersonCreateDTO {
+  name: string;
+  date_of_birth?: string | null;
+  gender?: string | null;
+  blood_group?: string | null;
+  photo?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  demographics?: Record<string, unknown> | null;
+}
+
+export interface PersonDTO {
+  id: string;
+  client_id: string;
+  name: string;
+  date_of_birth: string | null;
+  gender: string | null;
+  blood_group: string | null;
+  photo: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  demographics: Record<string, unknown> | null;
+  status: string;
+  is_minor: boolean | null;
+  is_verified: boolean | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface UserCreateDTO {
   email: string;
-  name: string;
-  user_category_id: string;
+  person_data: PersonCreateDTO;
   institution_id: string;
   role_id: string | null;
 }
@@ -22,8 +50,7 @@ export interface UserDTO {
   client_id: string;
   institution_id: string | null;
   email: string;
-  name: string;
-  user_category_id: string;
+  person: PersonDTO;
   lifecycle_status: string;
   created_at: string;
   updated_at: string;
@@ -32,31 +59,6 @@ export interface UserDTO {
 export interface UserCreateResponseDTO {
   user: UserDTO;
   invite_url: string;
-}
-
-export interface UserProfileCreateDTO {
-  photo: string | null;
-  date_of_birth: string | null;
-  gender: string | null;
-  blood_group: string | null;
-}
-
-export interface UserProfileUpdateDTO {
-  photo?: string | null;
-  date_of_birth?: string | null;
-  gender?: string | null;
-  blood_group?: string | null;
-}
-
-export interface UserProfileDTO {
-  id: string;
-  user_id: string;
-  photo: string | null;
-  date_of_birth: string | null;
-  gender: string | null;
-  blood_group: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface RoleAssignmentCreateDTO {
@@ -97,9 +99,8 @@ export interface UserLifecycleTransitionDTO {
 /** Client-user (client director bootstrap) DTOs — platform client-users routes. */
 export interface ClientUserCreateDTO {
   email: string;
-  name: string;
+  person_data: PersonCreateDTO;
   role_id: string;
-  user_category_id: string;
   client_id: string | null;
 }
 
@@ -112,8 +113,7 @@ export interface ClientUserDTO {
   id: string;
   client_id: string;
   email: string;
-  name: string;
-  user_category_id: string;
+  person: PersonDTO;
   role_id: string;
   lifecycle_status: string;
   created_at: string;

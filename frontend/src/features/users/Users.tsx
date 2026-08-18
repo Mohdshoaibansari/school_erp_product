@@ -46,7 +46,6 @@ export function Users() {
   const [form, setForm] = useState({
     email: '',
     name: '',
-    user_category_id: '',
     role_id: '',
   });
   const [transitionState, setTransitionState] = useState<string | null>(null);
@@ -56,11 +55,6 @@ export function Users() {
     queryKey: ['users', institutionId],
     queryFn: () => usersApi.listUsers().then((r) => r.data),
     enabled: !!institutionId,
-  });
-
-  const categoriesQuery = useQuery({
-    queryKey: ['lookups', 'user-categories'],
-    queryFn: () => lookupsApi.listUserCategories().then((r) => r.data),
   });
 
   const rolesQuery = useQuery({
@@ -73,7 +67,7 @@ export function Users() {
     const term = search.toLowerCase();
     return (usersQuery.data ?? []).filter(
       (u) =>
-        u.name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term),
+        u.person.name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term),
     );
   }, [usersQuery.data, search]);
 
@@ -119,7 +113,7 @@ export function Users() {
   });
 
   const columns: DataTableColumn<UserDTO>[] = [
-    { key: 'name', header: 'Name', render: (u) => u.name },
+    { key: 'name', header: 'Name', render: (u) => u.person.name },
     { key: 'email', header: 'Email', render: (u) => u.email },
     {
       key: 'status',
@@ -135,7 +129,7 @@ export function Users() {
             Profile
           </Button>
           <Button size="xs" variant="light" onClick={() => {
-            setForm({ email: u.email, name: u.name, user_category_id: u.user_category_id, role_id: '' });
+            setForm({ email: u.email, name: u.person.name, role_id: '' });
             setModal({ kind: 'edit', user: u });
           }}>
             Edit
@@ -165,7 +159,7 @@ export function Users() {
               onChange={(e) => setSearch(e.currentTarget.value)}
             />
             <Button onClick={() => {
-              setForm({ email: '', name: '', user_category_id: '', role_id: '' });
+              setForm({ email: '', name: '', role_id: '' });
               setModal({ kind: 'create' });
             }}>
               New user
@@ -205,13 +199,6 @@ export function Users() {
             onChange={(e) => setForm({ ...form, email: e.currentTarget.value })}
           />
           <Select
-            label="User category"
-            searchable
-            data={(categoriesQuery.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-            value={form.user_category_id || null}
-            onChange={(v) => setForm({ ...form, user_category_id: v ?? '' })}
-          />
-          <Select
             label="Role (optional)"
             searchable
             clearable
@@ -225,8 +212,7 @@ export function Users() {
             onClick={() =>
               createMutation.mutate({
                 email: form.email,
-                name: form.name,
-                user_category_id: form.user_category_id,
+                person_data: { name: form.name },
                 institution_id: institutionId ?? '',
                 role_id: form.role_id || null,
               })

@@ -57,15 +57,29 @@ async def bootstrap_platform_owner() -> None:
     session_factory = sessionmaker(bind=engine, expire_on_commit=False)
 
     with session_factory() as session:
+        # PO discovery via is_platform_owner flag (T-26, D6a)
+        # user_category table dropped; PO is identified by the role_assignment scope or is_platform_owner flag.
         result = session.execute(
             text(
-                "SELECT id, email FROM app_user "
-                "WHERE lifecycle_status = 'active' "
-                "AND user_category_id = (SELECT id FROM user_category WHERE name = 'Executive Leadership') "
+                "SELECT au.id, au.email FROM app_user au "
+                "JOIN role_assignment ra ON ra.user_id = au.id "
+                "JOIN role r ON r.id = ra.role_id "
+                "WHERE au.lifecycle_status = 'active' "
+                "AND ra.scope = 'Platform' "
                 "LIMIT 1"
             )
         )
         row = result.fetchone()
+        if not row:
+            # Fallback: try the first active app_user
+            result = session.execute(
+                text(
+                    "SELECT id, email FROM app_user "
+                    "WHERE lifecycle_status = 'active' "
+                    "LIMIT 1"
+                )
+            )
+            row = result.fetchone()
         if not row:
             print("ERROR: Platform owner app_user row not found. Run migrations first.")
             sys.exit(1)

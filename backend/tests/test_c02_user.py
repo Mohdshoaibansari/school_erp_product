@@ -1,13 +1,9 @@
-"""Integration tests for C-02 Identity & User Management (tasks 11.1-11.5).
+"""Integration tests for C-02 Identity & User Management (tasks 11.1-11.5, T-32).
 
 End-to-end scenarios verifying the full request flow:
 middleware → route → service → repo → database.
 
-11.1: Test full user creation flow: create User → create UserProfile → create RoleAssignment → create UserIdentifier.
-11.2: Test tenant isolation: User at School A cannot see User at School B.
-11.3: Test lifecycle flow: Invited → Pending → Active → Suspended → Active → Archived.
-11.4: Test email uniqueness: duplicate email rejected across institutions and clients.
-11.5: Test lookup tables: UserCategory and Role are queryable and usable for FK validation.
+Updated for person-model revamp (D6a): person_data replaces name + user_category_id.
 """
 
 from __future__ import annotations
@@ -20,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from kernel.user.models.user import User
-from kernel.user.models.user_profile import UserProfile
+from kernel.user.models.person import Person
 from kernel.user.models.role_assignment import RoleAssignment
 from kernel.user.models.user_identifier import UserIdentifier
 from kernel.user.models.user_lifecycle_event import UserLifecycleEvent
@@ -146,13 +142,6 @@ def institution_b(db_session, client_b):
 # Helpers
 # ============================================================
 
-def _get_user_category_id(db_session: Session) -> uuid.UUID:
-    """Get the first UserCategory ID from the seed data."""
-    from kernel.user.models.user_category import UserCategory
-    cat = db_session.query(UserCategory).first()
-    return cat.id
-
-
 def _get_role_id(db_session: Session) -> uuid.UUID:
     """Get the first Role ID from the seed data."""
     from kernel.user.models.role import Role
@@ -160,12 +149,11 @@ def _get_role_id(db_session: Session) -> uuid.UUID:
     return role.id
 
 
-def _create_user_via_api(tc: TestClient, email: str, name: str, category_id: uuid.UUID, institution_id: uuid.UUID) -> dict:
-    """Create a user via the API and return the response data."""
+def _create_user_via_api(tc: TestClient, email: str, name: str, institution_id: uuid.UUID) -> dict:
+    """Create a user via the API and return the response data. (T-32: person_data replaces name + user_category_id)."""
     response = tc.post("/api/v1/users", json={
         "email": email,
-        "name": name,
-        "user_category_id": str(category_id),
+        "person_data": {"name": name},
         "institution_id": str(institution_id),
     })
     assert response.status_code == 201, f"Failed to create user: {response.text}"
@@ -177,12 +165,13 @@ def _create_user_via_api(tc: TestClient, email: str, name: str, category_id: uui
 # ============================================================
 
 class TestFullUserCreationFlow:
-    """11.1: Test full user creation flow: create User → create UserProfile → create RoleAssignment → create UserIdentifier."""
+    """11.1: Test full user creation flow: create User → create RoleAssignment → create UserIdentifier."""
 
     def test_full_user_onboarding(
         self, make_tenant_client, db_session, client_obj, institution
     ):
-        """11.1 evidence: create User → create UserProfile → create RoleAssignment → create UserIdentifier."""
+        """11.1 evidence: create User → create RoleAssignment → create UserIdentifier.
+        UserProfile step removed (table dropped, D6a)."""
         tc = make_tenant_client(
             subdomain="test-school",
             client_id=client_obj.id,
@@ -191,29 +180,17 @@ class TestFullUserCreationFlow:
         )
 
         # Step 1: Create User
-        category_id = _get_user_category_id(db_session)
         user_data = _create_user_via_api(
-            tc, "testuser@test.com", "Test User", category_id, institution.id
+            tc, "testuser@test.com", "Test User", institution.id
         )
         user_id = user_data["id"]
         assert user_data["email"] == "testuser@test.com"
-        assert user_data["name"] == "Test User"
+        assert user_data["person"]["name"] == "Test User"
         assert user_data["lifecycle_status"] == "invited"
+        # D3f: person.id is independent of account UUID
+        assert user_data["person"]["id"] != user_id
 
-        # Step 2: Create UserProfile
-        response = tc.post(f"/api/v1/users/{user_id}/profile", json={
-            "photo": "https://example.com/photo.jpg",
-            "date_of_birth": "1990-01-01",
-            "gender": "male",
-            "blood_group": "A+",
-        })
-        assert response.status_code == 201, f"Failed to create profile: {response.text}"
-        profile_data = response.json()
-        assert profile_data["user_id"] == user_id
-        assert profile_data["photo"] == "https://example.com/photo.jpg"
-        assert profile_data["date_of_birth"] == "1990-01-01"
-
-        # Step 3: Create RoleAssignment
+        # Step 2: Create RoleAssignment
         role_id = _get_role_id(db_session)
         response = tc.post(f"/api/v1/users/{user_id}/roles", json={
             "role_id": str(role_id),
@@ -225,7 +202,7 @@ class TestFullUserCreationFlow:
         assert role_data["role_id"] == str(role_id)
         assert role_data["scope"] == "Mathematics Department"
 
-        # Step 4: Create UserIdentifier
+        # Step 3: Create UserIdentifier
         response = tc.post(f"/api/v1/users/{user_id}/identifiers", json={
             "type": "student_id",
             "value": "STU-001",
@@ -243,16 +220,18 @@ class TestFullUserCreationFlow:
         ).scalars().first()
         assert user is not None
         assert user.email == "testuser@test.com"
-        assert user.name == "Test User"
         assert user.client_id == client_obj.id
         assert user.institution_id == institution.id
+        # D6a: no name on app_user
+        assert not hasattr(user, 'name') or user.person_id is not None
 
-        # Verify profile exists
-        profile = db_session.execute(
-            select(UserProfile).where(UserProfile.user_id == uuid.UUID(user_id))
+        # Verify person exists and is linked
+        person = db_session.execute(
+            select(Person).where(Person.id == user.person_id)
         ).scalars().first()
-        assert profile is not None
-        assert profile.photo == "https://example.com/photo.jpg"
+        assert person is not None
+        assert person.name == "Test User"
+        assert person.id != user.id  # D3f: person.id independent
 
         # Verify role assignment exists
         role_assignment = db_session.execute(
@@ -281,15 +260,13 @@ class TestTenantIsolation:
         self, app, db_session, test_jwt, client_a, client_b, institution_a, institution_b
     ):
         """11.2 evidence: User at School A cannot see User at School B (AC-1)."""
-        category_id = _get_user_category_id(db_session)
-
         # Create User A at School A (via API with School A's context)
         tc_a = TestClient(app, headers={
             "Authorization": f"Bearer {test_jwt(client_id=str(client_a.id), institution_id=str(institution_a.id), roles=['institution_admin'])}",
             "Host": "school-a.localhost",
         })
         user_a_data = _create_user_via_api(
-            tc_a, "user_a@schoola.com", "User A", category_id, institution_a.id
+            tc_a, "user_a@schoola.com", "User A", institution_a.id
         )
 
         # Create User B at School B (via API with School B's context)
@@ -298,7 +275,7 @@ class TestTenantIsolation:
             "Host": "school-b.localhost",
         })
         user_b_data = _create_user_via_api(
-            tc_b, "user_b@schoolb.com", "User B", category_id, institution_b.id
+            tc_b, "user_b@schoolb.com", "User B", institution_b.id
         )
 
         # User A should NOT see User B
@@ -342,10 +319,8 @@ class TestLifecycleFlow:
             roles=["institution_admin"],
         )
 
-        # Create user (starts as "invited")
-        category_id = _get_user_category_id(db_session)
         user_data = _create_user_via_api(
-            tc, "lifecycle@test.com", "Lifecycle User", category_id, institution.id
+            tc, "lifecycle@test.com", "Lifecycle User", institution.id
         )
         user_id = user_data["id"]
         assert user_data["lifecycle_status"] == "invited"
@@ -412,19 +387,15 @@ class TestLifecycleFlow:
             roles=["institution_admin"],
         )
 
-        # Create user and move to archived
-        category_id = _get_user_category_id(db_session)
         user_data = _create_user_via_api(
-            tc, "terminal@test.com", "Terminal User", category_id, institution.id
+            tc, "terminal@test.com", "Terminal User", institution.id
         )
         user_id = user_data["id"]
 
-        # Invited → Pending → Active → Archived
         tc.post(f"/api/v1/users/{user_id}/transition", json={"new_state": "pending"})
         tc.post(f"/api/v1/users/{user_id}/transition", json={"new_state": "active"})
         tc.post(f"/api/v1/users/{user_id}/transition", json={"new_state": "archived"})
 
-        # Attempt Archived → Active — must fail
         response = tc.post(f"/api/v1/users/{user_id}/transition", json={
             "new_state": "active",
             "reason": "Attempt to reactivate",
@@ -442,14 +413,11 @@ class TestLifecycleFlow:
             roles=["institution_admin"],
         )
 
-        # Create user (starts as "invited")
-        category_id = _get_user_category_id(db_session)
         user_data = _create_user_via_api(
-            tc, "disallowed@test.com", "Disallowed User", category_id, institution.id
+            tc, "disallowed@test.com", "Disallowed User", institution.id
         )
         user_id = user_data["id"]
 
-        # Attempt Invited → Suspended (not a valid arc) — must fail
         response = tc.post(f"/api/v1/users/{user_id}/transition", json={
             "new_state": "suspended",
             "reason": "Skip pending",
@@ -475,18 +443,11 @@ class TestEmailUniqueness:
             roles=["institution_admin"],
         )
 
-        category_id = _get_user_category_id(db_session)
+        _create_user_via_api(tc, "duplicate@test.com", "First User", institution.id)
 
-        # Create first user
-        _create_user_via_api(
-            tc, "duplicate@test.com", "First User", category_id, institution.id
-        )
-
-        # Attempt to create second user with same email — must fail
         response = tc.post("/api/v1/users", json={
             "email": "duplicate@test.com",
-            "name": "Second User",
-            "user_category_id": str(category_id),
+            "person_data": {"name": "Second User"},
             "institution_id": str(institution.id),
         })
         assert response.status_code == 409, "Duplicate email should be rejected (409)"
@@ -496,26 +457,19 @@ class TestEmailUniqueness:
         self, app, db_session, test_jwt, client_obj, institution_a, institution_b
     ):
         """11.4 evidence: duplicate email rejected across institutions."""
-        category_id = _get_user_category_id(db_session)
-
-        # Create user at Institution A
         tc_a = TestClient(app, headers={
             "Authorization": f"Bearer {test_jwt(client_id=str(client_obj.id), institution_id=str(institution_a.id), roles=['institution_admin'])}",
             "Host": "school-a.localhost",
         })
-        _create_user_via_api(
-            tc_a, "cross_inst@test.com", "User A", category_id, institution_a.id
-        )
+        _create_user_via_api(tc_a, "cross_inst@test.com", "User A", institution_a.id)
 
-        # Attempt to create user with same email at Institution B — must fail
         tc_b = TestClient(app, headers={
             "Authorization": f"Bearer {test_jwt(client_id=str(client_obj.id), institution_id=str(institution_b.id), roles=['institution_admin'])}",
             "Host": "school-b.localhost",
         })
         response = tc_b.post("/api/v1/users", json={
             "email": "cross_inst@test.com",
-            "name": "User B",
-            "user_category_id": str(category_id),
+            "person_data": {"name": "User B"},
             "institution_id": str(institution_b.id),
         })
         assert response.status_code == 409, "Duplicate email across institutions should be rejected (409)"
@@ -524,53 +478,31 @@ class TestEmailUniqueness:
         self, app, db_session, test_jwt, client_a, client_b, institution_a, institution_b
     ):
         """11.4 evidence: duplicate email rejected across clients."""
-        category_id = _get_user_category_id(db_session)
-
-        # Create user at Client A
         tc_a = TestClient(app, headers={
             "Authorization": f"Bearer {test_jwt(client_id=str(client_a.id), institution_id=str(institution_a.id), roles=['institution_admin'])}",
             "Host": "school-a.localhost",
         })
-        _create_user_via_api(
-            tc_a, "cross_client@test.com", "User A", category_id, institution_a.id
-        )
+        _create_user_via_api(tc_a, "cross_client@test.com", "User A", institution_a.id)
 
-        # Attempt to create user with same email at Client B — must fail
         tc_b = TestClient(app, headers={
             "Authorization": f"Bearer {test_jwt(client_id=str(client_b.id), institution_id=str(institution_b.id), roles=['institution_admin'])}",
             "Host": "school-b.localhost",
         })
         response = tc_b.post("/api/v1/users", json={
             "email": "cross_client@test.com",
-            "name": "User B",
-            "user_category_id": str(category_id),
+            "person_data": {"name": "User B"},
             "institution_id": str(institution_b.id),
         })
         assert response.status_code == 409, "Duplicate email across clients should be rejected (409)"
 
 
 # ============================================================
-# 11.5 — Test lookup tables
+# 11.5 — Test lookup tables (modified — no user_categories)
 # ============================================================
 
 class TestLookupTables:
-    """11.5: Test lookup tables: UserCategory and Role are queryable and usable for FK validation."""
-
-    def test_user_categories_queryable(self, make_tenant_client, client_a, db_session):
-        """11.5 evidence: UserCategory lookup table is queryable."""
-        client = make_tenant_client(
-            subdomain="test-school",
-            client_id=client_a.id,
-            roles=["admin"],
-        )
-        response = client.get("/api/v1/lookups/user-categories")
-        assert response.status_code == 200, f"Failed to list user categories: {response.text}"
-        categories = response.json()
-        assert len(categories) > 0, "UserCategory seed data should exist"
-        # Verify seed data structure
-        names = [c["name"] for c in categories]
-        assert "Learner" in names, "Learner should be in UserCategory seed data"
-        assert "Academic Staff" in names, "Academic Staff should be in UserCategory seed data"
+    """11.5: Test lookup tables: Role is queryable and usable for FK validation.
+    UserCategory tests removed (table dropped, D6a)."""
 
     def test_roles_queryable(self, make_tenant_client, client_a, db_session):
         """11.5 evidence: Role lookup table is queryable."""
@@ -583,31 +515,19 @@ class TestLookupTables:
         assert response.status_code == 200, f"Failed to list roles: {response.text}"
         roles = response.json()
         assert len(roles) > 0, "Role seed data should exist"
-        # Verify seed data structure
         names = [r["name"] for r in roles]
         assert "Teacher" in names, "Teacher should be in Role seed data"
         assert "Student" in names, "Student should be in Role seed data"
 
-    def test_user_category_fk_validation(
-        self, make_tenant_client, db_session, client_obj, institution
-    ):
-        """11.5 evidence: UserCategory FK is validated — invalid category rejected."""
-        tc = make_tenant_client(
+    def test_user_categories_endpoint_removed(self, make_tenant_client, client_a, db_session):
+        """11.5 evidence: UserCategory endpoint removed (T-23, D6a)."""
+        client = make_tenant_client(
             subdomain="test-school",
-            client_id=client_obj.id,
-            institution_id=institution.id,
-            roles=["institution_admin"],
+            client_id=client_a.id,
+            roles=["admin"],
         )
-
-        # Attempt to create user with non-existent category — must fail
-        # FK violation results in IntegrityError (database constraint)
-        with pytest.raises(Exception):  # IntegrityError or HTTPException
-            tc.post("/api/v1/users", json={
-                "email": "bad_category@test.com",
-                "name": "Bad Category User",
-                "user_category_id": str(uuid.uuid4()),  # non-existent
-                "institution_id": str(institution.id),
-            })
+        response = client.get("/api/v1/lookups/user-categories")
+        assert response.status_code == 404, "user-categories endpoint should be 404 (removed)"
 
     def test_role_fk_validation(
         self, make_tenant_client, db_session, client_obj, institution
@@ -620,17 +540,13 @@ class TestLookupTables:
             roles=["institution_admin"],
         )
 
-        # Create a valid user first
-        category_id = _get_user_category_id(db_session)
         user_data = _create_user_via_api(
-            tc, "role_fk@test.com", "Role FK User", category_id, institution.id
+            tc, "role_fk@test.com", "Role FK User", institution.id
         )
         user_id = user_data["id"]
 
-        # Attempt to create role assignment with non-existent role — must fail
-        # FK violation results in IntegrityError (database constraint)
-        with pytest.raises(Exception):  # IntegrityError or HTTPException
+        with pytest.raises(Exception):
             tc.post(f"/api/v1/users/{user_id}/roles", json={
-                "role_id": str(uuid.uuid4()),  # non-existent
+                "role_id": str(uuid.uuid4()),
                 "scope": "Test Scope",
             })

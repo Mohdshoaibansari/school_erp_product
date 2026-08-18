@@ -1,6 +1,7 @@
-"""C-02 User CRUD + lifecycle routes (tasks 9.1, 9.2).
+"""C-02 User CRUD + lifecycle routes (tasks 9.1, 9.2, T-22).
 
 Endpoints for creating, reading, updating users and transitioning lifecycle.
+user_category_id filter removed (T-22, D6a).
 """
 
 from __future__ import annotations
@@ -44,18 +45,17 @@ async def create_user(
 
 @router.get("", response_model=list[UserDTO], summary="List users")
 def list_users(
-    user_category_id: uuid.UUID | None = None,
     lifecycle_status: str | None = None,
     _authz: None = Depends(require_permission("user", "read")),
     ctx: TenantContext = Depends(get_tenant_context),
     svc: UserService = Depends(get_identity_user_service),
 ) -> list[UserDTO]:
-    """List Users, optionally filtered by user_category_id or lifecycle_status.
+    """List Users, optionally filtered by lifecycle_status.
 
-    D21: Platform owner sees all users across all clients (no tenant filter)."""
+    D21: Platform owner sees all users across all clients (no tenant filter).
+    user_category_id filter removed (T-22, D6a).
+    """
     filters = {}
-    if user_category_id is not None:
-        filters["user_category_id"] = user_category_id
     if lifecycle_status is not None:
         filters["lifecycle_status"] = lifecycle_status
     return svc.list_users(ctx, **filters)
@@ -123,10 +123,6 @@ async def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
 
 
-# ============================================================
-# 9.2 — User lifecycle endpoints
-# ============================================================
-
 @router.post("/{user_id}/transition", response_model=UserDTO, summary="Transition user lifecycle")
 async def transition_user_lifecycle(
     user_id: uuid.UUID,
@@ -135,12 +131,7 @@ async def transition_user_lifecycle(
     enforcer: Any = Depends(get_enforcer),
     svc: UserService = Depends(get_identity_user_service),
 ) -> UserDTO:
-    """Transition User lifecycle (Decision 8, AC-10, AC-11).
-
-    Body must include ``new_state``. Allowed transitions:
-    Invited→Pending, Pending→Active, Active→Suspended, Suspended→Active,
-    Active→Archived, Suspended→Archived. Archived is terminal.
-    """
+    """Transition User lifecycle (Decision 8, AC-10, AC-11)."""
     if not dto.new_state:
         raise HTTPException(status_code=400, detail="new_state is required")
     existing = svc.get_user(ctx, user_id)

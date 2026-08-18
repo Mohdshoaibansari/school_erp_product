@@ -77,20 +77,9 @@ class FeesService:
     def create_fee_assignments(self, ctx: TenantContext, dto: FeeAssignmentCreateDTO) -> list[FeeAssignmentDTO]:
         logger.info("[FEES] Create fee assignments: fee_type=%s count=%s amount=%s", dto.fee_type_id, len(dto.user_ids), dto.amount)
         with self._session_factory() as session:
-            session.execute(__import__("sqlalchemy").text(
-                "SELECT 1 FROM app_user WHERE id = ANY(:ids) AND user_category_id NOT IN "
-                "(SELECT id FROM user_category WHERE name = 'Learner')"
-            ), {"ids": dto.user_ids})
-            # Simple validation: check all user_ids belong to Learner category
-            from sqlalchemy import text as sa_text
-            bad_users = session.execute(sa_text(
-                "SELECT u.id FROM app_user u "
-                "JOIN user_category uc ON u.user_category_id = uc.id "
-                "WHERE u.id = ANY(:ids) AND uc.name != 'Learner'"
-            ), {"ids": dto.user_ids}).fetchall()
-            if bad_users:
-                raise ValueError(f"Fee can only be assigned to students (Learner category). "
-                                 f"Invalid user IDs: {[str(r[0]) for r in bad_users]}")
+            # TODO(domain-split): validate student via student.id once student table exists
+            # Learner proxy check removed (D6a, T-25) — user_category table dropped.
+            # Fee assignment now accepts any valid user_account.id.
 
             results = []
             institution_id = dto.institution_id or ctx.institution_id

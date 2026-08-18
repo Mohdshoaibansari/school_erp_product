@@ -53,8 +53,7 @@ def test_insert_app_user_without_institution_id_fails(test_client, platform_owne
     """Attempting to POST /api/v1/users without institution_id returns 422."""
     response = test_client.post("/api/v1/users", json={
         "email": "test-no-inst@test.com",
-        "name": "No Inst",
-        "user_category_id": str(uuid.uuid4()),
+        "person_data": {"name": "No Inst"},
         # institution_id omitted
     }, headers={"Authorization": f"Bearer {platform_owner_token}"})
     assert response.status_code == 422
@@ -94,9 +93,8 @@ def test_po_bootstrap_returns_invite_url(test_client, platform_owner_token, test
         f"/api/v1/platform/clients/{test_client_id}/users",
         json={
             "email": f"test-cd-{uuid.uuid4().hex[:8]}@test.com",
-            "name": "Test CD",
+            "person_data": {"name": "Test CD"},
             "role_id": "5f653436-97e0-40e0-8bb3-2301a8eb85c8",  # client_director
-            "user_category_id": "a7d54767-3727-4a37-8a25-5188a1be21a5",  # Executive Leadership
         },
         headers={"Authorization": f"Bearer {platform_owner_token}"},
     )
@@ -177,9 +175,8 @@ def test_po_cannot_post_app_user(test_client, platform_owner_token, test_client_
     """PO cannot POST to /api/v1/users."""
     response = test_client.post("/api/v1/users", json={
         "email": "po-try@test.com",
-        "name": "PO Try",
+        "person_data": {"name": "PO Try"},
         "institution_id": str(uuid.uuid4()),
-        "user_category_id": str(uuid.uuid4()),
     }, headers={"Authorization": f"Bearer {platform_owner_token}"})
     assert response.status_code == 403
 

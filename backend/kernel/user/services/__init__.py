@@ -5,14 +5,12 @@ Import it directly: from kernel.user.services.service import UserService
 """
 
 from kernel.user.services.dtos import (
-    UserCategoryDTO,
+    PersonCreateDTO,
+    PersonDTO,
     RoleDTO,
     UserCreateDTO,
     UserUpdateDTO,
     UserDTO,
-    UserProfileCreateDTO,
-    UserProfileUpdateDTO,
-    UserProfileDTO,
     RoleAssignmentCreateDTO,
     RoleAssignmentDTO,
     UserIdentifierCreateDTO,
@@ -31,14 +29,12 @@ from kernel.user.services.state_machine import (
 
 __all__ = [
     # DTOs
-    "UserCategoryDTO",
+    "PersonCreateDTO",
+    "PersonDTO",
     "RoleDTO",
     "UserCreateDTO",
     "UserUpdateDTO",
     "UserDTO",
-    "UserProfileCreateDTO",
-    "UserProfileUpdateDTO",
-    "UserProfileDTO",
     "RoleAssignmentCreateDTO",
     "RoleAssignmentDTO",
     "UserIdentifierCreateDTO",

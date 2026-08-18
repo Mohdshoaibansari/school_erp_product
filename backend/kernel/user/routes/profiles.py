@@ -1,67 +1,32 @@
-"""C-02 UserProfile routes.
+"""DEPRECATED — user_profile routes removed (T-24, D6a).
 
-Endpoints for creating, reading, updating user profiles.
-D13: Self-service (Stage 3 bypass) + admin management (user_profile.admin).
+The user_profile table was dropped in migration 022. Human data
+lives on person (D6a), accessible via UserDTO.person projection.
+Standalone person-update endpoint is deferred to the domain-split capability.
 """
 
 from __future__ import annotations
 
 import uuid
-from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
-
-from kernel.tenant_context import TenantContext, get_tenant_context
-from kernel.authz.dependencies import check_permission, get_enforcer
-from kernel.user.dependencies import get_identity_user_service
-from kernel.user.services.service import UserService
-from kernel.user.services.dtos import UserProfileCreateDTO, UserProfileDTO, UserProfileUpdateDTO
+from fastapi import APIRouter, HTTPException
 
 router = APIRouter(prefix="/api/v1/users/{user_id}/profile", tags=["profiles"])
 
 
-@router.post("", response_model=UserProfileDTO, status_code=status.HTTP_201_CREATED, summary="Create user profile")
-def create_profile(
-    user_id: uuid.UUID,
-    dto: UserProfileCreateDTO,
-    ctx: TenantContext = Depends(get_tenant_context),
-    enforcer: Any = Depends(get_enforcer),
-    svc: UserService = Depends(get_identity_user_service),
-) -> UserProfileDTO:
-    """Create a UserProfile. Self-creation (Stage 3 bypass) or admin (user_profile.admin)."""
-    check_permission(ctx, enforcer, "user_profile", "admin", owner_id=user_id)
-    try:
-        return svc.create_profile(ctx, user_id, dto)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+@router.post("")
+async def create_profile(user_id: uuid.UUID):
+    """Profile endpoints removed — user_profile table dropped (D6a)."""
+    raise HTTPException(status_code=404, detail="Profile not found — user_profile table dropped (D6a)")
 
 
-@router.get("", response_model=UserProfileDTO, summary="Get user profile")
-def get_profile(
-    user_id: uuid.UUID,
-    ctx: TenantContext = Depends(get_tenant_context),
-    enforcer: Any = Depends(get_enforcer),
-    svc: UserService = Depends(get_identity_user_service),
-) -> UserProfileDTO:
-    """Get a UserProfile. Self-read (Stage 3 bypass) or admin (user_profile.admin)."""
-    result = svc.get_profile(ctx, user_id)
-    if not result:
-        raise HTTPException(status_code=404, detail="Profile not found")
-    check_permission(ctx, enforcer, "user_profile", "admin", owner_id=user_id)
-    return result
+@router.get("")
+async def get_profile(user_id: uuid.UUID):
+    """Profile endpoints removed — user_profile table dropped (D6a)."""
+    raise HTTPException(status_code=404, detail="Profile not found — user_profile table dropped (D6a)")
 
 
-@router.patch("", response_model=UserProfileDTO, summary="Update user profile")
-def update_profile(
-    user_id: uuid.UUID,
-    dto: UserProfileUpdateDTO,
-    ctx: TenantContext = Depends(get_tenant_context),
-    enforcer: Any = Depends(get_enforcer),
-    svc: UserService = Depends(get_identity_user_service),
-) -> UserProfileDTO:
-    """Update a UserProfile. Self-update (Stage 3 bypass) or admin (user_profile.admin)."""
-    check_permission(ctx, enforcer, "user_profile", "admin", owner_id=user_id)
-    try:
-        return svc.update_profile(ctx, user_id, dto)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Profile not found")
+@router.patch("")
+async def update_profile(user_id: uuid.UUID):
+    """Profile endpoints removed — user_profile table dropped (D6a)."""
+    raise HTTPException(status_code=404, detail="Profile not found — user_profile table dropped (D6a)")

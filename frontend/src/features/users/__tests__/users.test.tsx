@@ -22,8 +22,23 @@ function makeUser(overrides: Partial<UserDTO> = {}): UserDTO {
     client_id: 'c1',
     institution_id: 'i1',
     email: 'learner@school.test',
-    name: 'Aisha Learner',
-    user_category_id: 'uc1',
+    person: {
+      id: 'p1',
+      client_id: 'c1',
+      name: 'Aisha Learner',
+      date_of_birth: null,
+      gender: null,
+      blood_group: null,
+      photo: null,
+      contact_phone: null,
+      contact_email: null,
+      demographics: null,
+      status: 'Active',
+      is_minor: null,
+      is_verified: null,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    },
     lifecycle_status: 'active',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
@@ -38,23 +53,21 @@ describe('Users screen (REQ-FE-USR-01, REQ-FE-USR-05)', () => {
 
     server.use(
       http.get('/api/v1/users', () => HttpResponse.json(users)),
-      http.get('/api/v1/lookups/user-categories', () =>
-        HttpResponse.json([
-          { id: 'uc1', name: 'Learner' },
-          { id: 'uc2', name: 'Academic Staff' },
-        ]),
-      ),
       http.get('/api/v1/lookups/roles', () =>
         HttpResponse.json([{ id: 'r1', name: 'Teacher' }]),
       ),
       http.post('/api/v1/users', async ({ request }) => {
         const body = (await request.json()) as Record<string, unknown>;
         createBodies.push(body);
+        const pd = (body.person_data as Record<string, string>) || {};
         const created = makeUser({
           id: 'u2',
           email: body.email as string,
-          name: body.name as string,
-          user_category_id: body.user_category_id as string,
+          person: {
+            ...makeUser().person,
+            id: 'p2',
+            name: pd.name || 'New User',
+          },
         });
         users.push(created);
         return HttpResponse.json(
@@ -73,16 +86,13 @@ describe('Users screen (REQ-FE-USR-01, REQ-FE-USR-05)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'New user' }));
     await userEvent.type(screen.getByRole('textbox', { name: 'Name' }), 'Ben Learner');
     await userEvent.type(screen.getByRole('textbox', { name: 'Email' }), 'ben@school.test');
-    await userEvent.click(screen.getByRole('combobox', { name: 'User category' }));
-    await userEvent.click(await screen.findByRole('option', { name: 'Learner' }));
     await userEvent.click(screen.getByRole('button', { name: 'Create' }));
 
     expect(await screen.findByText('Ben Learner')).toBeInTheDocument();
     expect(createBodies.length).toBe(1);
     expect(createBodies[0]).toMatchObject({
       email: 'ben@school.test',
-      name: 'Ben Learner',
-      user_category_id: 'uc1',
+      person_data: { name: 'Ben Learner' },
       institution_id: 'i1',
     });
   });

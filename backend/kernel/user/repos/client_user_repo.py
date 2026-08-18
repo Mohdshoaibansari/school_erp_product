@@ -1,7 +1,6 @@
-"""ClientUserRepository (task 3.3).
+"""ClientUserRepository (task 3.3, T-16 modified).
 
-Inherits TenantAwareRepositoryBase[ClientUser]. Methods: create, get_by_id, list_by_client,
-get_by_email, update, transition_lifecycle, delete (archive). Returns ClientUserDTO.
+Person-first insert order (D3a, D3f): person → user_account → client_user.
 """
 
 from __future__ import annotations
@@ -9,44 +8,70 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from kernel.tenant_context import TenantContext
 from kernel.user.models.client_user import ClientUser
 from kernel.user.models.client_user_lifecycle_event import ClientUserLifecycleEvent
 from kernel.repo_base import TenantAwareRepositoryBase
-from kernel.user.services.dtos import ClientUserDTO, ClientUserCreateDTO, ClientUserUpdateDTO
+from kernel.user.services.dtos import ClientUserDTO, ClientUserCreateDTO, ClientUserUpdateDTO, PersonDTO
 
 
 class ClientUserRepository(TenantAwareRepositoryBase[ClientUser]):
-    """Repository for the ClientUser entity (D1, D3, D10).
+    """Repository for the ClientUser entity (D1, D3, D10, D6a).
 
-    Auto-injects client_id from TenantContext via TenantAwareRepositoryBase.
-    PO bypass (D36) skips the tenant filter, letting the PO see all client_user
-    rows across all clients. CD access is restricted by client_id (own client)
-    at the RLS layer via the own-row policies from migration 011.
+    Person-first insert order: person → user_account → client_user.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, person_repo=None) -> None:
         super().__init__(ClientUser)
+        self._person_repo = person_repo
+
+    def _get_person_repo(self):
+        if self._person_repo is None:
+            from kernel.user.repos.person_repo import PersonRepository
+            self._person_repo = PersonRepository()
+        return self._person_repo
 
     def _to_dto(self, obj: ClientUser) -> ClientUserDTO:
-        return ClientUserDTO.model_validate(obj)
+        """Convert ORM ClientUser to ClientUserDTO with person projection."""
+        person_dto = None
+        if obj.person is not None:
+            person_dto = PersonDTO.model_validate(obj.person)
+        else:
+            person_dto = PersonDTO(
+                id=obj.person_id or uuid.UUID(int=0),
+                client_id=obj.client_id,
+                name="Unknown",
+                status="Active",
+                created_at=obj.created_at,
+                updated_at=obj.updated_at,
+            )
+        return ClientUserDTO(
+            id=obj.id,
+            client_id=obj.client_id,
+            email=obj.email,
+            person=person_dto,
+            role_id=obj.role_id,
+            lifecycle_status=obj.lifecycle_status,
+            created_at=obj.created_at,
+            updated_at=obj.updated_at,
+        )
+
+    def _load_with_person(self, session: Session, user_id: uuid.UUID) -> ClientUser | None:
+        """Load client_user with eagerly loaded person relationship."""
+        return session.execute(
+            select(ClientUser)
+            .options(joinedload(ClientUser.person))
+            .where(ClientUser.id == user_id)
+        ).scalars().first()
 
     def create(
         self, session: Session, ctx: TenantContext, dto: ClientUserCreateDTO,
         *,
         user_id: uuid.UUID | None = None,
     ) -> ClientUserDTO:
-        """Create a new ClientUser (PO-only — no client_id auto-inject;
-        the PO sets client_id explicitly in the DTO).
-
-        Args:
-            user_id: optional UUID to use as the row's id. When provided (CD bootstrap),
-                     uses this so Supabase Auth and the invite JWT share the same id.
-                     When None (future self-registration), auto-generates via default=uuid4.
-        """
-        # Check email uniqueness across client_user
+        """Create a new ClientUser with person-first insert order (D3a)."""
         existing = session.execute(
             select(ClientUser).where(ClientUser.email == dto.email)
         ).scalars().first()
@@ -56,31 +81,37 @@ class ClientUserRepository(TenantAwareRepositoryBase[ClientUser]):
         uid = user_id or uuid.uuid4()
         client_id = ctx.client_id or dto.client_id
 
-        # D12: Insert user_account parent row first
+        # 1. Insert person first (independent UUID, D3a)
+        person_repo = self._get_person_repo()
+        person_dto = person_repo.create(session, ctx, dto.person_data)
+
+        # 2. D12: Insert user_account parent row
         from sqlalchemy import text as sa_text
         session.execute(sa_text(
             "INSERT INTO user_account (id) VALUES (:id) ON CONFLICT (id) DO NOTHING"
         ), {"id": uid})
 
+        # 3. Insert client_user with person_id (no name, no user_category_id)
         obj = ClientUser(
             id=uid,
             client_id=client_id,
             email=dto.email,
-            name=dto.name,
-            user_category_id=dto.user_category_id,
+            person_id=person_dto.id,
             role_id=dto.role_id,
             lifecycle_status="invited",
         )
         session.add(obj)
         session.flush()
+
+        # Reload with person
+        obj = self._load_with_person(session, uid)
         return self._to_dto(obj)
 
     def get_by_id(
         self, session: Session, ctx: TenantContext, user_id: uuid.UUID,
     ) -> ClientUserDTO | None:
-        """Get a ClientUser by ID. PO bypass skips tenant filter;
-        CD own-row access is limited to their own ID by the caller."""
-        stmt = select(ClientUser).where(ClientUser.id == user_id)
+        """Get a ClientUser by ID with person projection."""
+        stmt = select(ClientUser).options(joinedload(ClientUser.person)).where(ClientUser.id == user_id)
         stmt = self._apply_tenant_filter(stmt, ctx)
         obj = session.execute(stmt).scalars().first()
         return self._to_dto(obj) if obj else None
@@ -89,33 +120,37 @@ class ClientUserRepository(TenantAwareRepositoryBase[ClientUser]):
         self, session: Session, email: str,
     ) -> ClientUserDTO | None:
         """Get a ClientUser by email (not tenant-filtered — email is globally unique)."""
-        stmt = select(ClientUser).where(ClientUser.email == email)
+        stmt = select(ClientUser).options(joinedload(ClientUser.person)).where(ClientUser.email == email)
         obj = session.execute(stmt).scalars().first()
         return self._to_dto(obj) if obj else None
 
     def list_by_client(
         self, session: Session, ctx: TenantContext, client_id: uuid.UUID,
     ) -> list[ClientUserDTO]:
-        """List all ClientUsers for a given client. PO-only (require_platform_owner gates)."""
-        stmt = select(ClientUser).where(ClientUser.client_id == client_id)
-        # D36: PO bypass skips tenant filter; non-PO would only see own-client rows
+        """List all ClientUsers for a given client."""
+        stmt = select(ClientUser).options(joinedload(ClientUser.person)).where(ClientUser.client_id == client_id)
         stmt = self._apply_tenant_filter(stmt, ctx)
-        objs = session.execute(stmt).scalars().all()
+        objs = session.execute(stmt).scalars().unique().all()
         return [self._to_dto(obj) for obj in objs]
 
     def update(
         self, session: Session, ctx: TenantContext, user_id: uuid.UUID,
         dto: ClientUserUpdateDTO,
     ) -> ClientUserDTO:
-        """Update ClientUser fields (name, email). CD can update own row;
-        PO can update any row."""
-        stmt = select(ClientUser).where(ClientUser.id == user_id)
+        """Update ClientUser fields. Name updates route to person (REQ-CUB-04)."""
+        stmt = select(ClientUser).options(joinedload(ClientUser.person)).where(ClientUser.id == user_id)
         stmt = self._apply_tenant_filter(stmt, ctx)
         obj = session.execute(stmt).scalars().first()
         if not obj:
             raise ValueError("ClientUser not found")
 
         data = dto.model_dump(exclude_unset=True)
+
+        # Route name to person (REQ-CUB-04)
+        if "name" in data and data["name"] is not None:
+            person_repo = self._get_person_repo()
+            person_repo.update(session, ctx, obj.person_id, {"name": data.pop("name")})
+
         if "email" in data and data["email"] != obj.email:
             existing = session.execute(
                 select(ClientUser).where(
@@ -125,9 +160,12 @@ class ClientUserRepository(TenantAwareRepositoryBase[ClientUser]):
             ).scalars().first()
             if existing:
                 raise ValueError(f"Email '{data['email']}' is already taken")
+
         for key, value in data.items():
             setattr(obj, key, value)
         session.flush()
+
+        obj = self._load_with_person(session, user_id)
         return self._to_dto(obj)
 
     def transition_lifecycle(
@@ -135,8 +173,7 @@ class ClientUserRepository(TenantAwareRepositoryBase[ClientUser]):
         new_state: str, reason: str | None, actor: str,
     ) -> ClientUserDTO:
         """Transition ClientUser lifecycle and record a client_user_lifecycle_event row (D10)."""
-        stmt = select(ClientUser).where(ClientUser.id == user_id)
-        # D36: PO bypass lets the PO transition any CD
+        stmt = select(ClientUser).options(joinedload(ClientUser.person)).where(ClientUser.id == user_id)
         stmt = self._apply_tenant_filter(stmt, ctx)
         obj = session.execute(stmt).scalars().first()
         if not obj:
@@ -146,7 +183,6 @@ class ClientUserRepository(TenantAwareRepositoryBase[ClientUser]):
         obj.lifecycle_status = new_state
         session.flush()
 
-        # Record lifecycle event
         event = ClientUserLifecycleEvent(
             client_user_id=user_id,
             state=new_state,
@@ -162,7 +198,7 @@ class ClientUserRepository(TenantAwareRepositoryBase[ClientUser]):
         self, session: Session, ctx: TenantContext, user_id: uuid.UUID,
         actor: str, reason: str | None = None,
     ) -> None:
-        """Archive a ClientUser (PO-only). Sets lifecycle_status to 'archived' and records event."""
+        """Archive a ClientUser (PO-only). Sets lifecycle_status to 'archived'."""
         stmt = select(ClientUser).where(ClientUser.id == user_id)
         stmt = self._apply_tenant_filter(stmt, ctx)
         obj = session.execute(stmt).scalars().first()

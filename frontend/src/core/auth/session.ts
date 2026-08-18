@@ -78,7 +78,7 @@ function normalizeRole(raw: string): Role | null {
   return ROLE_NORMALIZE[raw.toLowerCase()] ?? null;
 }
 
-export function deriveRoles(claims: JwtClaims): Role[] {
+export function deriveRoles(claims: JwtClaims, meta?: SessionMeta): Role[] {
   // 1. Normalize roles from the JWT roles array (backend DB roles, may be capitalized)
   if (Array.isArray(claims.roles) && claims.roles.length > 0) {
     const normalized = claims.roles
@@ -86,11 +86,12 @@ export function deriveRoles(claims: JwtClaims): Role[] {
       .filter((r): r is Role => r !== null);
     if (normalized.length > 0) return [...new Set(normalized)];
   }
-  // 2. Fallback: derive management roles from tier claims
+  // 2. Fallback: derive management roles from tier claims (JWT or stored metadata)
   const roles: Role[] = [];
-  if (claims.is_platform_owner) roles.push('platform_owner');
-  if (claims.user_tier === 'client_leadership') roles.push('client_director');
-  if (claims.user_tier === 'institution') roles.push('institution_admin');
+  if (claims.is_platform_owner || meta?.isPlatformOwner) roles.push('platform_owner');
+  const rawTier = claims.user_tier ?? meta?.userTier ?? null;
+  if (rawTier === 'client_leadership') roles.push('client_director');
+  if (rawTier === 'institution') roles.push('institution_admin');
   return roles;
 }
 
@@ -112,7 +113,7 @@ export function buildSessionUser(
   return {
     userId,
     email: claims.email ?? meta.email ?? null,
-    roles: deriveRoles(claims),
+    roles: deriveRoles(claims, meta),
     isPlatformOwner,
     userTier,
     clientId: claims.client_id ?? meta.clientId ?? null,

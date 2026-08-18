@@ -115,8 +115,18 @@ async def main():
         "admin": ("admin@test-school.com", "Admin@123", "Admin"),
         "teacher": ("teacher@test-school.com", "Teacher@123", "Teacher"),
         "student": ("student@test-school.com", "Student@123", "Student"),
-        "platform_owner": ("platform@test-school.com", "Platform@123", "platform_owner"),
     }
+
+    # Platform owner: Supabase Auth user ONLY (no person/app_user/user_account rows).
+    # Platform owner is handled by the is_platform_owner JWT flag (D28),
+    # not by database rows. The middleware skips role lookup for platform owners.
+    platform_owner_email = "admin@school-erp.com"
+    platform_owner_password = "Platform@123"
+    po_uid_str = await create_supabase_user(platform_owner_email, platform_owner_password, {"is_platform_owner": True})
+    if po_uid_str:
+        print(f"  [OK] Platform owner created: {platform_owner_email} (Supabase Auth only, no DB row)")
+    else:
+        print(f"  [WARN] Platform owner Supabase user creation failed (may already exist): {platform_owner_email}")
 
     user_ids = {}
     with Session() as s:
@@ -124,10 +134,9 @@ async def main():
         admin_role = role_ids.get("Admin", list(role_ids.values())[0])
         teacher_role = role_ids.get("Teacher", list(role_ids.values())[0])
         student_role = role_ids.get("Student", list(role_ids.values())[0])
-        po_role = role_ids.get("platform_owner", list(role_ids.values())[0])
 
         for role_key, (email, password, role_name) in roles.items():
-            user_metadata = {"is_platform_owner": True} if role_name == "platform_owner" else {"user_tier": "institution"}
+            user_metadata = {"user_tier": "institution"}
             uid_str = await create_supabase_user(email, password, user_metadata)
             if not uid_str:
                 print(f"  [WARN] skipping {email} (no Supabase id)")
@@ -141,6 +150,7 @@ async def main():
                 s.execute(text("DELETE FROM role_assignment WHERE user_id = :uid"), {"uid": existing[0]})
                 s.execute(text("DELETE FROM app_user WHERE id = :uid"), {"uid": existing[0]})
                 s.execute(text("DELETE FROM user_account WHERE id = :uid"), {"uid": existing[0]})
+                s.execute(text("DELETE FROM person WHERE id = (SELECT person_id FROM app_user WHERE id = :uid)"), {"uid": existing[0]})
                 existing = None
 
             if existing and existing[0] == uid:
@@ -163,15 +173,14 @@ async def main():
             """), {"id": uid, "cid": client_id, "iid": inst_id, "email": email, "pid": person_id})
 
             # Assign role
-            role_map = {"Admin": admin_role, "Teacher": teacher_role, "Student": student_role, "platform_owner": po_role}
-            is_po = role_name == "platform_owner"
+            role_map = {"Admin": admin_role, "Teacher": teacher_role, "Student": student_role}
             s.execute(text("""
                 INSERT INTO role_assignment (id, client_id, user_id, role_id, scope)
                 VALUES (gen_random_uuid(), :cid, :uid, :rid, :scope)
-            """), {"cid": client_id, "uid": uid, "rid": role_map[role_name], "scope": "Platform" if is_po else "Test School"})
+            """), {"cid": client_id, "uid": uid, "rid": role_map[role_name], "scope": "Test School"})
 
         s.commit()
-    print(f"[OK] Users created: admin, teacher, student (all password: <Role>@123)")
+    print(f"[OK] Users created: platform_owner (admin@school-erp.com), admin, teacher, student")
 
     # ============================================================
     # 3. Create sample fee type + assignment + payment
@@ -229,10 +238,16 @@ async def main():
     # ============================================================
     print(f"""
 ╔══════════════════════════════════════════╗
-║         SEED: SEED COMPLETE                ║
+║         SEED COMPLETE                      ║
 ╠══════════════════════════════════════════╣
 ║  Client slug:   test-school             ║
 ║  Institution:   Test Institution        ║
+║                                          ║
+║  Platform Owner: (no DB row)            ║
+║     Email:      admin@school-erp.com    ║
+║     Password:   Platform@123            ║
+║     Auth:       Supabase Auth only      ║
+║     Flag:       is_platform_owner=true  ║
 ║                                          ║
 ║  USER: Admin:      admin@test-school.com   ║
 ║     Password:   Admin@123               ║

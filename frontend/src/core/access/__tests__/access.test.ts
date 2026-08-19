@@ -19,12 +19,12 @@ describe('access / roles + navConfig (REQ-SHELL-03, REQ-SHELL-10)', () => {
   it('maps modules to their required roles', () => {
     expect(rolesForPath('/platform/clients')).toEqual(['platform_owner']);
     expect(rolesForPath('/platform/clients/abc123')).toEqual(['platform_owner']);
-    expect(rolesForPath('/institutions')).toEqual(['platform_owner', 'client_director']);
+    expect(rolesForPath('/institutions')).toEqual(['client_director']);
     expect(rolesForPath('/users')).toEqual([
-      'platform_owner', 'client_director', 'institution_admin', 'admin', 'principal', 'hod', 'staff',
+      'client_director', 'institution_admin', 'admin', 'principal', 'hod', 'staff',
     ]);
     expect(rolesForPath('/homework')).toEqual([
-      'platform_owner', 'client_director', 'institution_admin', 'admin', 'principal', 'hod', 'teacher',
+      'client_director', 'institution_admin', 'admin', 'principal', 'hod', 'teacher',
     ]);
   });
 
@@ -35,12 +35,14 @@ describe('access / roles + navConfig (REQ-SHELL-03, REQ-SHELL-10)', () => {
   it('filters nav items by role', () => {
     const po = navItemsForRoles(['platform_owner']).map((i) => i.path);
     expect(po).toContain('/platform/clients');
-    expect(po).toContain('/institutions');
-    expect(po).toContain('/users');
-    expect(po).toContain('/academic/years');
-    expect(po).toContain('/config/keys');
-    expect(po).toContain('/fees/types');
-    expect(po).toContain('/homework');
+    expect(po).toContain('/platform/institution-types');
+    expect(po).toContain('/platform/ownership-transfers');
+    expect(po).not.toContain('/institutions');
+    expect(po).not.toContain('/users');
+    expect(po).not.toContain('/academic/years');
+    expect(po).not.toContain('/config/keys');
+    expect(po).not.toContain('/fees/types');
+    expect(po).not.toContain('/homework');
 
     const cd = navItemsForRoles(['client_director']).map((i) => i.path);
     expect(cd).toContain('/institutions');

@@ -37,11 +37,14 @@ const adminClaims: JwtClaims & { sub: string } = {
 };
 
 describe('Sidebar role filtering (REQ-SHELL-03)', () => {
-  it('shows all modules for Platform Owner (Casbin bypass D28)', () => {
+  it('shows only platform-management items for Platform Owner', () => {
     renderWithProviders(<Sidebar />, { claims: poClaims });
     expect(screen.getByText('Clients')).toBeInTheDocument();
-    expect(screen.getByText('Users')).toBeInTheDocument();
-    expect(screen.getByText('Institutions')).toBeInTheDocument();
+    expect(screen.getByText('Institution Types')).toBeInTheDocument();
+    expect(screen.getByText('Ownership Transfers')).toBeInTheDocument();
+    expect(screen.queryByText('Users')).not.toBeInTheDocument();
+    expect(screen.queryByText('Institutions')).not.toBeInTheDocument();
+    expect(screen.queryByText('Academic Years')).not.toBeInTheDocument();
   });
 
   it('shows institutions + users + academic + config + fees + homework for Client Director', () => {

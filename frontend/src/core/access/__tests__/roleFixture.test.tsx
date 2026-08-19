@@ -28,14 +28,14 @@ const adminClaims: JwtClaims & { sub: string } = {
 };
 
 const cases: Array<{ role: string; claims: JwtClaims & { sub: string }; path: string; allowed: boolean }> = [
-  // Platform Owner — Casbin bypass (D28), has access to all modules
+  // Platform Owner — platform-management only (no institution-level nav)
   { role: 'platform_owner', claims: poClaims, path: '/platform/clients', allowed: true },
   { role: 'platform_owner', claims: poClaims, path: '/platform/institution-types', allowed: true },
   { role: 'platform_owner', claims: poClaims, path: '/platform/ownership-transfers', allowed: true },
-  { role: 'platform_owner', claims: poClaims, path: '/institutions', allowed: true },
-  { role: 'platform_owner', claims: poClaims, path: '/users', allowed: true },
-  { role: 'platform_owner', claims: poClaims, path: '/fees/types', allowed: true },
-  { role: 'platform_owner', claims: poClaims, path: '/homework', allowed: true },
+  { role: 'platform_owner', claims: poClaims, path: '/institutions', allowed: false },
+  { role: 'platform_owner', claims: poClaims, path: '/users', allowed: false },
+  { role: 'platform_owner', claims: poClaims, path: '/fees/types', allowed: false },
+  { role: 'platform_owner', claims: poClaims, path: '/homework', allowed: false },
 
   // Client Director — tenant-scoped perms (migrations 016, 020)
   { role: 'client_director', claims: cdClaims, path: '/institutions', allowed: true },

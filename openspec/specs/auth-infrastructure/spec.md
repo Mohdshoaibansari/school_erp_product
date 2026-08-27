@@ -73,3 +73,19 @@ The test infrastructure at `tests/conftest.py` line 142 (which currently sets `S
 - **AND** each test SHALL set only the RLS context it needs (e.g., platform owner, client director, institution user)
 - **AND** the test suite SHALL pass (no regressions)
 
+---
+<!-- Synced from add-c02-identity-person-model-revamp delta spec -->
+## Person-Model Revamp — Auth Infrastructure (Q8 Resolved)
+
+> **Q8 RESOLVED as D3f:** `person` and `user_account` coexist. `app.current_user_id` SHALL continue to mean the acting account's `user_account.id` (UNCHANGED). RLS policies keyed on `current_user_id` do NOT reinterpret to `person.id`. **No delta is required to this domain** beyond confirming the referent.
+
+### REQ-AUTHINF-Q8-01: app.current_user_id Referent (Resolved — D3f, no change needed)
+
+`app.current_user_id` SHALL continue to map to the acting account's `user_account.id` (UNCHANGED). RLS policies keyed on `current_user_id` do NOT reinterpret to `person.id`; `person` is not an RLS scoping dimension.
+
+#### Scenario: current_user_id referent unchanged (confirmed)
+- **WHEN** the RLS session variable `app.current_user_id` is set
+- **THEN** it SHALL map to the acting account's `user_account.id`
+- **AND** SHALL NOT map to `person.id`
+- **AND** RLS policies on account tables (`app_user`, `client_user`) SHALL filter by `user_account.id` (unchanged)
+

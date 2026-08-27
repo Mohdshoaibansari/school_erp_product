@@ -43,3 +43,24 @@ The app SHALL expose homework authoring and grading to management roles only (In
 #### Scenario: Management-role authoring only
 - **WHEN** homework is authored or graded in this build
 - **THEN** it is done by a management role (Institution Admin); teacher UI is not exposed
+
+---
+<!-- Synced from add-c02-identity-person-model-revamp delta spec -->
+## Person-Model Revamp — Homework
+
+### REQ-FE-HW-02-MOD: Submissions and Grading (Modified — student key shift)
+
+Submissions are per-student. The student key SHALL shift from `app_user`-keyed to `student`-keyed (via `person`). Frontend behavior is unchanged (still lists per-student submissions), but the underlying student identity is `student.id` (linked to `person`), not `app_user.id`. Per AC-16.
+
+> **Note:** The `student` table lands in the next capability (domain split). This revamp delivers `person` as the anchor; the actual `student`-keyed submission executes after the domain split.
+
+#### Scenario: Submissions keyed by student entity (after domain split)
+- **WHEN** an Institution Admin opens a homework's submissions
+- **THEN** submissions SHALL be listed per `student.id` (linked to `person`)
+- **AND** SHALL NOT use `app_user.id` as the submission student identity
+
+### Cross-Cutting Notes (backend)
+
+> **Gap:** There is no archived backend-homework OpenSpec spec. The `submission.student_id` FK repoint is an implementation/migration concern, not spec'd behavior.
+
+- **`submission.student_id` FK** repoints `app_user.id` → `student.id` (via `person`). Setup in this revamp's migration; execution in the next capability.

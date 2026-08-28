@@ -11,11 +11,22 @@ Extended for ABAC (D12):
 
 from __future__ import annotations
 
-from typing import Any
+import logging
+from typing import Any, Sequence
 
 from fastapi import FastAPI
 
 from kernel.app_factory import ManifestBase
+
+logger = logging.getLogger("kernel.authz")
+
+
+# Declared production conditional policies: (role, resource, action, scope, required_attrs).
+# The Kernel ships NO business conditional policies (self-access must stay gated by an
+# explicit permission + attrs policy declared by the owning business module in Phase 7).
+# Populate this list (or implement register_authorization_policies in a business manifest)
+# when the first real ABAC rule lands — the mechanism below is the production path (D8).
+_PRODUCTION_CONDITIONAL_POLICIES: list[tuple[str, str, str, str, Sequence[str]]] = []
 
 
 class AuthorizationManifest(ManifestBase):
@@ -50,13 +61,22 @@ class AuthorizationManifest(ManifestBase):
         registry.register(IsSelfAttributeProvider())
 
     def register_authorization_policies(self, enforcer: Any) -> None:
-        """Register conditional authorization policies (D9, REQ-AUTHZ-ABAC-M04).
+        """Register conditional authorization policies (D8, REQ-AUTHZ-FIX-REG-01).
 
-        Called by the app factory after the DB loader runs.
-        In this iteration, no production conditional policies are registered.
-        Business modules (Phase 7) will extend this hook.
+        Called by the app factory after the DB loader runs. Uses a declared,
+        explicit conditional-policy list; no rules engine, no business rule is
+        invented in the Kernel. Non-conditional DB policies are registered
+        unchanged by ``register_casbin_policies``.
         """
-        pass
+        from kernel.authz.services.policy_loader import register_conditional_policy
+        for role, resource, action, scope, required_attrs in _PRODUCTION_CONDITIONAL_POLICIES:
+            register_conditional_policy(
+                enforcer, role, resource, action, scope, required_attrs
+            )
+        logger.debug(
+            "[AUTHZ] Registered %d production conditional policies",
+            len(_PRODUCTION_CONDITIONAL_POLICIES),
+        )
 
     def on_startup(self) -> None:
         """Load the permission map from the database (D24, D29).

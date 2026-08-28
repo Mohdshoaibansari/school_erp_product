@@ -36,6 +36,8 @@ from kernel.authz.services.attribute_provider import (
     IsSelfAttributeProvider,
 )
 from kernel.authz.services.authorization_service import AuthorizationService, match_attrs
+from kernel.authz import manifest as authz_manifest
+from kernel.authz.manifest import AuthorizationManifest
 from kernel.authz.services import policy_loader as pl
 
 
@@ -132,6 +134,22 @@ def _setup_base_policies(enforcer: casbin.Enforcer) -> None:
     enforcer.add_policy("HOD", "homework", "read", "institution", "")
     # Student: attendance.read at institution scope
     enforcer.add_policy("Student", "attendance", "read", "institution", "")
+
+
+def _register_prod_po_policies(e: casbin.Enforcer) -> None:
+    """Production-shape Platform Owner matrix (D6): explicit perms, no wildcard.
+
+    Mirrors the migration 023 seeds exactly: (resource, action) tuples at scope
+    ``'any'`` — no wildcard, no D11 g-hierarchy.
+    """
+    e.add_role_for_user("platform_owner", "platform_owner")
+    for resource, action in [
+        ("client", "create"), ("client", "read"), ("client", "update"),
+        ("client", "transfer_ownership"), ("client", "transition_lifecycle"),
+        ("institution_type", "read"), ("institution_type", "create"),
+        ("institution_type", "update"),
+    ]:
+        e.add_policy("platform_owner", resource, action, "any", "")
 
 
 # ============================================================
@@ -370,11 +388,94 @@ class TestPipelineUnit:
         assert decision.allowed is True
 
     def test_failed_abac(self):
-        """is_subject_teacher=false → DENY NOT_ASSIGNED_TO_RESOURCE."""
+        """D3: is_subject_teacher=false → DENY NOT_ASSIGNED_TO_RESOURCE (real assertion).
+
+        No non-conditional fallback policy is registered — the conditional policy
+        is the only grant path, so the denial happens inside the matcher.
+        """
         e = _build_enforcer()
-        _setup_base_policies(e)
-        # Only conditional — non-conditional would bypass the ABAC check
+        e.add_role_for_user("Teacher", "Teacher")
+        pl._conditional.clear()
+        pl._non_conditional.clear()
+        # Only conditional policy — no non-conditional fallback would defeat the ABAC check
         pl._conditional["Teacher"] = [("homework", "create", "institution", "is_subject_teacher")]
+
+        r = ProviderRegistry()
+        r.register(SyntheticTeacherProvider())
+        svc = _build_service(enforcer=e, registry=r)
+
+        # section 5A → provider resolves is_subject_teacher=False
+        req = _make_request(
+            resource=_make_resource(data={"section_id": "5A"}),
+        )
+        decision = asyncio.run(svc.authorize(req))
+        assert decision.allowed is False
+        assert decision.reason == AuthorizationReasonCode.NOT_ASSIGNED_TO_RESOURCE
+
+    def test_abac_never_bypasses_rbac(self):
+        """D3 case 5: ABAC must not bypass RBAC — attr could resolve True, but the
+        requesting role has NO permission for (resource, action) → DENY.
+
+        The provider is registered and would resolve True for section 1A, but the
+        pipeline denies at the permission gate (MISSING_PERMISSION) and never
+        consults the attribute provider — ABAC cannot turn a no-permission into an
+        ALLOW.
+        """
+        e = _build_enforcer()
+        e.add_role_for_user("Parent", "Parent")
+        pl._conditional.clear()
+        pl._non_conditional.clear()
+        # The catalog declares the conditional policy only for Teacher — the
+        # requesting role (Parent) has no homework.create permission anywhere.
+        pl._conditional["Teacher"] = [("homework", "create", "institution", "is_subject_teacher")]
+
+        calls = {"n": 0}
+
+        class CountingTeacherProvider(SyntheticTeacherProvider):
+            async def resolve(self, request):
+                calls["n"] += 1
+                return await super().resolve(request)
+
+        r = ProviderRegistry()
+        r.register(CountingTeacherProvider())
+        svc = _build_service(enforcer=e, registry=r)
+
+        # section 1A → CountingTeacherProvider would return is_subject_teacher=True
+        req = _make_request(
+            subject=_make_subject(roles=("Parent",)),
+            resource=_make_resource(data={"section_id": "1A"}),
+        )
+        decision = asyncio.run(svc.authorize(req))
+        assert decision.allowed is False
+        assert decision.reason == AuthorizationReasonCode.MISSING_PERMISSION
+        assert calls["n"] == 0, "Attribute provider must NOT be consulted on an RBAC denial"
+
+    def test_provider_exception_fails_closed(self):
+        """REQ-AUTHZ-FIX-TEST-03: provider raises → DENY UNRESOLVED_ATTRIBUTE, never ALLOW."""
+        e = _build_enforcer()
+        e.add_role_for_user("Teacher", "Teacher")
+        pl._conditional.clear()
+        pl._non_conditional.clear()
+        pl._conditional["Teacher"] = [("homework", "create", "institution", "is_subject_teacher")]
+
+        class ExplodingProvider(AuthorizationAttributeProvider):
+            """Test-only provider that always raises."""
+
+            name = "test.exploding"
+            resource_types = frozenset({"homework"})
+            attributes = frozenset({"is_subject_teacher"})
+
+            async def resolve(self, request):
+                raise RuntimeError("provider exploded")
+
+        r = ProviderRegistry()
+        r.register(ExplodingProvider())
+        svc = _build_service(enforcer=e, registry=r)
+
+        req = _make_request()
+        decision = asyncio.run(svc.authorize(req))
+        assert decision.allowed is False
+        assert decision.reason == AuthorizationReasonCode.UNRESOLVED_ATTRIBUTE
 
     def test_missing_required_attribute_fail_closed(self):
         """No provider for required attribute → DENY UNRESOLVED_ATTRIBUTE."""
@@ -437,19 +538,6 @@ class TestPipelineUnit:
         decision = asyncio.run(svc.authorize(req))
         assert decision.allowed is False
 
-    def test_platform_owner_bypass(self):
-        """Platform Owner bypasses all checks → ALLOW."""
-        e = _build_enforcer()
-        _setup_base_policies(e)
-
-        svc = _build_service(enforcer=e)
-        req = _make_request(
-            subject=_make_subject(is_platform_owner=True, roles=("platform_owner",)),
-        )
-        decision = asyncio.run(svc.authorize(req))
-        assert decision.allowed is True
-        assert decision.reason == AuthorizationReasonCode.ALLOWED
-
     def test_no_roles_deny(self):
         """No roles → DENY NO_ROLES."""
         e = _build_enforcer()
@@ -465,6 +553,88 @@ class TestPipelineUnit:
 # ============================================================
 # Task 9.3 — Security tests
 # ============================================================
+
+class TestRawEnforcerBoundary:
+    """D2: Casbin raw-enforcer-boundary ABAC tests (REQ-AUTHZ-FIX-ABAC-01/TEST-01).
+
+    Calls ``enforcer.enforce()`` DIRECTLY — no AuthorizationService, no Python
+    pre-check — proving the matcher path itself: attr=true → ALLOW, attr=false →
+    DENY, attr=missing → DENY (fail-closed), no-attr → RBAC/scope only.
+    """
+
+    def _po_boundary_enforcer(self) -> casbin.Enforcer:
+        """Enforcer with a conditional policy + a no-attr control policy."""
+        e = _build_enforcer()
+        e.add_role_for_user("Teacher", "Teacher")
+        e.add_policy("Teacher", "homework", "create", "institution", "is_subject_teacher")
+        e.add_policy("Teacher", "homework", "read", "institution", "")  # no-attr control
+        return e
+
+    def test_attr_true_allows(self):
+        """attribute=true + conditional policy → ALLOW at the raw boundary."""
+        e = self._po_boundary_enforcer()
+        sub = {
+            "role": "Teacher",
+            "client_id": str(_DEFAULT_CLIENT_ID),
+            "institution_id": str(_DEFAULT_INSTITUTION_ID),
+            "is_subject_teacher": True,
+        }
+        obj = {
+            "name": "homework",
+            "client_id": str(_DEFAULT_CLIENT_ID),
+            "institution_id": str(_DEFAULT_INSTITUTION_ID),
+        }
+        assert e.enforce(sub, obj, "create") is True
+
+    def test_attr_false_denies(self):
+        """attribute=false + conditional policy → DENY inside Casbin (no pre-check)."""
+        e = self._po_boundary_enforcer()
+        sub = {
+            "role": "Teacher",
+            "client_id": str(_DEFAULT_CLIENT_ID),
+            "institution_id": str(_DEFAULT_INSTITUTION_ID),
+            "is_subject_teacher": False,
+        }
+        obj = {
+            "name": "homework",
+            "client_id": str(_DEFAULT_CLIENT_ID),
+            "institution_id": str(_DEFAULT_INSTITUTION_ID),
+        }
+        assert e.enforce(sub, obj, "create") is False
+
+    def test_attr_missing_denies(self):
+        """attribute key ABSENT from subject → DENY (None is True → matcher false)."""
+        e = self._po_boundary_enforcer()
+        sub = {
+            "role": "Teacher",
+            "client_id": str(_DEFAULT_CLIENT_ID),
+            "institution_id": str(_DEFAULT_INSTITUTION_ID),
+            # NOTE: is_subject_teacher key intentionally ABSENT
+        }
+        obj = {
+            "name": "homework",
+            "client_id": str(_DEFAULT_CLIENT_ID),
+            "institution_id": str(_DEFAULT_INSTITUTION_ID),
+        }
+        assert e.enforce(sub, obj, "create") is False
+
+    def test_no_attr_falls_back_to_rbac_scope(self):
+        """no attribute condition (attrs="") → pure RBAC/scope evaluation."""
+        e = self._po_boundary_enforcer()
+        sub = {
+            "role": "Teacher",
+            "client_id": str(_DEFAULT_CLIENT_ID),
+            "institution_id": str(_DEFAULT_INSTITUTION_ID),
+        }
+        obj = {
+            "name": "homework",
+            "client_id": str(_DEFAULT_CLIENT_ID),
+            "institution_id": str(_DEFAULT_INSTITUTION_ID),
+        }
+        # read policy has attrs="" → allowed via RBAC+scope; create requires the attr → denied
+        assert e.enforce(sub, obj, "read") is True
+        assert e.enforce(sub, obj, "create") is False
+
 
 class TestSecurity:
     """Task 9.3: Security tests (REQ-AUTHZ-ABAC-05, AC-44)."""
@@ -618,6 +788,283 @@ class TestSecurity:
 # Task 9.5 — Dependency-direction static check
 # ============================================================
 
+class TestPlatformOwnerSecurity:
+    """D7/REQ-AUTHZ-FIX-TEST-02: Platform Owner security matrix.
+
+    Production-shape PO matrix (explicit perms, no wildcard): PO + client.read →
+    ALLOW via the normal pipeline; PO on institute operational resources and
+    unconfigured permissions → DENY MISSING_PERMISSION.
+    """
+
+    def setup_method(self):
+        """Reset policy loader catalogs before each test."""
+        pl._conditional.clear()
+        pl._non_conditional.clear()
+
+    def _po_subject(self, roles: tuple[str, ...] = ("platform_owner",)) -> SubjectContext:
+        return SubjectContext(
+            user_id="po1",
+            roles=roles,
+            client_id=None,
+            institution_id=None,
+            user_tier="platform",
+            is_platform_owner=True,
+        )
+
+    def _po_request(self, resource: str = "client", action: str = "read") -> AuthorizationRequest:
+        return AuthorizationRequest(
+            subject=self._po_subject(),
+            resource=ResourceContext(
+                resource_type=resource, resource_id=None,
+                client_id=None, institution_id=None, data={},
+            ),
+            action=action,
+        )
+
+    def test_po_client_read_allows(self):
+        """PO + client.read on a client/platform resource → ALLOW through the pipeline."""
+        e = _build_enforcer()
+        _register_prod_po_policies(e)
+        svc = _build_service(enforcer=e)
+
+        decision = asyncio.run(svc.authorize(self._po_request("client", "read")))
+        assert decision.allowed is True
+        assert decision.reason == AuthorizationReasonCode.ALLOWED
+        assert decision.policy_id is not None
+        assert len(decision.policy_id.split(":")) == 5, decision.policy_id
+        assert decision.policy_id.startswith("platform_owner:client:read:any"), decision.policy_id
+
+    def test_po_raw_enforcer_client_read(self):
+        """platform_owner + client.read (scope any) on a cross-client obj → True."""
+        e = _build_enforcer()
+        _register_prod_po_policies(e)
+        sub = {"role": "platform_owner", "client_id": "", "institution_id": ""}
+        obj = {"name": "client", "client_id": "client-999", "institution_id": ""}
+        assert e.enforce(sub, obj, "read") is True
+
+    @pytest.mark.parametrize("resource", ["student", "teacher", "attendance", "homework"])
+    def test_po_denied_operational_resources(self, resource):
+        """PO → student/teacher/attendance/homework → DENY MISSING_PERMISSION."""
+        e = _build_enforcer()
+        _register_prod_po_policies(e)
+        svc = _build_service(enforcer=e)
+
+        decision = asyncio.run(svc.authorize(self._po_request(resource, "read")))
+        assert decision.allowed is False
+        assert decision.reason == AuthorizationReasonCode.MISSING_PERMISSION
+
+    @pytest.mark.parametrize("resource,action", [
+        ("user", "create"),
+        ("institution", "read"),
+    ])
+    def test_po_denied_unconfigured_permissions(self, resource, action):
+        """PO → user.create / institution.read (exist for other roles, not PO) → DENY."""
+        e = _build_enforcer()
+        _register_prod_po_policies(e)
+        svc = _build_service(enforcer=e)
+
+        decision = asyncio.run(svc.authorize(self._po_request(resource, action)))
+        assert decision.allowed is False
+        assert decision.reason == AuthorizationReasonCode.MISSING_PERMISSION
+
+    def test_po_subject_normalization(self):
+        """from_tenant_context with is_platform_owner=True, roles=[] → ('platform_owner',)."""
+        from kernel.tenant_context import TenantContext
+        ctx = TenantContext(
+            client_id=uuid.uuid4(), institution_id=None,
+            user_id="po1", roles=[], is_platform_owner=True,
+        )
+        s = SubjectContext.from_tenant_context(ctx)
+        assert s.roles == ("platform_owner",), s.roles
+
+        ctx2 = TenantContext(
+            client_id=uuid.uuid4(), institution_id=None,
+            user_id="u1", roles=["Teacher"], is_platform_owner=False,
+        )
+        assert SubjectContext.from_tenant_context(ctx2).roles == ("Teacher",)
+
+    def test_po_multi_role_no_double_grant(self):
+        """PO with [platform_owner, client_director] → granted ONLY via a matching policy."""
+        e = _build_enforcer()
+        _register_prod_po_policies(e)
+        # client_director also holds client.read at tenant scope (production shape)
+        e.add_role_for_user("client_director", "client_director")
+        e.add_policy("client_director", "client", "read", "tenant", "")
+        svc = _build_service(enforcer=e)
+
+        # client.read → ALLOW (matching policy exists for platform_owner)
+        req = AuthorizationRequest(
+            subject=self._po_subject(roles=("platform_owner", "client_director")),
+            resource=ResourceContext(
+                resource_type="client", resource_id=None,
+                client_id=None, institution_id=None, data={},
+            ),
+            action="read",
+        )
+        d1 = asyncio.run(svc.authorize(req))
+        assert d1.allowed is True
+        assert d1.reason == AuthorizationReasonCode.ALLOWED
+
+        # student.read → DENY — no role holds a matching policy → no second grant
+        req2 = AuthorizationRequest(
+            subject=self._po_subject(roles=("platform_owner", "client_director")),
+            resource=ResourceContext(
+                resource_type="student", resource_id=None,
+                client_id=None, institution_id=None, data={},
+            ),
+            action="read",
+        )
+        d2 = asyncio.run(svc.authorize(req2))
+        assert d2.allowed is False
+        assert d2.reason == AuthorizationReasonCode.MISSING_PERMISSION
+
+
+class TestProductionRegistrationAndPolicyId:
+    """D8/REQ-AUTHZ-FIX-REG-01 + D9/REQ-AUTHZ-FIX-PID-01."""
+
+    def setup_method(self):
+        """Reset policy loader catalogs before each test."""
+        pl._conditional.clear()
+        pl._non_conditional.clear()
+
+    def test_production_conditional_policy_registration(self):
+        """manifest.register_authorization_policies wires declared conditional policies."""
+        manifest = AuthorizationManifest()
+        e = _build_enforcer()
+
+        original = list(authz_manifest._PRODUCTION_CONDITIONAL_POLICIES)
+        saved_map = {k: list(v) for k, v in pl._permission_map.items()}
+        try:
+            authz_manifest._PRODUCTION_CONDITIONAL_POLICIES = [
+                ("Teacher", "homework", "create", "institution", ["is_subject_teacher"])
+            ]
+            manifest.register_authorization_policies(e)
+
+            # Conditional policy lands as a 5-arg policy in the enforcer
+            policies = {tuple(p) for p in e.get_policy()}
+            assert ("Teacher", "homework", "create", "institution", "is_subject_teacher") in policies
+            # And the in-memory conditional catalog holds the entry
+            assert ("homework", "create", "institution", "is_subject_teacher") in pl._conditional["Teacher"]
+
+            # Non-conditional DB path is unchanged — register_policies_from_map adds ""-attrs policies
+            pl._permission_map.clear()
+            pl._permission_map["Teacher"] = [("homework", "read", "institution")]
+            pl.register_policies_from_map(e)
+            assert ("Teacher", "homework", "read", "institution", "") in {tuple(p) for p in e.get_policy()}
+            assert ("homework", "read", "institution") in pl._non_conditional["Teacher"]
+        finally:
+            authz_manifest._PRODUCTION_CONDITIONAL_POLICIES = original
+            pl._permission_map.clear()
+            pl._permission_map.update(saved_map)
+
+    def test_extract_policy_id_includes_attrs(self):
+        """Two conditional policies differing only in attrs → distinct 5-part ids."""
+        e = _build_enforcer()
+        e.add_role_for_user("Teacher", "Teacher")
+        e.add_policy("Teacher", "homework", "create", "institution", "is_subject_teacher")
+        e.add_policy("Teacher", "homework", "create", "institution", "is_class_teacher")
+        svc = _build_service(enforcer=e)
+
+        obj = {
+            "name": "homework",
+            "client_id": str(_DEFAULT_CLIENT_ID),
+            "institution_id": str(_DEFAULT_INSTITUTION_ID),
+        }
+        sub1 = {
+            "role": "Teacher",
+            "client_id": str(_DEFAULT_CLIENT_ID),
+            "institution_id": str(_DEFAULT_INSTITUTION_ID),
+            "is_subject_teacher": True,
+        }
+        sub2 = {
+            "role": "Teacher",
+            "client_id": str(_DEFAULT_CLIENT_ID),
+            "institution_id": str(_DEFAULT_INSTITUTION_ID),
+            "is_class_teacher": True,
+        }
+        id1 = svc._extract_policy_id(sub1, obj, "create")
+        id2 = svc._extract_policy_id(sub2, obj, "create")
+        assert id1 == "Teacher:homework:create:institution:is_subject_teacher"
+        assert id2 == "Teacher:homework:create:institution:is_class_teacher"
+        assert id1 != id2
+
+    def test_extract_policy_id_scope_filtered(self):
+        """Scope filter names the matching scope's id, never a non-matching one."""
+        e = _build_enforcer()
+        e.add_role_for_user("Teacher", "Teacher")
+        e.add_policy("Teacher", "homework", "read", "institution", "")
+        e.add_policy("Teacher", "homework", "read", "tenant", "")
+        svc = _build_service(enforcer=e)
+
+        client_a = str(uuid.uuid4())
+        inst_a = str(uuid.uuid4())
+        inst_b = str(uuid.uuid4())
+        sub = {"role": "Teacher", "client_id": client_a, "institution_id": inst_a}
+
+        # Same client + same institution → institution-scope policy matches first
+        obj_same = {"name": "homework", "client_id": client_a, "institution_id": inst_a}
+        assert svc._extract_policy_id(sub, obj_same, "read") == "Teacher:homework:read:institution:"
+
+        # Same client, different institution → institution scope does NOT match,
+        # so only the tenant-scope policy qualifies (scope filter)
+        obj_cross_inst = {"name": "homework", "client_id": client_a, "institution_id": inst_b}
+        assert svc._extract_policy_id(sub, obj_cross_inst, "read") == "Teacher:homework:read:tenant:"
+
+    def test_identification_never_grants(self):
+        """_extract_policy_id never influences the decision — enforce() outcome unchanged."""
+        e = _build_enforcer()
+        e.add_role_for_user("Teacher", "Teacher")
+        e.add_policy("Teacher", "homework", "create", "institution", "is_subject_teacher")
+        svc = _build_service(enforcer=e)
+
+        obj = {
+            "name": "homework",
+            "client_id": str(_DEFAULT_CLIENT_ID),
+            "institution_id": str(_DEFAULT_INSTITUTION_ID),
+        }
+        # ALLOW case: decision independent of the audit helper
+        sub_ok = {
+            "role": "Teacher",
+            "client_id": str(_DEFAULT_CLIENT_ID),
+            "institution_id": str(_DEFAULT_INSTITUTION_ID),
+            "is_subject_teacher": True,
+        }
+        assert e.enforce(sub_ok, obj, "create") is True
+        assert svc._extract_policy_id(sub_ok, obj, "create") == "Teacher:homework:create:institution:is_subject_teacher"
+        # DENY case: attr false → enforce False; helper must not report a grant
+        sub_bad = {
+            "role": "Teacher",
+            "client_id": str(_DEFAULT_CLIENT_ID),
+            "institution_id": str(_DEFAULT_INSTITUTION_ID),
+            "is_subject_teacher": False,
+        }
+        assert e.enforce(sub_bad, obj, "create") is False
+        assert svc._extract_policy_id(sub_bad, obj, "create") is None
+
+
+class TestPlatformOwnerSeedMatrix:
+    """D6/REQ-AUTHZ-FIX-PO-01: DB-level check of the seeded PO permission matrix."""
+
+    def test_po_has_client_read(self, db_engine):
+        """The seeded matrix grants platform_owner client.read at scope 'any'.
+
+        Depends on the test harness applying Alembic migrations (conftest
+        ``_reset_database`` runs ``alembic upgrade head``), which includes
+        migration 023_fix_c04_abac_po_permissions.
+        """
+        from sqlalchemy import text
+        with db_engine.connect() as conn:
+            row = conn.execute(text("""
+                SELECT COUNT(*) FROM role_permission rp
+                JOIN role r ON r.id = rp.role_id
+                JOIN permission p ON p.id = rp.permission_id
+                WHERE r.name = 'platform_owner'
+                  AND p.name = 'client.read'
+                  AND rp.scope = 'any'
+            """)).scalar_one()
+        assert row == 1
+
+
 class TestKernelBoundary:
     """Task 9.5: Dependency-direction static check (AC-9, AC-14, AC-40, AC-41)."""
 
@@ -672,3 +1119,38 @@ class TestKernelBoundary:
         assert violations == [], (
             f"kernel/authz/ imports business ORM models: {violations}"
         )
+
+    def test_kernel_authz_no_po_bypass_pattern(self):
+        """Static guard: no PO short-circuit remains in service or legacy fallback (D4).
+
+        The unconditional Platform Owner ALLOW is removed from both
+        authorization_service.py (Step 1) and dependencies.py (_check_impl_legacy).
+        This test fails loudly if the bypass pattern is reintroduced.
+        """
+        import os
+        import re
+        base = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "kernel", "authz",
+        )
+        svc_path = os.path.join(base, "services", "authorization_service.py")
+        deps_path = os.path.join(base, "dependencies.py")
+
+        # authorization_service.py: no is_platform_owner-driven ALLOW / early return
+        with open(svc_path, encoding="utf-8") as f:
+            for i, line in enumerate(f, 1):
+                stripped = line.strip()
+                if stripped.startswith("#"):
+                    continue
+                if re.search(r"is_platform_owner.*(allowed\s*=\s*True|return decision)", stripped):
+                    raise AssertionError(
+                        f"{svc_path}:{i}: PO short-circuit pattern: {stripped}"
+                    )
+
+        # dependencies.py: no legacy PO bypass block (returns before role validation)
+        with open(deps_path, encoding="utf-8") as f:
+            for i, line in enumerate(f, 1):
+                if "Platform owner bypass" in line or "Platform Owner bypass" in line:
+                    raise AssertionError(
+                        f"{deps_path}:{i}: legacy PO bypass marker: {line.strip()}"
+                    )

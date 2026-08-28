@@ -630,8 +630,13 @@ class TestAuthorization:
         })
         assert response.status_code == 201, f"Admin should succeed: {response.text}"
 
-    def test_platform_owner_bypasses_all(self, app, db_session):
-        """Platform owner bypasses all checks."""
+    def test_platform_owner_denied_operational_resource(self, app, db_session):
+        """PO has no fee.* permission → 403 on fee-type creation (D7).
+
+        The Platform Owner is evaluated through the normal pipeline; access to
+        institute operational resources (fee.*) requires a configured
+        permission, which platform_owner does not hold.
+        """
         e = _build_real_enforcer()
         app.dependency_overrides[get_enforcer] = lambda: e
 
@@ -646,7 +651,7 @@ class TestAuthorization:
         response = tc.post("/api/v1/fee-types", json={
             "name": "PO Fee", "default_amount": "100.00", "institution_id": str(iid),
         })
-        assert response.status_code == 201, f"PO should succeed: {response.text}"
+        assert response.status_code == 403, f"PO should be denied: {response.text}"
 
 
 # ============================================================

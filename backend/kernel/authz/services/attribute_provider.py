@@ -51,6 +51,13 @@ class AuthorizationAttributeProvider(ABC):
         Returns:
             A dict of attribute name → value. May be a subset of ``self.attributes``
             if some attributes don't apply to the specific request.
+
+        Provider contract (ABAC fix D1):
+            Boolean attributes consumed by the Casbin ``match_attrs`` matcher MUST
+            be returned as genuine Python ``bool`` values (``True``/``False``). Any
+            non-``True`` value — ``False``, ``None``, missing key, empty string,
+            string ``"true"``/``"false"``, integer ``1``, or ``numpy.bool_`` — is
+            treated as a DENY by the (strict) matcher. Return real bools.
         """
 
 

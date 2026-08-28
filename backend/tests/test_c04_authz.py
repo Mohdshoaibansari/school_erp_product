@@ -305,9 +305,14 @@ class TestRequirePermissionDependency:
 
     @pytest.fixture
     def app_with_enforcer(self):
-        """Create a minimal FastAPI app with the Casbin enforcer wired."""
+        """Create a minimal FastAPI app with the Casbin enforcer wired.
+
+        Uses ``with_c01_policies=False``: the production-shape Platform Owner has
+        explicit permissions only (no C-01 wildcard) — the legacy fallback must
+        NOT grant on bypass alone (D4/D7).
+        """
         app = FastAPI()
-        enforcer = _build_test_enforcer(with_c01_policies=True)
+        enforcer = _build_test_enforcer(with_c01_policies=False)
         set_enforcer(enforcer)
 
         @app.get("/test/user-read")
@@ -390,23 +395,23 @@ class TestRequirePermissionDependency:
         response = tc.get("/test/institution-read")
         assert response.status_code == 403, response.text
 
-    # ---- 13.5: Platform owner bypass ----
+    # ---- 13.5: Platform owner evaluated through the normal pipeline ----
 
-    def test_platform_owner_bypass_user_create(self, app_with_enforcer):
-        """Platform owner bypasses all checks → 200."""
+    def test_platform_owner_denied_unconfigured_user_create(self, app_with_enforcer):
+        """PO with no user.create permission → 403 (no bypass)."""
         ctx = self._make_context(is_platform_owner=True)
         app_with_enforcer.dependency_overrides[get_tenant_context] = lambda: ctx
         tc = TestClient(app_with_enforcer)
         response = tc.get("/test/user-create")
-        assert response.status_code == 200, response.text
+        assert response.status_code == 403, response.text
 
-    def test_platform_owner_bypass_institution_read(self, app_with_enforcer):
-        """Platform owner with is_platform_owner=True → 200."""
+    def test_platform_owner_denied_unconfigured_institution_read(self, app_with_enforcer):
+        """PO with is_platform_owner=True but no institution.read → 403."""
         ctx = self._make_context(is_platform_owner=True)
         app_with_enforcer.dependency_overrides[get_tenant_context] = lambda: ctx
         tc = TestClient(app_with_enforcer)
         response = tc.get("/test/institution-read")
-        assert response.status_code == 200, response.text
+        assert response.status_code == 403, response.text
 
     # ---- Edge cases ----
 

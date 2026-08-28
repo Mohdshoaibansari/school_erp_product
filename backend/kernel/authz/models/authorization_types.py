@@ -38,11 +38,19 @@ class SubjectContext:
     def from_tenant_context(cls, ctx: Any) -> SubjectContext:
         """Construct a SubjectContext from a TenantContext.
 
-        Maps ``TenantContext`` fields (roles list → tuple).
+        Maps ``TenantContext`` fields (roles list → tuple). When the subject is a
+        Platform Owner whose JWT carries no ``roles`` claim (C-03), derives the
+        existing ``"platform_owner"`` DB role so configured ``role_permission``
+        rows (client.*, config.*) match via Casbin ``g()``. This is role
+        DERIVATION, not a grant: grants still come only from ``role_permission``
+        rows evaluated by the full pipeline (Permission → Scope → ABAC → Casbin).
         """
+        roles = tuple(ctx.roles or [])
+        if ctx.is_platform_owner and "platform_owner" not in roles:
+            roles = ("platform_owner",) + roles
         return cls(
             user_id=ctx.user_id,
-            roles=tuple(ctx.roles or []),
+            roles=roles,
             client_id=ctx.client_id,
             institution_id=ctx.institution_id,
             user_tier=ctx.user_tier,

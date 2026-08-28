@@ -1,13 +1,16 @@
 """C-04 Authorization — AuthorizationService pipeline (D6, D7, D8, D9, D13, D14).
 
 Implements the single authorization decision pipeline:
-1. Platform Owner bypass
-2. No roles → DENY
-3. Determine required attributes from policy catalog
-4. Resolve required attributes (fail-closed)
-5. Casbin — evaluate ALL roles (multi-role loop)
-6. Classify denial reason (catalog + attr map)
-7. Emit audit record
+1. No roles → DENY
+2. Determine required attributes from policy catalog
+3. Resolve required attributes (fail-closed)
+4. Casbin — evaluate ALL roles (multi-role loop)
+5. Classify denial reason (catalog + attr map)
+6. Emit audit record
+
+Platform Owners flow through the normal pipeline (Permission → Scope → ABAC →
+Casbin); there is NO unconditional Platform Owner short-circuit. PO access is
+granted only by configured ``role_permission`` rows (client.*, config.*, etc.).
 
 Also defines:
 - ``match_attrs`` — custom Casbin function for domain attribute evaluation (D8)
@@ -42,8 +45,18 @@ def match_attrs(sub: dict, attrs: str) -> bool:
     """Custom Casbin matcher function for domain attribute evaluation (D8).
 
     ``attrs`` is a comma-separated list of required boolean attribute names
-    (e.g., ``"is_subject_teacher"``, ``"is_self"``). Returns True if ALL
-    named attributes are truthy on the subject dict.
+    (e.g., ``"is_subject_teacher"``, ``"is_self"``). Returns True only if ALL
+    named attributes are exactly ``True`` on the subject dict — strict boolean
+    identity (D1). Any non-``True`` value (``False``, ``None``, missing key,
+    ``""``, ``"true"``/``"false"`` strings, ``1``, numpy bools) DENIES.
+
+    Semantics table (required attribute ``a``):
+
+        True (real bool)          → ALLOW
+        False / None / missing    → DENY (fail-closed)
+        "" / "true" / "false" / 1  → DENY (fail-closed on non-bool)
+
+    Empty / ``"*"`` / ``""`` attrs → True (no attribute condition).
 
     Args:
         sub: The Casbin subject dict (r.sub) — carries role, client_id,
@@ -52,11 +65,11 @@ def match_attrs(sub: dict, attrs: str) -> bool:
                for no attribute condition.
 
     Returns:
-        True if all required attributes are truthy, False otherwise.
+        True if all required attributes are exactly ``True``, otherwise False.
     """
     if not attrs or attrs in ("*", ""):
         return True
-    return all(bool(sub.get(a)) for a in attrs.split(","))
+    return all(sub.get(a) is True for a in attrs.split(","))
 
 
 # ============================================================
@@ -66,9 +79,9 @@ def match_attrs(sub: dict, attrs: str) -> bool:
 class AuthorizationService:
     """Single authorization decision pipeline (D6, REQ-AUTHZ-ABAC-04).
 
-    Orchestrates: Platform Owner bypass → no-roles check → required-attribute
-    determination → attribute resolution → Casbin multi-role enforcement →
-    denial classification → audit emission.
+    Orchestrates: no-roles check → required-attribute determination → attribute
+    resolution → Casbin multi-role enforcement → denial classification → audit
+    emission. Platform Owners flow through the normal pipeline (no bypass).
 
     The enforcer remains the sole granter. The Python-side reason discriminator
     runs only on DENY to label why; it never grants access.
@@ -88,24 +101,18 @@ class AuthorizationService:
         """Execute the authorization pipeline and return a structured decision.
 
         Pipeline order (D6):
-        1. Platform Owner bypass → ALLOW
-        2. No roles → DENY(NO_ROLES)
-        3. Determine required attributes from policy catalog
-        4. Resolve required attributes (fail-closed)
-        5. Casbin — evaluate ALL roles
-        6. On ALLOW → return ALLOWED; on DENY → classify denial reason
-        7. Emit audit record on every decision
-        """
-        # Step 1: Platform Owner bypass (D28) — unchanged
-        if request.subject.is_platform_owner or "platform_owner" in request.subject.roles:
-            decision = AuthorizationDecision(
-                allowed=True,
-                reason=AuthorizationReasonCode.ALLOWED,
-            )
-            self._emit_audit(request, decision)
-            return decision
+        1. No roles → DENY(NO_ROLES)
+        2. Determine required attributes from policy catalog
+        3. Resolve required attributes (fail-closed)
+        4. Casbin — evaluate ALL roles
+        5. On ALLOW → return ALLOWED; on DENY → classify denial reason
+        6. Emit audit record on every decision
 
-        # Step 2: No roles
+        Platform Owners are NOT short-circuited (D4): they flow through
+        Permission → Scope → ABAC → Casbin with an effective "platform_owner"
+        role label (D5), and are granted only by configured role_permission rows.
+        """
+        # Step 1: No roles
         if not request.subject.roles:
             decision = AuthorizationDecision(
                 allowed=False,
@@ -202,15 +209,49 @@ class AuthorizationService:
         return False, None
 
     def _extract_policy_id(self, sub: dict, obj: dict, action: str) -> str | None:
-        """Extract the matching policy ID for audit purposes."""
+        """Extract the matching policy ID for audit purposes (best-effort, never grants).
+
+        Returns a 5-part id ``role:resource:action:scope:attrs`` for the first
+        policy that genuinely matches: resource/action (with ``*`` wildcard),
+        scope (mirroring ``casbin_model.conf`` matcher semantics), and the
+        attribute condition (``match_attrs``). Audit-only — invoked only after
+        ``enforce()`` returned True, so it never influences the decision.
+        """
         try:
             policies = self._enforcer.get_filtered_policy(0, sub.get("role", ""))
             for p in policies:
-                if len(p) >= 4 and (p[1] == "*" or p[1] == obj.get("name")) and (p[2] == "*" or p[2] == action):
-                    return f"{p[0]}:{p[1]}:{p[2]}:{p[3]}"
+                if len(p) < 5:
+                    continue
+                if p[1] != "*" and p[1] != obj.get("name"):
+                    continue
+                if p[2] != "*" and p[2] != action:
+                    continue
+                if not self._policy_scope_matches(p[3], sub, obj):
+                    continue
+                if not match_attrs(sub, p[4]):
+                    continue
+                return f"{p[0]}:{p[1]}:{p[2]}:{p[3]}:{p[4]}"
         except Exception:
             pass
         return None
+
+    @staticmethod
+    def _policy_scope_matches(scope: str, sub: dict, obj: dict) -> bool:
+        """Whether a policy scope matches the subject/object (mirrors the matcher).
+
+        ``any`` → always; ``tenant`` → same client; ``institution`` → same client
+        and institution. Mirrors ``casbin_model.conf`` equality semantics.
+        """
+        if scope == "any":
+            return True
+        if scope == "tenant":
+            return str(sub.get("client_id", "")) == str(obj.get("client_id", ""))
+        if scope == "institution":
+            return (
+                str(sub.get("client_id", "")) == str(obj.get("client_id", ""))
+                and str(sub.get("institution_id", "")) == str(obj.get("institution_id", ""))
+            )
+        return False
 
     def _classify_denial(self, request: AuthorizationRequest) -> AuthorizationReasonCode:
         """Reason discriminator — runs ONLY on DENY (D9).

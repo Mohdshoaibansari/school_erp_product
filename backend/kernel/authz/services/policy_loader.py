@@ -132,6 +132,13 @@ def required_attributes(roles: list[str], resource: str, action: str) -> set[str
     matching any role × (resource, action) (D9, REQ-AUTHZ-ABAC-02).
 
     Used by AuthorizationService to determine which attributes to resolve.
+
+    Note (D10, deferred optimization): the union spans ALL subject roles; it is a
+    superset of what any single role needs. This is conservative but not a bug —
+    an extra resolver call (and a possible fail-closed bias if that extra
+    attribute has no provider). Re-scoping to only the roles that hold a matching
+    policy is deferred until Phase 7 introduces real production conditional
+    policies to validate against.
     """
     attrs: set[str] = set()
     for role in roles:

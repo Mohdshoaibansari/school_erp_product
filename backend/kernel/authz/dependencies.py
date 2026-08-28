@@ -11,7 +11,9 @@ Provides:
 Extended for ABAC (D11):
 - Both entry points are now async adapters over AuthorizationService.
 - Structured 403 with reason code on denial.
-- Platform Owner bypass retained (early return in authorize()).
+- Platform Owner evaluated through the normal pipeline (bypass removed —
+  PO is granted only by configured role_permission rows; effective role
+  label derived per D5).
 - ``roles[0]`` bug removed — multi-role evaluation via pipeline.
 - Hardcoded ``owner_id`` bypass removed — replaced by ``is_self`` attribute (D10).
 """
@@ -226,10 +228,12 @@ def _check_impl_legacy(
 
     roles = ctx.roles or []
 
-    # Platform owner bypass (D28) — check BEFORE role validation
-    if ctx.is_platform_owner or "platform_owner" in roles:
-        logger.debug("[AUTHZ] Platform owner bypass: resource=%s action=%s", resource, action)
-        return
+    # Platform Owner effective role label (D5) — role derivation, NOT a bypass:
+    # PO JWTs carry no roles claim; derive the existing "platform_owner" DB role so
+    # configured role_permission rows (client.*, config.*) match via Casbin g().
+    # Grants still come only from role_permission rows evaluated by the pipeline.
+    if ctx.is_platform_owner and "platform_owner" not in roles:
+        roles = ["platform_owner"] + roles
 
     if not roles:
         logger.warning("[AUTHZ] No roles assigned: user=%s resource=%s action=%s", ctx.user_id, resource, action)

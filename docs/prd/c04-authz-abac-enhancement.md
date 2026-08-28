@@ -440,19 +440,34 @@ Business modules do not interact directly with the Casbin enforcer.
 
 ---
 
-## 8. Open Questions
+## 8. Product Decisions
 
-These are product-level questions surfaced while deriving the PRD from the source proposal. Questions requiring product decisions are marked accordingly.
+All open questions have been resolved. Decisions recorded below.
 
-| # | Question | Status |
-|---|----------|--------|
-| Q1 | **Should the `AuthorizationAttributeProvider` contract support async providers?** The proposal shows `await authorization_service.authorize(...)` suggesting async. If providers need to query the database (likely), they should be async. | Needs product decision — affects the interface signature. Recommend: async, since providers will query business tables. |
-| Q2 | **How are required attributes determined for a given authorization request?** The proposal says "determine required domain attributes" (pipeline step 7) but doesn't specify whether this is declarative (policy metadata), convention-based (per resource_type), or imperative (business module tells the Kernel which attributes it needs). | Needs product decision — this is a key design question. Options: (a) policies declare required attributes, (b) providers declare what they can supply, (c) Kernel always invokes all registered providers for the resource type. |
-| Q3 | **Should the Kernel support multiple providers per resource type?** E.g., for a homework authorization, should both a `TeacherProvider` and a `HomeworkProvider` be invoked? | Needs product decision — affects provider registration semantics. Recommend: yes, multiple providers per resource type, each contributing a subset of attributes. |
-| Q4 | **What is the provider lifecycle?** Are providers registered at startup (module manifest), or can they be registered dynamically? | Needs product decision — affects module integration pattern. Recommend: startup registration via module manifest, consistent with existing Casbin policy registration. |
-| Q5 | **Should reason codes be an enum or free-form strings?** The proposal lists specific codes but doesn't specify the type. | Needs product decision — recommend enum for consistency and testability. |
-| Q6 | **How does ABAC interact with the existing `require_permission` decorator?** The consolidation PRD's `require_permission` accepts `obj_client_id`/`obj_institution_id`. Should the new ABAC mechanism extend `require_permission` or replace it? | Needs product decision — affects migration path from consolidation PRD. Recommend: extend, not replace. `require_permission` becomes a thin wrapper that builds an `AuthorizationRequest` and calls the new `authorization_service.authorize()`. |
-| Q7 | **Should the Kernel provide a "no-op" default provider that returns empty attributes?** This would allow the system to function even when no provider is registered for a resource type (backward compatible with pure RBAC). | Needs product decision — recommend yes, for backward compatibility. Missing provider → empty attributes → pure RBAC evaluation. |
+| # | Question | Decision |
+|---|----------|----------|
+| Q1 | **Should the `AuthorizationAttributeProvider` contract support async providers?** | **Yes — async.** AuthorizationService is async. Attribute providers expose async `resolve()`. Providers may perform async DB/repository operations. Casbin evaluation remains synchronous. |
+| Q2 | **How are required attributes determined for a given authorization request?** | **Lazy/request-driven resolution.** Policies declare the attributes they require. AuthorizationService determines the required attributes. Resolve only attributes required by the authorization evaluation. Cache resolved attributes for the lifetime of one authorization request. |
+| Q3 | **Should the Kernel support multiple providers per resource type?** | **Yes — multiple providers supported.** ProviderRegistry maps required attributes to providers. Multiple providers may contribute attributes to one authorization request. Provider execution must be deterministic. |
+| Q4 | **What is the provider lifecycle?** | **Application-scoped, startup registration.** Providers are registered during application startup. Providers should be stateless. Dependencies are injected. Request-specific state must not be stored inside providers. |
+| Q5 | **Should reason codes be an enum or free-form strings?** | **Enum.** Use stable machine-readable enum/string codes. Free-form reason strings are not the primary API contract. Optional detailed diagnostic information may exist internally. Sensitive policy/attribute details must not automatically be exposed to clients. |
+| Q6 | **How does ABAC interact with the existing `require_permission` decorator?** | **Extend, not replace.** Authorization pipeline: Authentication → Tenant validation → Permission/RBAC → Scope → ABAC. Authorization is restrictive — ABAC cannot grant a permission denied by RBAC. Missing or failed required attributes result in DENY. |
+| Q7 | **Should the Kernel provide a "no-op" default provider that returns empty attributes?** | **Implicit yes (fail-closed).** Failure to resolve a required authorization attribute results in DENY. Client-supplied authorization attributes are never trusted. Missing provider → missing attributes → DENY. |
+
+### Additional Decisions (8–11)
+
+| # | Topic | Decision |
+|---|-------|----------|
+| 8 | **Business boundary** | AuthZ Kernel must never import Teacher, Student, Parent, Homework, Attendance, Academic, or other business ORM models. Business modules implement the attribute-provider contracts. Casbin must never directly query business repositories. Business relationships remain owned by their respective business modules. |
+| 9 | **Fail closed** | Failure to resolve a required authorization attribute results in DENY. Client-supplied authorization attributes are never trusted. |
+| 10 | **RLS** | AuthZ does not replace PostgreSQL RLS. Successful authorization does not bypass RLS. |
+| 11 | **Policy requirements** | Policies declare the attributes they require. AuthorizationService determines the required attributes. ProviderRegistry resolves those attributes. Providers supply facts; Casbin makes the final authorization decision. |
+
+### Batch Authorization
+
+- Design the architecture to support `authorize_many()`.
+- Do not implement batch authorization in the first iteration.
+- Future batch authorization must avoid N+1 provider/database queries.
 
 ---
 

@@ -113,6 +113,32 @@ The AuthZ Kernel SHALL define an `AuthorizationAttributeProvider` abstract inter
 - **THEN** the provider interface SHALL support async resolution (providers may use `await` for database queries)
 - **AND** the authorization service SHALL `await` the provider's response
 
+#### Scenario: Lazy/request-driven attribute resolution
+- **WHEN** an authorization request arrives
+- **THEN** the Kernel SHALL determine which attributes are required by the applicable policies
+- **AND** the Kernel SHALL resolve ONLY those required attributes (not all possible attributes)
+- **AND** resolved attributes SHALL be cached for the lifetime of the authorization request
+- **AND** repeated lookups within the same request SHALL reuse cached values
+
+#### Scenario: ProviderRegistry maps required attributes to providers
+- **WHEN** the Kernel determines that a specific attribute (e.g., `is_subject_teacher`) is required
+- **THEN** the `ProviderRegistry` SHALL identify which provider(s) can supply that attribute
+- **AND** multiple providers MAY contribute attributes to one authorization request
+- **AND** provider execution SHALL be deterministic
+
+#### Scenario: Providers are stateless with injected dependencies
+- **WHEN** a provider is registered at startup
+- **THEN** it SHALL be application-scoped (not request-scoped)
+- **AND** it SHALL be stateless — no request-specific state stored inside the provider
+- **AND** dependencies (repositories, services) SHALL be injected via the constructor
+- **AND** the provider SHALL NOT store request-specific data between calls
+
+#### Scenario: Batch authorization architecture (deferred)
+- **WHEN** the authorization architecture is designed
+- **THEN** it SHALL support a future `authorize_many()` method
+- **AND** `authorize_many()` SHALL NOT be implemented in the first iteration
+- **AND** the architecture SHALL avoid N+1 provider/database queries in future batch implementations
+
 ---
 
 ### REQ-AUTHZ-ABAC-04: Casbin Integration with Domain Attributes

@@ -62,7 +62,7 @@ def list_users(
 
 
 @router.get("/{user_id}", response_model=UserDTO, summary="Get user")
-def get_user(
+async def get_user(
     user_id: uuid.UUID,
     ctx: TenantContext = Depends(get_tenant_context),
     enforcer: Any = Depends(get_enforcer),
@@ -72,7 +72,7 @@ def get_user(
     result = svc.get_user(ctx, user_id)
     if not result:
         raise HTTPException(status_code=404, detail="User not found")
-    check_permission(ctx, enforcer, "user", "read",
+    await check_permission(ctx, enforcer, "user", "read",
         obj_client_id=result.client_id,
         obj_institution_id=result.institution_id)
     return result
@@ -90,7 +90,7 @@ async def update_user(
     existing = svc.get_user(ctx, user_id)
     if not existing:
         raise HTTPException(status_code=404, detail="User not found")
-    check_permission(ctx, enforcer, "user", "update",
+    await check_permission(ctx, enforcer, "user", "update",
         obj_client_id=existing.client_id,
         obj_institution_id=existing.institution_id)
     try:
@@ -114,7 +114,7 @@ async def delete_user(
     existing = svc.get_user(ctx, user_id)
     if not existing:
         raise HTTPException(status_code=404, detail="User not found")
-    check_permission(ctx, enforcer, "user", "delete",
+    await check_permission(ctx, enforcer, "user", "delete",
         obj_client_id=existing.client_id,
         obj_institution_id=existing.institution_id)
     try:
@@ -137,7 +137,7 @@ async def transition_user_lifecycle(
     existing = svc.get_user(ctx, user_id)
     if not existing:
         raise HTTPException(status_code=404, detail="User not found")
-    check_permission(ctx, enforcer, "user", "suspend",
+    await check_permission(ctx, enforcer, "user", "suspend",
         obj_client_id=existing.client_id,
         obj_institution_id=existing.institution_id)
     try:

@@ -1,12 +1,19 @@
-"""C-04 Authorization — FastAPI dependencies (D5, D7, D10, D12, D13, D19, D22, D31).
+"""C-04 Authorization — FastAPI dependencies (D5, D7, D10, D11, D12, D13, D19, D22, D31).
 
 Provides:
 - ``get_enforcer()`` — the global Casbin enforcer singleton.
-- ``require_permission(resource, action, ...)`` — FastAPI dependency for
-  authorization checks. Accepts ``obj_client_id`` and ``obj_institution_id``
-  for ABAC enforcement (D7, D19).
-- ``check_permission(ctx, enforcer, resource, action, ...)`` — callable for
+- ``get_authorization_service()`` — the global AuthorizationService singleton.
+- ``require_permission(resource, action, ...)`` — async FastAPI dependency for
+  authorization checks. Thin adapter over AuthorizationService.
+- ``check_permission(ctx, enforcer, resource, action, ...)`` — async callable for
   inline ABAC checks after fetching a resource.
+
+Extended for ABAC (D11):
+- Both entry points are now async adapters over AuthorizationService.
+- Structured 403 with reason code on denial.
+- Platform Owner bypass retained (early return in authorize()).
+- ``roles[0]`` bug removed — multi-role evaluation via pipeline.
+- Hardcoded ``owner_id`` bypass removed — replaced by ``is_self`` attribute (D10).
 """
 
 from __future__ import annotations
@@ -22,6 +29,7 @@ logger = logging.getLogger(__name__)
 from kernel.tenant_context import TenantContext, get_tenant_context
 
 _enforcer: Any = None
+_authorization_service: Any = None
 
 
 def set_enforcer(enforcer: Any) -> None:
@@ -39,7 +47,74 @@ def get_enforcer() -> Any:
     return _enforcer
 
 
-def _check_impl(
+def set_authorization_service(service: Any) -> None:
+    """Store the global AuthorizationService singleton (called by app factory)."""
+    global _authorization_service
+    _authorization_service = service
+
+
+def get_authorization_service() -> Any:
+    """Return the global AuthorizationService singleton."""
+    return _authorization_service
+
+
+def _build_request(
+    ctx: TenantContext,
+    resource: str,
+    action: str,
+    obj_client_id: uuid.UUID | None = None,
+    obj_institution_id: uuid.UUID | None = None,
+    owner_id: uuid.UUID | None = None,
+) -> Any:
+    """Build an AuthorizationRequest from TenantContext and explicit object attrs.
+
+    Maps TenantContext → SubjectContext, explicit object attrs → ResourceContext.
+    Falls back to ctx values for backward compatibility (AC-12).
+    Routes owner_id through ResourceContext.data["owner_id"] (D10).
+    """
+    from kernel.authz.models.authorization_types import (
+        AuthorizationRequest,
+        ResourceContext,
+        SubjectContext,
+    )
+
+    subject = SubjectContext.from_tenant_context(ctx)
+
+    # Build resource data dict — include owner_id for is_self resolution (D10)
+    data: dict[str, Any] = {}
+    if owner_id is not None:
+        data["owner_id"] = str(owner_id)
+
+    resource_ctx = ResourceContext(
+        resource_type=resource,
+        resource_id=None,
+        client_id=obj_client_id if obj_client_id is not None else ctx.client_id,
+        institution_id=obj_institution_id if obj_institution_id is not None else ctx.institution_id,
+        data=data,
+    )
+
+    return AuthorizationRequest(
+        subject=subject,
+        resource=resource_ctx,
+        action=action,
+    )
+
+
+def _to_http_403(decision: Any) -> HTTPException:
+    """Convert an AuthorizationDecision to a structured HTTP 403 (D11).
+
+    Exposes the machine-readable reason code, never policy internals.
+    """
+    return HTTPException(
+        status_code=403,
+        detail={
+            "code": decision.reason.value,
+            "message": "Permission denied",
+        },
+    )
+
+
+async def check_permission(
     ctx: TenantContext,
     enforcer: Any,
     resource: str,
@@ -49,7 +124,102 @@ def _check_impl(
     obj_institution_id: uuid.UUID | None = None,
     owner_id: uuid.UUID | None = None,
 ) -> None:
-    """Core authorization logic shared by require_permission and check_permission."""
+    """Check authorization inline (async adapter over AuthorizationService).
+
+    Usage in routes:
+        institution = svc.get(institution_id)
+        await check_permission(ctx, enforcer, "institution", "read",
+            obj_client_id=institution.client_id,
+            obj_institution_id=institution.id)
+
+    Raises HTTPException(403) with structured reason code on denial.
+    """
+    svc = get_authorization_service()
+    if svc is None:
+        # Fallback to legacy _check_impl if AuthorizationService not wired
+        logger.warning("[AUTHZ] AuthorizationService not available, falling back to legacy check")
+        _check_impl_legacy(
+            ctx, enforcer, resource, action,
+            obj_client_id=obj_client_id,
+            obj_institution_id=obj_institution_id,
+            owner_id=owner_id,
+        )
+        return
+
+    request = _build_request(ctx, resource, action, obj_client_id, obj_institution_id, owner_id)
+    decision = await svc.authorize(request)
+    if not decision.allowed:
+        raise _to_http_403(decision)
+
+
+def require_permission(
+    resource: str,
+    action: str,
+    *,
+    obj_client_id: uuid.UUID | None = None,
+    obj_institution_id: uuid.UUID | None = None,
+    owner_id: uuid.UUID | None = None,
+):
+    """FastAPI async dependency: enforce authorization via AuthorizationService pipeline.
+
+    Usage:
+        @router.post("/institutions")
+        async def create(..., _ = Depends(require_permission("institution", "create"))):
+            ...
+
+        @router.get("/institutions")
+        async def list(..., _ = Depends(require_permission("institution", "read",
+                    obj_client_id=ctx.client_id))):
+            ...
+
+    Object attributes (obj_client_id, obj_institution_id) are passed explicitly
+    by the calling endpoint for ABAC enforcement (D7, D19). When not provided,
+    falls back to TenantContext values (backward compatible).
+
+    Returns a dependency closure that reads ``TenantContext`` and the Casbin
+    enforcer, then enforces via the AuthorizationService pipeline.
+
+    Raises ``HTTPException(403)`` with structured reason code on denial.
+    """
+
+    async def _enforce(
+        ctx: TenantContext = Depends(get_tenant_context),
+        enforcer: Any = Depends(get_enforcer),
+    ):
+        svc = get_authorization_service()
+        if svc is None:
+            # Fallback to legacy _check_impl if AuthorizationService not wired
+            logger.warning("[AUTHZ] AuthorizationService not available, falling back to legacy check")
+            _check_impl_legacy(
+                ctx, enforcer, resource, action,
+                obj_client_id=obj_client_id,
+                obj_institution_id=obj_institution_id,
+                owner_id=owner_id,
+            )
+            return
+
+        request = _build_request(ctx, resource, action, obj_client_id, obj_institution_id, owner_id)
+        decision = await svc.authorize(request)
+        if not decision.allowed:
+            raise _to_http_403(decision)
+
+    return _enforce
+
+
+def _check_impl_legacy(
+    ctx: TenantContext,
+    enforcer: Any,
+    resource: str,
+    action: str,
+    *,
+    obj_client_id: uuid.UUID | None = None,
+    obj_institution_id: uuid.UUID | None = None,
+    owner_id: uuid.UUID | None = None,
+) -> None:
+    """Legacy authorization logic — fallback when AuthorizationService is not wired.
+
+    Preserves the original behavior for backward compatibility during migration.
+    """
     if enforcer is None:
         logger.error("[AUTHZ] Enforcer not available")
         raise HTTPException(status_code=500, detail="Authorization service not available")
@@ -65,20 +235,7 @@ def _check_impl(
         logger.warning("[AUTHZ] No roles assigned: user=%s resource=%s action=%s", ctx.user_id, resource, action)
         raise HTTPException(status_code=403, detail="Permission denied — no roles assigned")
 
-    # Self-access bypass (D13): if owner_id matches the current user, allow without Casbin
-    if owner_id is not None and ctx.user_id and str(ctx.user_id) == str(owner_id):
-        logger.debug("[AUTHZ] Self-access bypass: user=%s resource=%s action=%s", ctx.user_id, resource, action)
-        return
-
-    # Build Casbin subject from TenantContext
-    sub = {
-        "role": roles[0],
-        "client_id": str(ctx.client_id) if ctx.client_id else "",
-        "institution_id": str(ctx.institution_id) if ctx.institution_id else "",
-    }
-
-    # Build Casbin object — use explicit object attributes when provided (D7, D19),
-    # fall back to ctx values for backward compatibility
+    # Build Casbin subject from TenantContext — evaluate ALL roles (D7)
     obj = {
         "name": resource,
         "client_id": str(obj_client_id) if obj_client_id is not None
@@ -87,83 +244,18 @@ def _check_impl(
                           else (str(ctx.institution_id) if ctx.institution_id else ""),
     }
 
-    # Step 1: Casbin role+scope check (D12)
-    if not enforcer.enforce(sub, obj, action):
-        logger.warning("[AUTHZ] Permission denied: user=%s roles=%s resource=%s action=%s",
-                       ctx.user_id, roles, resource, action)
-        raise HTTPException(status_code=403, detail="Permission denied")
+    # Multi-role evaluation: loop per role (D7)
+    for role in roles:
+        sub = {
+            "role": role,
+            "client_id": str(ctx.client_id) if ctx.client_id else "",
+            "institution_id": str(ctx.institution_id) if ctx.institution_id else "",
+        }
+        if enforcer.enforce(sub, obj, action):
+            logger.debug("[AUTHZ] Permission granted: user=%s role=%s resource=%s action=%s",
+                         ctx.user_id, role, resource, action)
+            return
 
-    logger.debug("[AUTHZ] Permission granted: user=%s roles=%s resource=%s action=%s",
-                 ctx.user_id, roles, resource, action)
-
-
-def check_permission(
-    ctx: TenantContext,
-    enforcer: Any,
-    resource: str,
-    action: str,
-    *,
-    obj_client_id: uuid.UUID | None = None,
-    obj_institution_id: uuid.UUID | None = None,
-    owner_id: uuid.UUID | None = None,
-) -> None:
-    """Check authorization inline (for use after fetching a resource).
-
-    Usage in routes:
-        institution = svc.get(institution_id)
-        check_permission(ctx, enforcer, "institution", "read",
-            obj_client_id=institution.client_id,
-            obj_institution_id=institution.id)
-
-    Raises HTTPException(403) on denial.
-    """
-    _check_impl(
-        ctx, enforcer, resource, action,
-        obj_client_id=obj_client_id,
-        obj_institution_id=obj_institution_id,
-        owner_id=owner_id,
-    )
-
-
-def require_permission(
-    resource: str,
-    action: str,
-    *,
-    obj_client_id: uuid.UUID | None = None,
-    obj_institution_id: uuid.UUID | None = None,
-    owner_id: uuid.UUID | None = None,
-):
-    """FastAPI dependency: enforce Casbin role+scope + optional ownership check.
-
-    Usage:
-        @router.post("/institutions")
-        def create(..., _ = Depends(require_permission("institution", "create"))):
-            ...
-
-        @router.get("/institutions")
-        def list(..., _ = Depends(require_permission("institution", "list",
-                    obj_client_id=ctx.client_id))):
-            ...
-
-    Object attributes (obj_client_id, obj_institution_id) are passed explicitly
-    by the calling endpoint for ABAC enforcement (D7, D19). When not provided,
-    falls back to TenantContext values (backward compatible).
-
-    Returns a dependency closure that reads ``TenantContext`` and the Casbin
-    enforcer, then enforces role+scope+ownership.
-
-    Raises ``HTTPException(403)`` on denial.
-    """
-
-    def _enforce(
-        ctx: TenantContext = Depends(get_tenant_context),
-        enforcer: Any = Depends(get_enforcer),
-    ):
-        _check_impl(
-            ctx, enforcer, resource, action,
-            obj_client_id=obj_client_id,
-            obj_institution_id=obj_institution_id,
-            owner_id=owner_id,
-        )
-
-    return _enforce
+    logger.warning("[AUTHZ] Permission denied: user=%s roles=%s resource=%s action=%s",
+                   ctx.user_id, roles, resource, action)
+    raise HTTPException(status_code=403, detail="Permission denied")

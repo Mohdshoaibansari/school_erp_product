@@ -77,7 +77,7 @@ def list_institutions(
 
 
 @router.get("/institutions/{institution_id}", response_model=InstitutionDTO, summary="Get institution")
-def get_institution(
+async def get_institution(
     institution_id: uuid.UUID,
     ctx: TenantContext = Depends(get_tenant_context),
     enforcer: Any = Depends(get_enforcer),
@@ -87,14 +87,14 @@ def get_institution(
     result = svc.get_institution(ctx, institution_id)
     if not result:
         raise HTTPException(status_code=404, detail="Institution not found")
-    check_permission(ctx, enforcer, "institution", "read",
+    await check_permission(ctx, enforcer, "institution", "read",
         obj_client_id=result.client_id,
         obj_institution_id=result.id)
     return result
 
 
 @router.patch("/institutions/{institution_id}", response_model=InstitutionDTO, summary="Update institution")
-def update_institution(
+async def update_institution(
     institution_id: uuid.UUID,
     dto: InstitutionUpdateDTO,
     ctx: TenantContext = Depends(get_tenant_context),
@@ -106,7 +106,7 @@ def update_institution(
     existing = svc.get_institution(ctx, institution_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Institution not found")
-    check_permission(ctx, enforcer, "institution", "update",
+    await check_permission(ctx, enforcer, "institution", "update",
         obj_client_id=existing.client_id,
         obj_institution_id=existing.id)
     try:
@@ -116,7 +116,7 @@ def update_institution(
 
 
 @router.post("/institutions/{institution_id}/transition", response_model=InstitutionDTO, summary="Transition institution lifecycle")
-def transition_institution_lifecycle(
+async def transition_institution_lifecycle(
     institution_id: uuid.UUID,
     dto: LifecycleTransitionDTO,
     ctx: TenantContext = Depends(get_tenant_context),
@@ -134,7 +134,7 @@ def transition_institution_lifecycle(
     existing = svc.get_institution(ctx, institution_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Institution not found")
-    check_permission(ctx, enforcer, "institution", "transition_lifecycle",
+    await check_permission(ctx, enforcer, "institution", "transition_lifecycle",
         obj_client_id=existing.client_id,
         obj_institution_id=existing.id)
     try:
@@ -144,7 +144,7 @@ def transition_institution_lifecycle(
 
 
 @router.post("/institutions/{institution_id}/go-live", response_model=InstitutionDTO, summary="Go-live institution")
-def go_live_institution(
+async def go_live_institution(
     institution_id: uuid.UUID,
     dto: LifecycleTransitionDTO,
     ctx: TenantContext = Depends(get_tenant_context),
@@ -160,7 +160,7 @@ def go_live_institution(
     existing = svc.get_institution(ctx, institution_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Institution not found")
-    check_permission(ctx, enforcer, "institution", "transition_lifecycle",
+    await check_permission(ctx, enforcer, "institution", "transition_lifecycle",
         obj_client_id=existing.client_id,
         obj_institution_id=existing.id)
     try:
@@ -224,7 +224,7 @@ def get_org_unit_subtree(
 
 
 @router.post("/org-units/{org_unit_id}/move", response_model=OrgUnitDTO, summary="Move org unit")
-def move_org_unit(
+async def move_org_unit(
     org_unit_id: uuid.UUID,
     dto: OrgUnitMoveDTO,
     ctx: TenantContext = Depends(get_tenant_context),
@@ -236,7 +236,7 @@ def move_org_unit(
     C-11 audit emission for the move deferred to Apply-D (task 13.3).
     Move currently persists without audit; AC-10 full coverage deferred.
     """
-    check_permission(ctx, enforcer, "org_unit", "move",
+    await check_permission(ctx, enforcer, "org_unit", "move",
         obj_client_id=ctx.client_id,
         obj_institution_id=ctx.institution_id)
     try:
@@ -248,14 +248,14 @@ def move_org_unit(
 
 
 @router.post("/org-units/{org_unit_id}/archive", response_model=OrgUnitDTO, summary="Archive org unit")
-def archive_org_unit(
+async def archive_org_unit(
     org_unit_id: uuid.UUID,
     ctx: TenantContext = Depends(get_tenant_context),
     enforcer: Any = Depends(get_enforcer),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> OrgUnitDTO:
     """Archive an OrgUnit (D6, AC-8 — archive-only, no hard delete)."""
-    check_permission(ctx, enforcer, "org_unit", "archive",
+    await check_permission(ctx, enforcer, "org_unit", "archive",
         obj_client_id=ctx.client_id,
         obj_institution_id=ctx.institution_id)
     try:
@@ -265,14 +265,14 @@ def archive_org_unit(
 
 
 @router.post("/org-units/{org_unit_id}/reactivate", response_model=OrgUnitDTO, summary="Reactivate org unit")
-def reactivate_org_unit(
+async def reactivate_org_unit(
     org_unit_id: uuid.UUID,
     ctx: TenantContext = Depends(get_tenant_context),
     enforcer: Any = Depends(get_enforcer),
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> OrgUnitDTO:
     """Reactivate an archived OrgUnit (D6, AC-8)."""
-    check_permission(ctx, enforcer, "org_unit", "reactivate",
+    await check_permission(ctx, enforcer, "org_unit", "reactivate",
         obj_client_id=ctx.client_id,
         obj_institution_id=ctx.institution_id)
     try:
@@ -282,7 +282,7 @@ def reactivate_org_unit(
 
 
 @router.patch("/org-units/{org_unit_id}/reorder", response_model=OrgUnitDTO, summary="Reorder org unit")
-def reorder_org_unit(
+async def reorder_org_unit(
     org_unit_id: uuid.UUID,
     dto: OrgUnitReorderDTO,
     ctx: TenantContext = Depends(get_tenant_context),
@@ -290,7 +290,7 @@ def reorder_org_unit(
     svc: TenantInstitutionService = Depends(get_tenant_institution_service),
 ) -> OrgUnitDTO:
     """Reorder an OrgUnit (D6)."""
-    check_permission(ctx, enforcer, "org_unit", "reorder",
+    await check_permission(ctx, enforcer, "org_unit", "reorder",
         obj_client_id=ctx.client_id,
         obj_institution_id=ctx.institution_id)
     try:

@@ -162,12 +162,18 @@ def _create_casbin_enforcer(manifests: list[ModuleManifest]) -> None:
     """Create Casbin enforcer and register policies from all manifests (D10, D29).
 
     Creates the enforcer from the canonical model at ``kernel/authz/casbin_model.conf``,
-    iterates manifests in dependency order calling ``register_casbin_policies(enforcer)``,
-    and stores the singleton via ``kernel.authz.dependencies.set_enforcer()``.
+    registers the ``match_attrs`` custom function (D8), iterates manifests in
+    dependency order calling ``register_casbin_policies(enforcer)``, and stores
+    the singleton via ``kernel.authz.dependencies.set_enforcer()``.
+
+    Also wires the ProviderRegistry and AuthorizationService (D12).
     """
     import os
     import casbin
     from kernel.authz.dependencies import set_enforcer
+    from kernel.authz.services.authorization_service import match_attrs, AuthorizationService
+    from kernel.authz.services.attribute_provider import ProviderRegistry
+    from kernel.authz.services import policy_loader
 
     model_path = os.path.join(
         os.path.dirname(__file__), "authz", "casbin_model.conf",
@@ -179,9 +185,34 @@ def _create_casbin_enforcer(manifests: list[ModuleManifest]) -> None:
     enforcer = casbin.Enforcer(model_path)
     logger.info("Casbin enforcer created from %s", model_path)
 
+    # Register the match_attrs custom function (D8, REQ-AUTHZ-ABAC-M02)
+    enforcer.add_function("match_attrs", match_attrs)
+
+    # Register DB-loaded non-conditional policies from all manifests
     for manifest in manifests:
         manifest.register_casbin_policies(enforcer)
         logger.debug("Registered Casbin policies for module: %s", manifest.name)
+
+    # Register conditional authorization policies (D9)
+    for manifest in manifests:
+        if hasattr(manifest, 'register_authorization_policies'):
+            manifest.register_authorization_policies(enforcer)
+
+    # Build the ProviderRegistry and register built-in providers (D12)
+    provider_registry = ProviderRegistry()
+    for manifest in manifests:
+        if hasattr(manifest, 'register_attribute_providers'):
+            manifest.register_attribute_providers(provider_registry)
+            logger.debug("Registered attribute providers for module: %s", manifest.name)
+
+    # Build and store the AuthorizationService singleton
+    authz_service = AuthorizationService(
+        enforcer=enforcer,
+        provider_registry=provider_registry,
+        policy_catalog=policy_loader,
+    )
+    from kernel.authz import dependencies as authz_deps
+    authz_deps.set_authorization_service(authz_service)
 
     set_enforcer(enforcer)
     logger.info("Casbin enforcer registered with %d role definitions", len(enforcer.get_all_roles()))

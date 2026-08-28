@@ -47,45 +47,48 @@ def register_policies(enforcer) -> None:
     enforcer.add_role_for_user("regional_manager", "cross_institution")
     enforcer.add_role_for_user("group_academic_head", "cross_institution")
     enforcer.add_role_for_user("finance_controller", "cross_institution")
-    enforcer.add_policy("platform_owner", "*", "*", "any")
+    enforcer.add_policy("platform_owner", "*", "*", "any", "")
     for action in ["create", "read", "update", "transition_lifecycle", "archive", "list"]:
-        enforcer.add_policy("client_director", "institution", action, "tenant")
+        enforcer.add_policy("client_director", "institution", action, "tenant", "")
     for action in ["read", "update"]:
-        enforcer.add_policy("client_director", "client", action, "tenant")
+        enforcer.add_policy("client_director", "client", action, "tenant", "")
     for action in ["create", "read", "update", "move", "archive", "reactivate", "reorder", "delete"]:
-        enforcer.add_policy("client_director", "org_unit", action, "tenant")
+        enforcer.add_policy("client_director", "org_unit", action, "tenant", "")
     # Admin permissions (CD has full admin access within tenant)
     for action in ["create", "read", "update", "suspend"]:
-        enforcer.add_policy("client_director", "user", action, "tenant")
+        enforcer.add_policy("client_director", "user", action, "tenant", "")
     for action in ["create", "read", "delete"]:
-        enforcer.add_policy("client_director", "role_assignment", action, "tenant")
+        enforcer.add_policy("client_director", "role_assignment", action, "tenant", "")
     for action in ["create", "read", "delete"]:
-        enforcer.add_policy("client_director", "user_identifier", action, "tenant")
-    enforcer.add_policy("client_director", "institution_type", "read", "tenant")
+        enforcer.add_policy("client_director", "user_identifier", action, "tenant", "")
+    enforcer.add_policy("client_director", "institution_type", "read", "tenant", "")
     for action in ["create", "read", "update", "delete"]:
-        enforcer.add_policy("client_director", "fee", action, "tenant")
+        enforcer.add_policy("client_director", "fee", action, "tenant", "")
     for action in ["create", "read", "update", "waive"]:
-        enforcer.add_policy("client_director", "fee_assignment", action, "tenant")
+        enforcer.add_policy("client_director", "fee_assignment", action, "tenant", "")
     for action in ["create", "read"]:
-        enforcer.add_policy("client_director", "payment", action, "tenant")
-    enforcer.add_policy("client_director", "receipt", "read", "tenant")
-    enforcer.add_policy("client_director", "homework", "read", "tenant")
-    enforcer.add_policy("client_director", "submission", "read", "tenant")
-    enforcer.add_policy("client_director", "grade", "read", "tenant")
+        enforcer.add_policy("client_director", "payment", action, "tenant", "")
+    enforcer.add_policy("client_director", "receipt", "read", "tenant", "")
+    enforcer.add_policy("client_director", "homework", "read", "tenant", "")
+    enforcer.add_policy("client_director", "submission", "read", "tenant", "")
+    enforcer.add_policy("client_director", "grade", "read", "tenant", "")
     for action in ["read", "update"]:
-        enforcer.add_policy("institution_admin", "institution", action, "institution")
+        enforcer.add_policy("institution_admin", "institution", action, "institution", "")
     for action in ["create", "read", "update", "move", "archive", "reactivate", "reorder"]:
-        enforcer.add_policy("institution_admin", "org_unit", action, "institution")
+        enforcer.add_policy("institution_admin", "org_unit", action, "institution", "")
     for resource in ["client", "institution", "org_unit"]:
-        enforcer.add_policy("cross_institution", resource, "read", "tenant")
+        enforcer.add_policy("cross_institution", resource, "read", "tenant", "")
 
 
 @pytest.fixture
 def enforcer():
     """A Casbin enforcer with the C-01 D11 matrix registered via the manifest hook."""
     import casbin
+    from kernel.authz.services.authorization_service import match_attrs
 
     e = casbin.Enforcer(casbin_model_path())
+    # Register match_attrs custom function (D8)
+    e.add_function("match_attrs", match_attrs)
     # Register C-01 policies inline (policies.py deleted in consolidation)
     register_policies(e)
     return e
@@ -238,8 +241,10 @@ class TestManifestHookWiring:
         """C-01 manifest no longer registers policies (D14 consolidation).
         C-04 is sole owner. This test verifies the C-01 manifest is a no-op."""
         import casbin
+        from kernel.authz.services.authorization_service import match_attrs
 
         e = casbin.Enforcer(casbin_model_path())
+        e.add_function("match_attrs", match_attrs)
         # Before: no policies
         assert len(e.get_policy()) == 0
         c01_manifest.register_casbin_policies(e)
@@ -250,8 +255,10 @@ class TestManifestHookWiring:
     def test_register_policies_is_idempotent(self):
         """register_policies is safe to call more than once (add skips duplicates)."""
         import casbin
+        from kernel.authz.services.authorization_service import match_attrs
 
         e = casbin.Enforcer(casbin_model_path())
+        e.add_function("match_attrs", match_attrs)
         register_policies(e)
         n1 = len(e.get_policy())
         register_policies(e)

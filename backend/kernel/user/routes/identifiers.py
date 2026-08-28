@@ -46,7 +46,7 @@ def list_identifiers(
 
 
 @router.delete("/{identifier_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete user identifier")
-def delete_identifier(
+async def delete_identifier(
     user_id: uuid.UUID,
     identifier_id: uuid.UUID,
     ctx: TenantContext = Depends(get_tenant_context),
@@ -56,7 +56,7 @@ def delete_identifier(
     """Delete a UserIdentifier."""
     # ABAC: check via parent user's client/institution
     user = svc.get_user(ctx, user_id)
-    check_permission(ctx, enforcer, "user_identifier", "delete",
+    await check_permission(ctx, enforcer, "user_identifier", "delete",
         obj_client_id=user.client_id if user else ctx.client_id,
         obj_institution_id=user.institution_id if user else ctx.institution_id)
     try:

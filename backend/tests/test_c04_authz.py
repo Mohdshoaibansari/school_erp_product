@@ -29,8 +29,11 @@ def _build_test_enforcer(with_c01_policies: bool = True) -> casbin.Enforcer:
     """Build a Casbin enforcer with C-04 permission map and optional C-01 policies."""
     import os
     import kernel.authz
+    from kernel.authz.services.authorization_service import match_attrs
     model_path = os.path.join(os.path.dirname(kernel.authz.__file__), "casbin_model.conf")
     e = casbin.Enforcer(model_path)
+    # Register match_attrs custom function (D8)
+    e.add_function("match_attrs", match_attrs)
 
     if with_c01_policies:
         _register_c01_policies(e)
@@ -48,43 +51,43 @@ def _register_c01_policies(e: casbin.Enforcer) -> None:
     e.add_role_for_user("platform_owner", "cross_institution")
 
     # Platform Owner: wildcard
-    e.add_policy("platform_owner", "*", "*", "any")
+    e.add_policy("platform_owner", "*", "*", "any", "")
 
     # Client Director: tenant scope (all Admin permissions + CD-specific)
     for action in ["create", "read", "update", "transition_lifecycle", "archive", "list"]:
-        e.add_policy("client_director", "institution", action, "tenant")
+        e.add_policy("client_director", "institution", action, "tenant", "")
     for action in ["read", "update"]:
-        e.add_policy("client_director", "client", action, "tenant")
+        e.add_policy("client_director", "client", action, "tenant", "")
     for action in ["create", "read", "update", "move", "archive", "reactivate", "reorder", "delete"]:
-        e.add_policy("client_director", "org_unit", action, "tenant")
+        e.add_policy("client_director", "org_unit", action, "tenant", "")
     # Admin permissions (CD has full admin access within tenant)
     for action in ["create", "read", "update", "suspend"]:
-        e.add_policy("client_director", "user", action, "tenant")
+        e.add_policy("client_director", "user", action, "tenant", "")
     for action in ["create", "read", "delete"]:
-        e.add_policy("client_director", "role_assignment", action, "tenant")
+        e.add_policy("client_director", "role_assignment", action, "tenant", "")
     for action in ["create", "read", "delete"]:
-        e.add_policy("client_director", "user_identifier", action, "tenant")
-    e.add_policy("client_director", "institution_type", "read", "tenant")
+        e.add_policy("client_director", "user_identifier", action, "tenant", "")
+    e.add_policy("client_director", "institution_type", "read", "tenant", "")
     for action in ["create", "read", "update", "delete"]:
-        e.add_policy("client_director", "fee", action, "tenant")
+        e.add_policy("client_director", "fee", action, "tenant", "")
     for action in ["create", "read", "update", "waive"]:
-        e.add_policy("client_director", "fee_assignment", action, "tenant")
+        e.add_policy("client_director", "fee_assignment", action, "tenant", "")
     for action in ["create", "read"]:
-        e.add_policy("client_director", "payment", action, "tenant")
-    e.add_policy("client_director", "receipt", "read", "tenant")
-    e.add_policy("client_director", "homework", "read", "tenant")
-    e.add_policy("client_director", "submission", "read", "tenant")
-    e.add_policy("client_director", "grade", "read", "tenant")
+        e.add_policy("client_director", "payment", action, "tenant", "")
+    e.add_policy("client_director", "receipt", "read", "tenant", "")
+    e.add_policy("client_director", "homework", "read", "tenant", "")
+    e.add_policy("client_director", "submission", "read", "tenant", "")
+    e.add_policy("client_director", "grade", "read", "tenant", "")
 
     # Institution Admin: institution scope
     for action in ["read", "update"]:
-        e.add_policy("institution_admin", "institution", action, "institution")
+        e.add_policy("institution_admin", "institution", action, "institution", "")
     for action in ["create", "read", "update", "move", "archive", "reactivate", "reorder"]:
-        e.add_policy("institution_admin", "org_unit", action, "institution")
+        e.add_policy("institution_admin", "org_unit", action, "institution", "")
 
     # Cross-institution: tenant scope, read-only
     for resource in ["client", "institution", "org_unit"]:
-        e.add_policy("cross_institution", resource, "read", "tenant")
+        e.add_policy("cross_institution", resource, "read", "tenant", "")
 
 
 def _register_c04_test_policies(e: casbin.Enforcer) -> None:
@@ -127,7 +130,7 @@ def _register_c04_test_policies(e: casbin.Enforcer) -> None:
         # Role hierarchy: the identity role is also a Casbin role
         e.add_role_for_user(role_name, role_name)
         for resource, action in permissions:
-            e.add_policy(role_name, resource, action, "institution")
+            e.add_policy(role_name, resource, action, "institution", "")
 
 
 def _make_sub(role: str, client_id: str = "", institution_id: str = "") -> dict:

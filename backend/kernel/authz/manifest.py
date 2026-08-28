@@ -1,7 +1,12 @@
-"""C-04 Authorization — module manifest (A5, D9, AC-20, AC-21).
+"""C-04 Authorization — module manifest (A5, D9, D12, AC-20, AC-21).
 
 C-04 is kernel-tier (A2) — authorization is infrastructure that every
 business module needs.
+
+Extended for ABAC (D12):
+- ``register_attribute_providers`` hook for startup provider registration.
+- Registers the built-in ``IsSelfAttributeProvider`` (D10).
+- ``register_authorization_policies`` hook for conditional policy registration.
 """
 
 from __future__ import annotations
@@ -32,6 +37,26 @@ class AuthorizationManifest(ManifestBase):
         """
         from kernel.authz.services.policy_loader import register_policies_from_map
         register_policies_from_map(enforcer)
+
+    def register_attribute_providers(self, registry: Any) -> None:
+        """Register built-in attribute providers at startup (D12, REQ-AUTHZ-ABAC-02).
+
+        Called by the app factory before service wiring completes.
+        Registers the Kernel-owned ``IsSelfAttributeProvider`` (D10).
+        Business modules (Phase 7) will register their own providers
+        in their own manifests.
+        """
+        from kernel.authz.services.attribute_provider import IsSelfAttributeProvider
+        registry.register(IsSelfAttributeProvider())
+
+    def register_authorization_policies(self, enforcer: Any) -> None:
+        """Register conditional authorization policies (D9, REQ-AUTHZ-ABAC-M04).
+
+        Called by the app factory after the DB loader runs.
+        In this iteration, no production conditional policies are registered.
+        Business modules (Phase 7) will extend this hook.
+        """
+        pass
 
     def on_startup(self) -> None:
         """Load the permission map from the database (D24, D29).

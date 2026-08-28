@@ -46,7 +46,7 @@ def list_role_assignments(
 
 
 @router.delete("/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete role assignment")
-def delete_role_assignment(
+async def delete_role_assignment(
     user_id: uuid.UUID,
     assignment_id: uuid.UUID,
     ctx: TenantContext = Depends(get_tenant_context),
@@ -56,7 +56,7 @@ def delete_role_assignment(
     """Delete a RoleAssignment."""
     # ABAC: check via parent user's client/institution
     user = svc.get_user(ctx, user_id)
-    check_permission(ctx, enforcer, "role_assignment", "delete",
+    await check_permission(ctx, enforcer, "role_assignment", "delete",
         obj_client_id=user.client_id if user else ctx.client_id,
         obj_institution_id=user.institution_id if user else ctx.institution_id)
     try:

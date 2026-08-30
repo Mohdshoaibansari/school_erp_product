@@ -154,23 +154,37 @@ async def main():
                 existing = None
 
             if existing and existing[0] == uid:
+                # Ensure person_id is set (may be NULL from pre-migration runs)
+                has_person = s.execute(text(
+                    "SELECT person_id FROM app_user WHERE id = :uid AND person_id IS NOT NULL"
+                ), {"uid": uid}).fetchone()
+                if not has_person:
+                    person_id = uuid.uuid4()
+                    s.execute(text("""
+                        INSERT INTO person (id, client_id, name, contact_email, status)
+                        VALUES (:pid, :cid, :name, :email, 'Active')
+                    """), {"pid": person_id, "cid": client_id, "name": f"Test {role_name}", "email": email})
+                    s.execute(text(
+                        "UPDATE app_user SET person_id = :pid WHERE id = :uid"
+                    ), {"pid": person_id, "uid": uid})
+                    print(f"  [OK] Backfilled person_id for {email}")
                 continue  # already present and matching
 
             # Insert person row (independent UUID, D3a)
             person_id = uuid.uuid4()
             s.execute(text("""
                 INSERT INTO person (id, client_id, name, contact_email, status)
-                VALUES (:pid, :cid, :name, :email, 'active')
+                VALUES (:pid, :cid, :name, :email, 'Active')
             """), {"pid": person_id, "cid": client_id, "name": f"Test {role_name}", "email": email})
 
             # Insert parent user_account row (required by app_user.id FK)
             s.execute(text("INSERT INTO user_account (id) VALUES (:id) ON CONFLICT (id) DO NOTHING"), {"id": uid})
 
-            # Insert app_user (no name, no user_category_id — person_id links to person)
+            # Insert app_user (no user_category_id — person_id links to person)
             s.execute(text("""
-                INSERT INTO app_user (id, client_id, institution_id, email, person_id, lifecycle_status)
-                VALUES (:id, :cid, :iid, :email, :pid, 'active')
-            """), {"id": uid, "cid": client_id, "iid": inst_id, "email": email, "pid": person_id})
+                INSERT INTO app_user (id, client_id, institution_id, email, name, person_id, lifecycle_status)
+                VALUES (:id, :cid, :iid, :email, :name, :pid, 'active')
+            """), {"id": uid, "cid": client_id, "iid": inst_id, "email": email, "name": f"Test {role_name}", "pid": person_id})
 
             # Assign role
             role_map = {"Admin": admin_role, "Teacher": teacher_role, "Student": student_role}
@@ -234,40 +248,73 @@ async def main():
     print("[OK] Sample homework data created")
 
     # ============================================================
+    # 5. Create sample employee (linked to teacher's person)
+    # ============================================================
+    with Session() as s:
+        # Get the teacher's person_id
+        teacher_person = s.execute(text(
+            "SELECT person_id FROM app_user WHERE email = 'teacher@test-school.com' LIMIT 1"
+        )).fetchone()
+
+        if teacher_person and teacher_person[0]:
+            teacher_person_id = teacher_person[0]
+            inst_code = str(inst_id).replace("-", "")[:6].upper()
+            employee_no = f"EMP-{inst_code}-000001"
+
+            existing_emp = s.execute(text(
+                "SELECT id FROM employee WHERE person_id = :pid AND institution_id = :iid LIMIT 1"
+            ), {"pid": teacher_person_id, "iid": inst_id}).fetchone()
+
+            if not existing_emp:
+                s.execute(text("""
+                    INSERT INTO employee (id, client_id, institution_id, person_id, employee_no,
+                        joining_date, employment_type, employment_status, department, designation)
+                    VALUES (gen_random_uuid(), :cid, :iid, :pid, :eno,
+                        '2024-04-01', 'FULL_TIME', 'Active', 'Mathematics', 'Teacher')
+                """), {"cid": client_id, "iid": inst_id, "pid": teacher_person_id, "eno": employee_no})
+                s.commit()
+                print(f"[OK] Sample employee created: {employee_no} (linked to teacher's person)")
+            else:
+                print("[OK] Sample employee already exists, skipped")
+        else:
+            print("[WARN] Teacher person not found, skipping employee seed")
+
+    # ============================================================
     # Summary
     # ============================================================
     print(f"""
-╔══════════════════════════════════════════╗
-║         SEED COMPLETE                      ║
-╠══════════════════════════════════════════╣
-║  Client slug:   test-school             ║
-║  Institution:   Test Institution        ║
-║                                          ║
-║  Platform Owner: (no DB row)            ║
-║     Email:      admin@school-erp.com    ║
-║     Password:   Platform@123            ║
-║     Auth:       Supabase Auth only      ║
-║     Flag:       is_platform_owner=true  ║
-║                                          ║
-║  USER: Admin:      admin@test-school.com   ║
-║     Password:   Admin@123               ║
-║     Role:       Admin (full access)     ║
-║                                          ║
-║  USER: Teacher:    teacher@test-school.com ║
-║     Password:   Teacher@123             ║
-║     Role:       Teacher (HW CRUD+grade) ║
-║                                          ║
-║  USER: Student:    student@test-school.com ║
-║     Password:   Student@123             ║
-║     Role:       Student (submit+view)   ║
-║                                          ║
-║  Sample data:                            ║
-║    • 1 Fee Type (Tuition)               ║
-║    • 1 Fee Assignment (partial paid)    ║
-║    • 1 Payment (₹2000)                  ║
-║    • 1 Homework (Math)                  ║
-║    • 1 Submission (graded 85/100)       ║
-╚══════════════════════════════════════════╝
+========================================
+         SEED COMPLETE
+========================================
+  Client slug:   test-school
+  Institution:   Test Institution
+
+  Platform Owner: (no DB row)
+     Email:      admin@school-erp.com
+     Password:   Platform@123
+     Auth:       Supabase Auth only
+     Flag:       is_platform_owner=true
+
+  USER: Admin:      admin@test-school.com
+     Password:   Admin@123
+     Role:       Admin (full access)
+
+  USER: Teacher:    teacher@test-school.com
+     Password:   Teacher@123
+     Role:       Teacher (HW CRUD+grade)
+
+  USER: Student:    student@test-school.com
+     Password:   Student@123
+     Role:       Student (submit+view)
+
+  Sample data:
+    - 1 Fee Type (Tuition)
+    - 1 Fee Assignment (partial paid)
+    - 1 Payment (Rs.2000)
+    - 1 Homework (Math)
+    - 1 Submission (graded 85/100)
+    - 1 Employee (EMP-..., Mathematics/Teacher)
+========================================
 """)
 
 if __name__ == "__main__":

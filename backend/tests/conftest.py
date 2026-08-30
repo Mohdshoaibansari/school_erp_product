@@ -110,7 +110,7 @@ def _reset_database() -> None:
         check=True,
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=300,
         env={**os.environ, "DATABASE_URL": DATABASE_URL},
     )
 

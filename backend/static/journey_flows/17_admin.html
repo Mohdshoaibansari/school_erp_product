@@ -82,6 +82,60 @@
         <div class="result" id="result-4"></div>
       </div>
 
+      <h2>Employee Management</h2>
+
+      <div class="step">
+        <div><span class="step-num">4e</span><span class="step-title">Create Employee (linked to teacher's person)</span></div>
+        <div class="step-desc">Creates an employee record for the teacher. Auto-generates employee_no. Initial status = Hired.</div>
+        <button class="run-btn" onclick='if (!requireVars(["NEW_TEACHER_ID"], "result-4e")) return; runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/users/$NEW_TEACHER_ID",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
+          extractions: [{ var: "TEACHER_PERSON_ID", path: "person_id" }]
+        }, "result-4e-pre")'>Step 4e-pre — Get teacher's person_id</button>
+        <div class="result" id="result-4e-pre"></div>
+        <button class="run-btn" onclick='if (!requireVars(["TEACHER_PERSON_ID"], "result-4e")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/employees",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "person_id": "$TEACHER_PERSON_ID",
+            "employment_type": "FULL_TIME",
+            "department": "Mathematics",
+            "designation": "Teacher",
+            "joining_date": "2026-04-01"
+          }),
+          extractions: [
+            { var: "EMPLOYEE_ID", path: "id" },
+            { var: "EMPLOYEE_NO", path: "employee_no" }
+          ]
+        }, "result-4e")'>Run Step 4e — Create Employee</button>
+        <div class="result" id="result-4e"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">4f</span><span class="step-title">Activate Employee (Hired → Active)</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["EMPLOYEE_ID"], "result-4f")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/employees/$EMPLOYEE_ID/activate",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
+          extractions: []
+        }, "result-4f")'>Run Step 4f</button>
+        <div class="result" id="result-4f"></div>
+        <div class="note"><strong>Expected:</strong> <code>employment_status: "Active"</code>.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">4g</span><span class="step-title">List Employees</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/employees",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
+          extractions: []
+        }, "result-4g")'>Run Step 4g</button>
+        <div class="result" id="result-4g"></div>
+      </div>
+
       <h2>Fee Management</h2>
 
       <div class="step">

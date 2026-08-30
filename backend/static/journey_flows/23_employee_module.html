@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flow 23 — Employee Module</title>
+  <link rel="stylesheet" href="flow.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Flow 23 — Employee Module</h1>
+    <a class="back-link" href="index.html">← Back to all flows</a>
+  </div>
+  <div class="layout"><aside class="env-rail" id="store-panel"></aside>
+    <div class="main-col container">
+      <div class="intro">
+        <strong>This flow:</strong> Admin creates an employee → activates → manages lifecycle
+        (suspend, deactivate, terminate) → verifies config validation and authz boundaries.
+        Demonstrates the full Employee business module (D1–D14).
+      </div>
+      <div class="prereq">
+        <strong>Prerequisites:</strong> Run Flow 2 first. Stored vars required:
+        <code>CLIENT_SLUG</code>, <code>INST_ID</code>, <code>ADMIN_EMAIL</code>, <code>ADMIN_PASSWORD</code>.
+      </div>
+
+      <h2>Login</h2>
+
+      <div class="step">
+        <div><span class="step-num">1</span><span class="step-title">Login as Admin</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["CLIENT_SLUG"], "result-1")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email":"$ADMIN_EMAIL", "password":"$ADMIN_PASSWORD" }),
+          extractions: [{ var: "ADMIN_TOKEN", path: "access_token" }]
+        }, "result-1")'>Run Step 1</button>
+        <div class="result" id="result-1"></div>
+      </div>
+
+      <h2>Employee CRUD</h2>
+
+      <div class="step">
+        <div><span class="step-num">2</span><span class="step-title">Create Employee (status = Hired)</span></div>
+        <div class="step-desc">Creates an employee linked to a person. Auto-generates employee_no. Initial status is Hired.</div>
+        <div class="step-request">POST /api/v1/employees
+body: {
+  "person_id": "$PERSON_ID",
+  "employment_type": "FULL_TIME",
+  "department": "Mathematics",
+  "designation": "Teacher",
+  "joining_date": "2026-04-01"
+}</div>
+        <button class="run-btn" onclick='if (!requireVars(["PERSON_ID"], "result-2")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/employees",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "person_id": "$PERSON_ID",
+            "employment_type": "FULL_TIME",
+            "department": "Mathematics",
+            "designation": "Teacher",
+            "joining_date": "2026-04-01"
+          }),
+          extractions: [
+            { var: "EMPLOYEE_ID", path: "id" },
+            { var: "EMPLOYEE_NO", path: "employee_no" }
+          ]
+        }, "result-2")'>Run Step 2</button>
+        <div class="result" id="result-2"></div>
+        <div class="note"><strong>Expected:</strong> <code>201</code> with <code>employment_status: "Hired"</code>, auto-generated <code>employee_no</code> (e.g. <code>EMP-A1B2C3-000001</code>).</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">3</span><span class="step-title">List Employees</span></div>
+        <div class="step-desc">Lists all employees for the institution. Supports filtering by status, type, department, designation.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/employees",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
+          extractions: []
+        }, "result-3")'>Run Step 3</button>
+        <div class="result" id="result-3"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">4</span><span class="step-title">Get Employee by ID</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["EMPLOYEE_ID"], "result-4")) return; runStep({
+          method: "GET",
+          url: "http://127.0.0.1:8001/api/v1/employees/$EMPLOYEE_ID",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
+          extractions: []
+        }, "result-4")'>Run Step 4</button>
+        <div class="result" id="result-4"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">5</span><span class="step-title">Update Employee (department + designation)</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["EMPLOYEE_ID"], "result-5")) return; runStep({
+          method: "PATCH",
+          url: "http://127.0.0.1:8001/api/v1/employees/$EMPLOYEE_ID",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "department": "Science", "designation": "Lab Assistant" }),
+          extractions: []
+        }, "result-5")'>Run Step 5</button>
+        <div class="result" id="result-5"></div>
+        <div class="note">Department updated from Mathematics → Science.</div>
+      </div>
+
+      <h2>Lifecycle Transitions</h2>
+
+      <div class="step">
+        <div><span class="step-num">6</span><span class="step-title">Activate Employee (Hired → Active)</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["EMPLOYEE_ID"], "result-6")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/employees/$EMPLOYEE_ID/activate",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
+          extractions: []
+        }, "result-6")'>Run Step 6</button>
+        <div class="result" id="result-6"></div>
+        <div class="note"><strong>Expected:</strong> <code>employment_status: "Active"</code>.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">7</span><span class="step-title">Suspend Employee (Active → Suspended)</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["EMPLOYEE_ID"], "result-7")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/employees/$EMPLOYEE_ID/suspend",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
+          extractions: []
+        }, "result-7")'>Run Step 7</button>
+        <div class="result" id="result-7"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">8</span><span class="step-title">Re-activate (Suspended → Active)</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["EMPLOYEE_ID"], "result-8")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/employees/$EMPLOYEE_ID/activate",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
+          extractions: []
+        }, "result-8")'>Run Step 8</button>
+        <div class="result" id="result-8"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">9</span><span class="step-title">Deactivate (Active → On-Leave)</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["EMPLOYEE_ID"], "result-9")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/employees/$EMPLOYEE_ID/deactivate",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
+          extractions: []
+        }, "result-9")'>Run Step 9</button>
+        <div class="result" id="result-9"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">10</span><span class="step-title">Re-activate (On-Leave → Active)</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["EMPLOYEE_ID"], "result-10")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/employees/$EMPLOYEE_ID/activate",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
+          extractions: []
+        }, "result-10")'>Run Step 10</button>
+        <div class="result" id="result-10"></div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">11</span><span class="step-title">Terminate Employee (Active → Resigned)</span></div>
+        <div class="step-desc">Terminal transition. Cascades to archive the linked app_user account at this institution.</div>
+        <button class="run-btn" onclick='if (!requireVars(["EMPLOYEE_ID"], "result-11")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/employees/$EMPLOYEE_ID/terminate",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({ "terminal_status": "resigned" }),
+          extractions: []
+        }, "result-11")'>Run Step 11</button>
+        <div class="result" id="result-11"></div>
+        <div class="note"><strong>Expected:</strong> <code>employment_status: "Resigned"</code>. The linked app_user at this institution is archived.</div>
+      </div>
+
+      <h2>Validation & Authz Boundaries</h2>
+
+      <div class="step">
+        <div><span class="step-num">12</span><span class="step-title">Cannot activate a terminal employee (should FAIL)</span></div>
+        <button class="run-btn" onclick='if (!requireVars(["EMPLOYEE_ID"], "result-12")) return; runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/employees/$EMPLOYEE_ID/activate",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN" },
+          extractions: []
+        }, "result-12")'>Run Step 12</button>
+        <div class="result" id="result-12"></div>
+        <div class="note"><strong>Expected:</strong> <code>400 Invalid transition: Resigned → Active</code>.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">13</span><span class="step-title">Invalid department rejected (should FAIL)</span></div>
+        <div class="step-desc">Department must be in the configured <code>employee.departments</code> list.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/employees",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "person_id": "00000000-0000-0000-0000-000000000000",
+            "employment_type": "FULL_TIME",
+            "department": "Astrophysics"
+          }),
+          extractions: []
+        }, "result-13")'>Run Step 13</button>
+        <div class="result" id="result-13"></div>
+        <div class="note"><strong>Expected:</strong> <code>400 Department 'Astrophysics' is not in the allowed list</code>.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">14</span><span class="step-title">Invalid employment_type rejected (should FAIL)</span></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/employees",
+          headers: { "Authorization": "Bearer $ADMIN_TOKEN", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "person_id": "00000000-0000-0000-0000-000000000000",
+            "employment_type": "FREELANCE"
+          }),
+          extractions: []
+        }, "result-14")'>Run Step 14</button>
+        <div class="result" id="result-14"></div>
+        <div class="note"><strong>Expected:</strong> <code>422</code> validation error.</div>
+      </div>
+
+      <div class="step">
+        <div><span class="step-num">15</span><span class="step-title">Teacher tries to create employee (should FAIL)</span></div>
+        <div class="step-desc">Teacher has <code>employee.read</code> only, not <code>employee.create</code>.</div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/auth/login",
+          headers: { "Content-Type": "application/json", "Host": "$CLIENT_SLUG.localhost" },
+          body: JSON.stringify({ "email":"$TEACHER_EMAIL", "password":"$TEACHER_PASSWORD" }),
+          extractions: [{ var: "TEACHER_TOKEN_TMP", path: "access_token" }]
+        }, "result-15a")'>Step 15a — Login as Teacher</button>
+        <div class="result" id="result-15a"></div>
+        <button class="run-btn" onclick='runStep({
+          method: "POST",
+          url: "http://127.0.0.1:8001/api/v1/employees",
+          headers: { "Authorization": "Bearer $TEACHER_TOKEN_TMP", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            "person_id": "00000000-0000-0000-0000-000000000000",
+            "employment_type": "FULL_TIME"
+          }),
+          extractions: []
+        }, "result-15b")'>Step 15b — Create employee (should 403)</button>
+        <div class="result" id="result-15b"></div>
+        <div class="note"><strong>Expected:</strong> <code>403 Permission denied</code>. Teacher has <code>employee.read</code> only.</div>
+      </div>
+
+      <div class="flow-end">
+        ✅ <strong>Flow 23 complete.</strong> Employee module validated: CRUD, full lifecycle (Hired→Active↔On-Leave/Suspended→Resigned/Terminated/Retired), config validation, cascade, and authz boundaries.
+      </div>
+    </div>
+  </div>
+  <script src="shared.js"></script>
+  <script>injectEnvRail();</script>
+</body>
+</html>

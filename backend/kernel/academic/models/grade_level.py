@@ -1,6 +1,6 @@
-"""C-05 Academic Structure — GradeLevel model (D2, D15).
+"""C-05 Academic Structure — GradeLevel model.
 
-School-specific grade (e.g., "Grade 10"). Year-specific.
+School-specific grade (e.g., "Grade 10"). Permanent master.
 """
 
 from __future__ import annotations
@@ -22,12 +22,13 @@ class GradeLevel(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     client_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("client.id"), nullable=False)
     institution_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("institution.id"), nullable=False)
-    academic_year_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("academic_year.id"), nullable=False)
+    org_unit_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("org_unit.id"), nullable=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)  # e.g., "Grade 10"
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
     updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
 
     # Relationships
-    academic_year = relationship("AcademicYear", back_populates="grade_levels")
-    classes = relationship("ClassEntity", back_populates="grade_level", cascade="all, delete-orphan")
+    classes = relationship("Class", back_populates="grade_level", cascade="all, delete-orphan")
+    curriculum = relationship("Curriculum", back_populates="grade_level", uselist=False, cascade="all, delete-orphan")
+    grade_academic_year_curricula = relationship("GradeAcademicYearCurriculum", back_populates="grade_level")

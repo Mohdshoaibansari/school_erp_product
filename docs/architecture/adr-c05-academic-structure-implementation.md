@@ -1,6 +1,6 @@
 # C-05 Academic Structure — Architecture Decision Record
 
-> **Status:** Draft
+> **Status:** Superseded by v2.0 (2026-09-02)
 > **Version:** 1.0
 > **Last Updated:** 2026-08-14
 > **Author:** MiMo (Xiaomi MiMo Team)
@@ -11,6 +11,8 @@
 > - [C-08 Configuration Framework PRD](../prd/c-08-configuration-framework.md)
 > - [ADR C-01 Tenant & Institution](adr-c01-tenant-institution-implementation.md)
 > - [ADR C-02 Identity & User Management](adr-c02-identity-user-management-implementation.md)
+>
+> **⚠️ SUPERSEDED:** This ADR is superseded by the enhanced PRD (`docs/prd/C-05-Academic-Structure-enhanced.md`) and impact classification (`docs/prd/c-05-impact-classification.md`). The refactored model uses permanent masters (GradeLevel, Class, Subject), ClassAcademicYear as a first-class entity, and curriculum versioning. See those documents for the current design.
 
 ---
 

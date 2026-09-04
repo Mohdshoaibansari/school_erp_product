@@ -1,4 +1,4 @@
-"""C-05 Academic Structure — DTOs (T23)."""
+"""C-05 Academic Structure — DTOs."""
 
 from __future__ import annotations
 
@@ -14,20 +14,20 @@ from pydantic import BaseModel, Field
 # ============================================================
 
 class AcademicYearCreateDTO(BaseModel):
-    name: str = Field(..., description="Academic year name, e.g. '2025-26'")
+    name: str = Field(..., description="Academic year name, e.g. '2027-28'")
     start_date: date = Field(..., description="First day of the academic year")
     end_date: date = Field(..., description="Last day of the academic year")
-    clone_from: uuid.UUID | None = Field(None, description="Source year to clone structure from; defaults to latest closed year or template")
 
 
 class AcademicYearDTO(BaseModel):
     id: uuid.UUID = Field(..., description="Unique identifier of the academic year")
     client_id: uuid.UUID = Field(..., description="Client (tenant) this academic year belongs to")
     institution_id: uuid.UUID = Field(..., description="Institution this academic year belongs to")
-    name: str = Field(..., description="Academic year name, e.g. '2025-26'")
+    name: str = Field(..., description="Academic year name, e.g. '2027-28'")
     start_date: date = Field(..., description="First day of the academic year")
     end_date: date = Field(..., description="Last day of the academic year")
-    status: str = Field(..., description="Lifecycle status: planning | active | closed")
+    status: str = Field(..., description="Lifecycle status: planning | active | closed | cancelled")
+    closed_at: datetime | None = Field(None, description="Actual closure timestamp for early closure")
     created_at: datetime = Field(..., description="Timestamp when the academic year was created")
     updated_at: datetime = Field(..., description="Timestamp when the academic year was last updated")
 
@@ -36,13 +36,20 @@ class AcademicYearDTO(BaseModel):
 
 
 class AcademicYearTransitionDTO(BaseModel):
-    new_state: str = Field(..., description="Target lifecycle state: active | closed")
+    new_state: str = Field(..., description="Target lifecycle state: active | closed | cancelled")
     reason: str | None = Field(None, description="Optional reason for the transition")
 
 
 # ============================================================
 # Term DTOs
 # ============================================================
+
+class TermCreateDTO(BaseModel):
+    name: str = Field(..., description="Term name, e.g. 'Term 1'")
+    start_date: date = Field(..., description="First day of the term")
+    end_date: date = Field(..., description="Last day of the term")
+    sort_order: int = Field(0, description="Ordering of the term within its academic year")
+
 
 class TermDTO(BaseModel):
     id: uuid.UUID = Field(..., description="Unique identifier of the term")
@@ -51,6 +58,7 @@ class TermDTO(BaseModel):
     start_date: date = Field(..., description="First day of the term")
     end_date: date = Field(..., description="Last day of the term")
     sort_order: int = Field(..., description="Ordering of the term within its academic year")
+    status: str = Field(..., description="Computed status: planned | active | completed")
 
     class Config:
         from_attributes = True
@@ -60,11 +68,18 @@ class TermDTO(BaseModel):
 # GradeLevel DTOs
 # ============================================================
 
+class GradeLevelCreateDTO(BaseModel):
+    name: str = Field(..., description="Grade level name, e.g. 'Grade 10'")
+    org_unit_id: uuid.UUID | None = Field(None, description="Optional OrgUnit association")
+    sort_order: int = Field(0, description="Ordering of the grade level")
+
+
 class GradeLevelDTO(BaseModel):
     id: uuid.UUID = Field(..., description="Unique identifier of the grade level")
-    academic_year_id: uuid.UUID = Field(..., description="Academic year this grade level belongs to")
+    institution_id: uuid.UUID = Field(..., description="Institution this grade level belongs to")
+    org_unit_id: uuid.UUID | None = Field(None, description="OrgUnit association")
     name: str = Field(..., description="Grade level name, e.g. 'Grade 10'")
-    sort_order: int = Field(..., description="Ordering of the grade level within its academic year")
+    sort_order: int = Field(..., description="Ordering of the grade level")
 
     class Config:
         from_attributes = True
@@ -74,12 +89,32 @@ class GradeLevelDTO(BaseModel):
 # Class DTOs
 # ============================================================
 
+class ClassCreateDTO(BaseModel):
+    grade_level_id: uuid.UUID = Field(..., description="Grade level this class belongs to")
+    name: str = Field(..., description="Class name, e.g. '11'")
+    sort_order: int = Field(0, description="Ordering of the class")
+
+
 class ClassDTO(BaseModel):
     id: uuid.UUID = Field(..., description="Unique identifier of the class")
-    academic_year_id: uuid.UUID = Field(..., description="Academic year this class belongs to")
+    institution_id: uuid.UUID = Field(..., description="Institution this class belongs to")
     grade_level_id: uuid.UUID = Field(..., description="Grade level this class belongs to")
-    name: str = Field(..., description="Class name, e.g. '10A'")
-    sort_order: int = Field(..., description="Ordering of the class within its grade level")
+    name: str = Field(..., description="Class name, e.g. '11'")
+    sort_order: int = Field(..., description="Ordering of the class")
+
+    class Config:
+        from_attributes = True
+
+
+# ============================================================
+# ClassAcademicYear DTOs
+# ============================================================
+
+class ClassAcademicYearDTO(BaseModel):
+    id: uuid.UUID = Field(..., description="Unique identifier")
+    class_id: uuid.UUID = Field(..., description="Class reference")
+    academic_year_id: uuid.UUID = Field(..., description="Academic year reference")
+    offered: bool = Field(..., description="Whether the class is offered this year")
 
     class Config:
         from_attributes = True
@@ -89,97 +124,110 @@ class ClassDTO(BaseModel):
 # Section DTOs
 # ============================================================
 
+class SectionCreateDTO(BaseModel):
+    name: str = Field(..., description="Section name, e.g. 'A'")
+    sort_order: int = Field(0, description="Ordering of the section")
+
+
 class SectionDTO(BaseModel):
     id: uuid.UUID = Field(..., description="Unique identifier of the section")
-    academic_year_id: uuid.UUID = Field(..., description="Academic year this section belongs to")
-    class_id: uuid.UUID = Field(..., description="Class this section belongs to")
+    class_academic_year_id: uuid.UUID = Field(..., description="ClassAcademicYear this section belongs to")
     name: str = Field(..., description="Section name, e.g. 'A'")
-    homeroom_teacher_id: uuid.UUID | None = Field(None, description="Optional homeroom teacher (app_user id) for this section")
-    sort_order: int = Field(..., description="Ordering of the section within its class")
+    sort_order: int = Field(..., description="Ordering of the section")
 
     class Config:
         from_attributes = True
 
 
-class SectionUpdateDTO(BaseModel):
-    homeroom_teacher_id: uuid.UUID | None = Field(None, description="Homeroom teacher (app_user id) to assign to the section, or null to clear")
+# ============================================================
+# Curriculum DTOs
+# ============================================================
+
+class CurriculumCreateDTO(BaseModel):
+    grade_level_id: uuid.UUID = Field(..., description="Grade level this curriculum belongs to")
+    name: str = Field(..., description="Curriculum name, e.g. 'Grade 11 Curriculum'")
+
+
+class CurriculumDTO(BaseModel):
+    id: uuid.UUID = Field(..., description="Unique identifier")
+    grade_level_id: uuid.UUID = Field(..., description="Grade level reference")
+    name: str = Field(..., description="Curriculum name")
+
+    class Config:
+        from_attributes = True
+
+
+# ============================================================
+# CurriculumVersion DTOs
+# ============================================================
+
+class CurriculumVersionCreateDTO(BaseModel):
+    name: str = Field(..., description="Version name, e.g. 'V1'")
+
+
+class CurriculumVersionDTO(BaseModel):
+    id: uuid.UUID = Field(..., description="Unique identifier")
+    curriculum_id: uuid.UUID = Field(..., description="Curriculum reference")
+    version_number: int = Field(..., description="Version number")
+    name: str = Field(..., description="Version name, e.g. 'V1'")
+
+    class Config:
+        from_attributes = True
 
 
 # ============================================================
 # Subject DTOs
 # ============================================================
 
-class SubjectDTO(BaseModel):
-    id: uuid.UUID = Field(..., description="Unique identifier of the subject")
-    academic_year_id: uuid.UUID = Field(..., description="Academic year this subject belongs to")
+class SubjectCreateDTO(BaseModel):
     name: str = Field(..., description="Subject name, e.g. 'Mathematics'")
     code: str | None = Field(None, description="Optional subject code, e.g. 'MATH101'")
-    sort_order: int = Field(..., description="Ordering of the subject within its academic year")
-
-    class Config:
-        from_attributes = True
+    sort_order: int = Field(0, description="Ordering of the subject")
 
 
-class SubjectGroupDTO(BaseModel):
-    id: uuid.UUID = Field(..., description="Unique identifier of the subject group")
-    name: str = Field(..., description="Subject group name, e.g. 'Science Group'")
-
-    class Config:
-        from_attributes = True
-
-
-# ============================================================
-# Enrollment DTOs
-# ============================================================
-
-class StudentEnrollmentCreateDTO(BaseModel):
-    student_id: uuid.UUID = Field(..., description="Student (app_user id) to enroll")
-    section_id: uuid.UUID = Field(..., description="Section the student is enrolled into")
-
-
-class StudentEnrollmentDTO(BaseModel):
-    id: uuid.UUID = Field(..., description="Unique identifier of the enrollment")
-    academic_year_id: uuid.UUID = Field(..., description="Academic year of the enrollment")
-    student_id: uuid.UUID = Field(..., description="Enrolled student (app_user id)")
-    section_id: uuid.UUID = Field(..., description="Section the student is enrolled into")
-    enrolled_at: datetime = Field(..., description="Timestamp when the student was enrolled")
-    status: str = Field(..., description="Enrollment status: active | transferred | withdrawn | archived")
+class SubjectDTO(BaseModel):
+    id: uuid.UUID = Field(..., description="Unique identifier")
+    curriculum_version_id: uuid.UUID = Field(..., description="CurriculumVersion reference")
+    name: str = Field(..., description="Subject name, e.g. 'Mathematics'")
+    code: str | None = Field(None, description="Optional subject code")
+    sort_order: int = Field(..., description="Ordering of the subject")
 
     class Config:
         from_attributes = True
 
 
 # ============================================================
-# TeacherAssignment DTOs
+# SectionSubject DTOs
 # ============================================================
 
-class TeacherAssignmentCreateDTO(BaseModel):
-    teacher_id: uuid.UUID = Field(..., description="Teacher (app_user id) being assigned")
-    section_id: uuid.UUID = Field(..., description="Section the teacher is assigned to")
-    subject_id: uuid.UUID = Field(..., description="Subject the teacher is assigned to teach")
+class SectionSubjectCreateDTO(BaseModel):
+    subject_id: uuid.UUID = Field(..., description="Subject to assign to the section")
 
 
-class TeacherAssignmentDTO(BaseModel):
-    id: uuid.UUID = Field(..., description="Unique identifier of the teacher assignment")
-    academic_year_id: uuid.UUID = Field(..., description="Academic year of the assignment")
-    teacher_id: uuid.UUID = Field(..., description="Assigned teacher (app_user id)")
-    section_id: uuid.UUID = Field(..., description="Section the teacher is assigned to")
-    subject_id: uuid.UUID = Field(..., description="Subject the teacher is assigned to teach")
-    status: str = Field(..., description="Assignment status: active | inactive | archived")
+class SectionSubjectDTO(BaseModel):
+    id: uuid.UUID = Field(..., description="Unique identifier")
+    section_id: uuid.UUID = Field(..., description="Section reference")
+    subject_id: uuid.UUID = Field(..., description="Subject reference")
+    is_active: bool = Field(..., description="Whether the subject is active for this section")
+    created_at: datetime = Field(..., description="When the assignment was created")
 
     class Config:
         from_attributes = True
 
 
 # ============================================================
-# Structure DTOs (for full tree view)
+# GradeAcademicYearCurriculum DTOs
 # ============================================================
 
-class AcademicStructureDTO(BaseModel):
-    """Full academic structure for an AcademicYear."""
-    academic_year: AcademicYearDTO = Field(..., description="The academic year itself")
-    terms: list[TermDTO] = Field(..., description="Terms belonging to the academic year")
-    grade_levels: list[GradeLevelDTO] = Field(..., description="Grade levels belonging to the academic year")
-    classes: list[ClassDTO] = Field(..., description="Classes belonging to the academic year")
-    sections: list[SectionDTO] = Field(..., description="Sections belonging to the academic year")
-    subjects: list[SubjectDTO] = Field(..., description="Subjects belonging to the academic year")
+class GradeAcademicYearCurriculumAssignDTO(BaseModel):
+    curriculum_version_id: uuid.UUID = Field(..., description="CurriculumVersion to assign")
+
+
+class GradeAcademicYearCurriculumDTO(BaseModel):
+    id: uuid.UUID = Field(..., description="Unique identifier")
+    grade_level_id: uuid.UUID = Field(..., description="Grade level reference")
+    academic_year_id: uuid.UUID = Field(..., description="Academic year reference")
+    curriculum_version_id: uuid.UUID = Field(..., description="Assigned CurriculumVersion")
+
+    class Config:
+        from_attributes = True

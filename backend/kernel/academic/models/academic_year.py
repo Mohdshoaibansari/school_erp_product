@@ -1,7 +1,7 @@
-"""C-05 Academic Structure — AcademicYear model (D6, D15, D18).
+"""C-05 Academic Structure — AcademicYear model.
 
-Academic cycle (e.g., "2025-26") for an institution.
-Lifecycle: planning → active → closed.
+Academic cycle (e.g., "2027-28") for an institution.
+Lifecycle: planning → active → closed, or planning → cancelled.
 Only one active year per institution.
 """
 
@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import ForeignKey, String, Date, text, UniqueConstraint
+from sqlalchemy import ForeignKey, String, Date, DateTime, text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from kernel.db import Base
@@ -27,18 +27,15 @@ class AcademicYear(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     client_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("client.id"), nullable=False)
     institution_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("institution.id"), nullable=False)
-    name: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g., "2025-26"
+    name: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g., "2027-28"
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="planning")  # planning | active | closed
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="planning")  # planning | active | closed | cancelled
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # actual closure timestamp for early closure
     created_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
     updated_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
 
     # Relationships
     terms = relationship("Term", back_populates="academic_year", cascade="all, delete-orphan")
-    grade_levels = relationship("GradeLevel", back_populates="academic_year", cascade="all, delete-orphan")
-    classes = relationship("ClassEntity", back_populates="academic_year", cascade="all, delete-orphan")
-    sections = relationship("Section", back_populates="academic_year", cascade="all, delete-orphan")
-    subjects = relationship("Subject", back_populates="academic_year", cascade="all, delete-orphan")
-    enrollments = relationship("StudentEnrollment", back_populates="academic_year")
-    teacher_assignments = relationship("TeacherAssignment", back_populates="academic_year")
+    class_academic_years = relationship("ClassAcademicYear", back_populates="academic_year", cascade="all, delete-orphan")
+    grade_academic_year_curricula = relationship("GradeAcademicYearCurriculum", back_populates="academic_year")

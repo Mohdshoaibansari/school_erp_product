@@ -1,8 +1,9 @@
-"""C-05 Academic Structure — AcademicYear and Term repos (T14)."""
+"""C-05 Academic Structure — AcademicYear and Term repos."""
 
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Sequence
 
 from sqlalchemy import select
@@ -64,6 +65,24 @@ class AcademicYearRepo:
         self.db.flush()
         return year
 
+    def check_overlap(
+        self,
+        institution_id: uuid.UUID,
+        start_date,
+        end_date,
+        exclude_id: uuid.UUID | None = None,
+    ) -> bool:
+        """Check if date range overlaps with existing AcademicYears."""
+        stmt = select(AcademicYear).where(
+            AcademicYear.institution_id == institution_id,
+            AcademicYear.status != "cancelled",
+            AcademicYear.start_date < end_date,
+            AcademicYear.end_date > start_date,
+        )
+        if exclude_id:
+            stmt = stmt.where(AcademicYear.id != exclude_id)
+        return self.db.execute(stmt).scalar_one_or_none() is not None
+
 
 class TermRepo:
     """Repository for Term entity."""
@@ -94,6 +113,19 @@ class TermRepo:
         self.db.flush()
         return term
 
+    def get_by_id(self, term_id: uuid.UUID) -> Term | None:
+        return self.db.get(Term, term_id)
+
     def list_by_academic_year(self, academic_year_id: uuid.UUID) -> Sequence[Term]:
         stmt = select(Term).where(Term.academic_year_id == academic_year_id).order_by(Term.sort_order)
         return list(self.db.execute(stmt).scalars().all())
+
+    def update(self, term: Term, **kwargs) -> Term:
+        for key, value in kwargs.items():
+            setattr(term, key, value)
+        self.db.flush()
+        return term
+
+    def delete(self, term: Term) -> None:
+        self.db.delete(term)
+        self.db.flush()

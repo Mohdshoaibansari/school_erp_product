@@ -1,4 +1,4 @@
-"""C-05 Academic Structure — AcademicYear routes (T24)."""
+"""C-05 Academic Structure — AcademicYear routes."""
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ from kernel.academic.dependencies import get_academic_service
 from kernel.academic.services.service import AcademicService
 from kernel.academic.services.dtos import (
     AcademicYearCreateDTO, AcademicYearDTO, AcademicYearTransitionDTO,
-    AcademicStructureDTO,
 )
 
 router = APIRouter(prefix="/api/v1/academic-years", tags=["academic-years"])
@@ -25,7 +24,7 @@ def create_academic_year(
     ctx: TenantContext = Depends(get_tenant_context),
     svc: AcademicService = Depends(get_academic_service),
 ) -> AcademicYearDTO:
-    """Create a new AcademicYear. Clones from previous year or generates from template."""
+    """Create a new AcademicYear. Auto-creates ClassAcademicYear for all existing Classes."""
     try:
         year = svc.create_academic_year(ctx.client_id, ctx.institution_id, dto)
         return AcademicYearDTO.model_validate(year)
@@ -58,29 +57,46 @@ def get_academic_year(
     return AcademicYearDTO.model_validate(year)
 
 
-@router.post("/{year_id}/transition", response_model=AcademicYearDTO, summary="Transition academic year lifecycle")
-def transition_academic_year(
+@router.post("/{year_id}/activate", response_model=AcademicYearDTO, summary="Activate academic year")
+def activate_academic_year(
     year_id: uuid.UUID,
-    dto: AcademicYearTransitionDTO,
     _authz: None = Depends(require_permission("academic_year", "transition")),
     svc: AcademicService = Depends(get_academic_service),
 ) -> AcademicYearDTO:
-    """Transition AcademicYear lifecycle (planning → active → closed)."""
+    """Activate a Planning AcademicYear."""
     try:
+        dto = AcademicYearTransitionDTO(new_state="active")
         year = svc.transition_academic_year(year_id, dto)
         return AcademicYearDTO.model_validate(year)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/{year_id}/structure", response_model=AcademicStructureDTO, summary="Get full academic structure")
-def get_academic_structure(
+@router.post("/{year_id}/close", response_model=AcademicYearDTO, summary="Close academic year")
+def close_academic_year(
     year_id: uuid.UUID,
-    _authz: None = Depends(require_permission("academic_year", "read")),
+    _authz: None = Depends(require_permission("academic_year", "transition")),
     svc: AcademicService = Depends(get_academic_service),
-) -> AcademicStructureDTO:
-    """Get full academic structure (terms, grades, classes, sections, subjects)."""
+) -> AcademicYearDTO:
+    """Close an Active AcademicYear."""
     try:
-        return svc.get_full_structure(year_id)
+        dto = AcademicYearTransitionDTO(new_state="closed")
+        year = svc.transition_academic_year(year_id, dto)
+        return AcademicYearDTO.model_validate(year)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{year_id}/cancel", response_model=AcademicYearDTO, summary="Cancel planning academic year")
+def cancel_academic_year(
+    year_id: uuid.UUID,
+    _authz: None = Depends(require_permission("academic_year", "transition")),
+    svc: AcademicService = Depends(get_academic_service),
+) -> AcademicYearDTO:
+    """Cancel a Planning AcademicYear (terminal state)."""
+    try:
+        dto = AcademicYearTransitionDTO(new_state="cancelled")
+        year = svc.transition_academic_year(year_id, dto)
+        return AcademicYearDTO.model_validate(year)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

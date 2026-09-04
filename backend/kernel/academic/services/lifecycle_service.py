@@ -1,28 +1,26 @@
-"""C-05 Academic Structure — LifecycleService (T21, D6, D20).
+"""C-05 Academic Structure — LifecycleService.
 
-AcademicYear lifecycle transitions: planning → active → closed.
-Close is non-blocking (D20) — in-flight entities become read-only.
+AcademicYear lifecycle transitions: planning → active → closed, or planning → cancelled.
 """
 
 from __future__ import annotations
 
-import uuid
+from datetime import datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from kernel.academic.models.academic_year import AcademicYear
-from kernel.academic.models.student_enrollment import StudentEnrollment
-from kernel.academic.models.teacher_assignment import TeacherAssignment
 
 
 class LifecycleService:
     """AcademicYear lifecycle state machine."""
 
     VALID_TRANSITIONS = {
-        "planning": ["active"],
+        "planning": ["active", "cancelled"],
         "active": ["closed"],
         "closed": [],  # No reverse transitions
+        "cancelled": [],  # Terminal state
     }
 
     def __init__(self, db: Session):
@@ -37,8 +35,9 @@ class LifecycleService:
         """Transition AcademicYear to new state.
 
         Rules:
-        - planning → active: Auto-closes previous active year
-        - active → closed: Non-blocking, in-flight entities become read-only (D20)
+        - planning → active: Must close current active year first
+        - planning → cancelled: Terminal state
+        - active → closed: Sets closed_at timestamp
         - No reverse transitions
         """
         current_state = academic_year.status
@@ -53,47 +52,45 @@ class LifecycleService:
             self._activate(academic_year)
         elif new_state == "closed":
             self._close(academic_year)
+        elif new_state == "cancelled":
+            self._cancel(academic_year)
 
         return academic_year
 
     def _activate(self, academic_year: AcademicYear) -> None:
-        """Activate a planning year. Auto-closes previous active year."""
-        # Close any currently active year
-        previous_active = self.db.execute(
+        """Activate a planning year.
+
+        Rules:
+        - Must not have another active year for the same institution
+        - start_date and end_date must be set
+        """
+        # Check for existing active year
+        existing_active = self.db.execute(
             select(AcademicYear).where(
                 AcademicYear.institution_id == academic_year.institution_id,
                 AcademicYear.status == "active",
             )
         ).scalar_one_or_none()
 
-        if previous_active:
-            self._close(previous_active)
+        if existing_active:
+            raise ValueError(
+                f"Cannot activate: AcademicYear '{existing_active.name}' is already active. "
+                "Close it first before activating another year."
+            )
 
         academic_year.status = "active"
         self.db.flush()
 
     def _close(self, academic_year: AcademicYear) -> None:
-        """Close an active year. Non-blocking (D20).
+        """Close an active year.
 
-        In-flight homework, enrollments, and teacher assignments become read-only.
+        Sets closed_at timestamp for early closure tracking.
         """
         academic_year.status = "closed"
+        academic_year.closed_at = datetime.utcnow()
         self.db.flush()
 
-        # Mark enrollments as archived (read-only)
-        self.db.execute(
-            update(StudentEnrollment).where(
-                StudentEnrollment.academic_year_id == academic_year.id,
-                StudentEnrollment.status == "active",
-            ).values(status="archived")
-        )
-
-        # Mark teacher assignments as archived (read-only)
-        self.db.execute(
-            update(TeacherAssignment).where(
-                TeacherAssignment.academic_year_id == academic_year.id,
-                TeacherAssignment.status == "active",
-            ).values(status="archived")
-        )
-
+    def _cancel(self, academic_year: AcademicYear) -> None:
+        """Cancel a planning year. Terminal state."""
+        academic_year.status = "cancelled"
         self.db.flush()

@@ -1,7 +1,8 @@
-"""C-05 Academic Structure — Term model (D14).
+"""C-05 Academic Structure — Term model.
 
 Academic sub-division within an AcademicYear.
 Each year owns its own terms (not reusable across years).
+Status is computed dynamically (no status column).
 """
 
 from __future__ import annotations
@@ -33,3 +34,14 @@ class Term(Base):
 
     # Relationships
     academic_year = relationship("AcademicYear", back_populates="terms")
+
+    @property
+    def status(self) -> str:
+        """Compute status dynamically based on dates."""
+        today = date.today()
+        if today < self.start_date:
+            return "planned"
+        elif today <= self.end_date:
+            return "active"
+        else:
+            return "completed"

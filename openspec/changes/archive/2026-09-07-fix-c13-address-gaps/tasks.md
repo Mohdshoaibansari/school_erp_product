@@ -9,7 +9,7 @@
 
 - [x] 2.1 G-05 — Enforce geographic hierarchy on every write path (`create`, `update`, `correct`, `replace`) via `validate_hierarchy()`; reject mismatched/missing City/State/Country with `GEOGRAPHIC_HIERARCHY_INVALID`
 - [x] 2.2 G-06 — Enforce `postal_code` required `NOT NULL` + whitespace/field validation: trim, `optional blank→NULL`, `required blank→ADDRESS_REQUIRED_FIELD`, max-lengths (500/100/20), no silent truncation; add migration `postal_code NOT NULL` guard
-- [ ] 2.3 G-17 — Verify geographic reference data scope: idempotent India seed (1 country, 28 states, 45 cities), scoped UNIQUE codes, no runtime CRUD, hierarchy valid
+- [x] 2.3 G-17 — Verify geographic reference data scope: idempotent India seed (1 country, 28 states, 45 cities), scoped UNIQUE codes, no runtime CRUD, hierarchy valid
 
 ## 3. Phase C — Protect Core Data Integrity (G-07, G-14, G-18)
 

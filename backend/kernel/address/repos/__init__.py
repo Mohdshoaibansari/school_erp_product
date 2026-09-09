@@ -87,6 +87,12 @@ class AddressTypeRepo:
         )
         return list(self.db.execute(stmt).scalars().all())
 
+    def list_by_ids(self, ids: Sequence[uuid.UUID]) -> Sequence[AddressType]:
+        if not ids:
+            return []
+        stmt = select(AddressType).where(AddressType.id.in_(ids)).order_by(AddressType.name)
+        return list(self.db.execute(stmt).scalars().all())
+
 
 class AddressRepo:
     """Repository for Address entity."""
@@ -148,6 +154,12 @@ class AddressAssignmentRepo:
         valid_from: date,
         valid_to: date | None,
     ) -> AddressAssignment:
+        # G-07: App-level ownership exclusivity pre-check — nicer error than DB constraint
+        existing = self.db.execute(
+            select(AddressAssignment).where(AddressAssignment.address_id == address_id)
+        ).scalar_one_or_none()
+        if existing is not None:
+            raise ValueError("ADDRESS_ALREADY_ASSIGNED: Address is already assigned to an entity")
         aa = AddressAssignment(
             entity_type_id=entity_type_id,
             entity_id=entity_id,
@@ -197,7 +209,14 @@ class AddressAssignmentRepo:
         valid_to: date | None,
         exclude_id: uuid.UUID | None = None,
     ) -> bool:
-        """Check if overlapping assignment exists for entity + address type."""
+        """Check if overlapping assignment exists for entity + address type.
+
+        G-08: valid_to is inclusive. Adjacent periods (D and D+1) are allowed,
+        same-day (valid_from==valid_to) is valid, at-most-one-effective is
+        enforced via overlap (effective = valid_from<=today<=valid_to/null).
+        Overlap condition for inclusive intervals:
+          [a,b] overlaps [c,d] iff a<=d AND c<=b (with NULL=infinity).
+        """
         stmt = select(AddressAssignment).where(
             AddressAssignment.entity_type_id == entity_type_id,
             AddressAssignment.entity_id == entity_id,
@@ -226,6 +245,40 @@ class AddressAssignmentRepo:
             )
 
         return self.db.execute(stmt).scalar_one_or_none() is not None
+
+    def get_effective(
+        self,
+        entity_type_id: uuid.UUID,
+        entity_id: uuid.UUID,
+        address_type_id: uuid.UUID,
+        on_date: date,
+    ) -> AddressAssignment | None:
+        """Return the effective assignment for entity+type on a given date, if any.
+
+        G-08: effective means valid_from <= on_date AND (valid_to IS NULL OR on_date <= valid_to).
+        At most one such row should exist (enforced by check_overlap); return None if none.
+        Supports historical/current/future queryable — caller chooses on_date.
+        """
+        stmt = select(AddressAssignment).where(
+            AddressAssignment.entity_type_id == entity_type_id,
+            AddressAssignment.entity_id == entity_id,
+            AddressAssignment.address_type_id == address_type_id,
+            AddressAssignment.valid_from <= on_date,
+            or_(
+                AddressAssignment.valid_to.is_(None),
+                AddressAssignment.valid_to >= on_date,
+            ),
+        )
+        return self.db.execute(stmt).scalar_one_or_none()
+
+    def get_by_address_id(self, address_id: uuid.UUID) -> AddressAssignment | None:
+        """Lookup assignment by owned address_id (G-10 ownership)."""
+        stmt = select(AddressAssignment).where(AddressAssignment.address_id == address_id)
+        return self.db.execute(stmt).scalar_one_or_none()
+
+    def delete(self, aa: AddressAssignment) -> None:
+        self.db.delete(aa)
+        self.db.flush()
 
     def update(self, aa: AddressAssignment, **kwargs) -> AddressAssignment:
         for key, value in kwargs.items():

@@ -15,7 +15,9 @@ from kernel.address.services import (
 
 
 def get_address_service(db: Session = Depends(get_db)) -> AddressService:
-    return AddressService(db)
+    from kernel.audit import DefaultAuditEmitter
+
+    return AddressService(db, audit_emitter=DefaultAuditEmitter())
 
 
 def get_address_assignment_service(db: Session = Depends(get_db)) -> AddressAssignmentService:
@@ -33,3 +35,8 @@ def get_geographic_service(db: Session = Depends(get_db)) -> GeographicService:
 def get_entity_type_service(db: Session = Depends(get_db)):
     from kernel.address.repos import EntityTypeRepo
     return EntityTypeRepo(db)
+
+
+def get_address_type_repo(db: Session = Depends(get_db)):
+    from kernel.address.repos import AddressTypeRepo
+    return AddressTypeRepo(db)

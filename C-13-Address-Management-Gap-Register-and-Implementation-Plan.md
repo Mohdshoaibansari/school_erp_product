@@ -191,6 +191,10 @@ Test valid and invalid geographic combinations through the service/API layer.
 
 C-13 requires precise validation rules for required/optional fields.
 
+### Decision Locked 2026-09-07
+
+`postal_code` = **required, VARCHAR(20) NOT NULL** — overrides PRD `§7` “No”. `locality`/`landmark` remain optional 100, blank→NULL. Confirmed by user 2026-09-07. PRD `§7` to be amended `No → Yes` docs-first per `AGENTS.md §3`.
+
 ### Required Work
 
 Enforce:
@@ -199,7 +203,7 @@ Enforce:
 - `line2`: optional, max 500
 - `locality`: optional, max 100
 - `landmark`: optional, max 100
-- `postal_code`: required, max 20
+- `postal_code`: **required**, max 20 (NOT NULL, blank/whitespace → `ADDRESS_REQUIRED_FIELD`, never `NULL`)
 - city/state/country: required
 
 Whitespace behavior:
@@ -707,10 +711,32 @@ After Step 1 is verified, move to Step 2, and so on.
 
 ---
 
+# Decisions Locked 2026-09-07 (Grill Session)
+
+All implementation grill decisions from `2026-09-05` are now reflected in `docs/prd/C-13-Address-Management-PRD.md §24` and `docs/prd/c-13-impact-classification.md`.
+
+| # | Decision | Gap Register Step |
+|---|---:|---|
+| D1 | Module `kernel/address/` (singular) | G-01 |
+| D2 | Only 2 EntityTypes `INSTITUTION`, `PERSON` (Student/Employee via Person) | G-02 |
+| D3 | Generic polymorphic `entity_type_id` + `entity_id` (Option A) | G-02/03 |
+| D4 | No `client_id`/`institution_id` on `address`/`address_assignment` — scope derived from entity | G-13 |
+| D5 | C-04 app-level authz, no RLS in Phase 1 | G-13 |
+| D6 | Seed India geographic data (1 country, 28 states, 45 cities) — minimal intentional | G-17 |
+| D7 | App-level temporal overlap validation | G-08 |
+| D8 | Hard delete `AddressAssignment` + owned `Address` (no orphan, no reuse) + `UNIQUE(address_id)` | G-07/10 |
+| D9 | Single transactional `replace_address()` (end old, create new Address, new assignment) | G-09 |
+| D10 | Separate `address.correct` endpoint for effective addresses | G-11/12 |
+| D11 | Composite unique codes: Country `code`, State `(country_id,code)`, City `(state_id,code)` | G-05/14 |
+| D12 | Audit via existing `AuditEmitter` (`address.created/corrected/deleted` etc.) | G-12 |
+| D13 | All routes in `kernel/address/routes/` (Option 1 refined): `addresses.py`, `person_addresses.py`, `institution_addresses.py`, `reference_data.py`, `address_types.py` | G-01 |
+| D14 | `postal_code` **required** `VARCHAR(20) NOT NULL` — overrides PRD §7 `No` | G-06 |
+| D15 | `locality`/`landmark` remain optional 100, blank→NULL | G-06 |
+
 # Current Status
 
 This document is a **gap register and implementation roadmap**, not an implementation prompt.
 
-No code changes are implied by this document.
+**2026-09-07:** Decisions D1-D15 locked. `postal_code required` decision applied to Step 6. PRD `§7` amendment pending docs-first commit per `AGENTS.md §3`.
 
-The next action should be to select exactly one step and create a focused implementation prompt for that step.
+The next action is **Step 6 docs-first PRD amendment** (`postal_code No → Yes`) then implementation per small-step rule.

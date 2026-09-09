@@ -43,10 +43,16 @@ class AddressCreateDTO(BaseModel):
     address_line_2: str | None = Field(None, max_length=500)
     locality: str | None = Field(None, max_length=100)
     landmark: str | None = Field(None, max_length=100)
-    postal_code: str | None = Field(None, max_length=20)
+    postal_code: str = Field(..., max_length=20)
     city_id: uuid.UUID
     state_id: uuid.UUID
     country_id: uuid.UUID
+
+
+class EntityAddressCreateDTO(AddressCreateDTO):
+    """DTO for entity-scoped address creation (person/institution)."""
+
+    address_type_code: str = Field(..., max_length=100, description="AddressType code e.g. RESIDENTIAL, OFFICE")
 
 
 class AddressUpdateDTO(BaseModel):

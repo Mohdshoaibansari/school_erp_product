@@ -241,7 +241,7 @@ Rules:
 | `address_line_2` | No | 500 | Additional details |
 | `locality` | No | 100 | Free text |
 | `landmark` | No | 100 | Free text |
-| `postal_code` | No | 20 | No country-specific validation in Phase 1 |
+| `postal_code` | Yes | 20 | Required; no country-specific validation in Phase 1 |
 | `city_id` | Yes | — | Normalized reference |
 | `state_id` | Yes | — | Normalized reference |
 | `country_id` | Yes | — | Normalized reference |
@@ -836,7 +836,7 @@ These implementation decisions must remain consistent with the locked functional
 | 45 | Geographic records require stable codes |
 | 46 | Geographic code uniqueness is hierarchical/scoped |
 | 47 | Country, State, City mandatory on Address |
-| 48 | Postal code optional |
+| 48 | Postal code **required** (amended 2026-09-07: `postal_code` required per grill decision) |
 | 49 | Address line 1 mandatory |
 | 50 | Address line 1 max 500 |
 | 51 | Address line 2 max 500 |

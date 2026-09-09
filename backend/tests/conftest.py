@@ -68,6 +68,10 @@ _C01_TABLES = [
 
 def _ensure_supabase_running() -> None:
     """Ensure the local Supabase stack is running (start if needed)."""
+    # G-15 cloud sandbox: when DATABASE_URL points to Supabase Cloud, skip local
+    # Supabase orchestration — it would try to start Docker and hang.
+    if "supabase.co" in DATABASE_URL or "db." in DATABASE_URL and "supabase" in DATABASE_URL:
+        return
     try:
         result = subprocess.run(
             ["supabase", "status"],
@@ -92,6 +96,14 @@ def _reset_database() -> None:
     """Reset the database by dropping and recreating the public schema,
     then applying Alembic migrations from scratch.
     """
+    # Cloud sandbox: never DROP public on Supabase Cloud — just ensure migrations
+    # are at head (idempotent). Dropping would destroy the shared project.
+    # Migrations were already applied externally; skipping reset keeps data.
+    is_cloud = "supabase.co" in DATABASE_URL
+    if is_cloud:
+        # Ensure connection works, but do not reset
+        return
+
     engine = create_engine(DATABASE_URL)
     with engine.connect() as conn:
         # Drop and recreate public schema to get a clean state

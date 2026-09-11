@@ -1,6 +1,12 @@
 # Agent runtime artifacts
 .pi/
 .pi-subagents/
+.agents/
+.opencode/
+opencode.json
+skills-lock.json
+nul
+technical_debt/
 
 # Dependencies
 node_modules/
